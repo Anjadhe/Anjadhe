@@ -1,0 +1,319 @@
+/* Discover pane — the right-hand links column on Home.
+ * Lives inside .dash-shell as a sibling of .dash-main (which is flex:1),
+ * so a fixed flex-basis here is all the layout it needs. Hidden under
+ * 1200px: below that the nav-collapse breakpoint already signals the
+ * window is too narrow for a third column. */
+
+.dash-side {
+    flex: 0 0 300px;
+    height: 100%;
+    overflow-y: auto;
+    border-left: 1px solid var(--color-border-light);
+    padding: var(--space-lg) var(--space-lg) var(--space-2xl);
+    background: var(--color-bg);
+}
+
+@media (max-width: 1199.98px) {
+    .dash-side { display: none; }
+}
+
+/* The hidden attribute must always win over any display rule above —
+ * including on the pane itself, which is hidden whenever web search is
+ * disabled (DiscoverPane._applyVisibility). */
+.dash-side[hidden] { display: none !important; }
+#discover-pane [hidden] { display: none !important; }
+
+.discover-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-sm);
+}
+
+.discover-actions {
+    display: flex;
+    gap: var(--space-xs);
+}
+
+.discover-actions .icon-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+.discover-refreshing svg {
+    animation: discover-spin 1s linear infinite;
+}
+
+@keyframes discover-spin {
+    to { transform: rotate(360deg); }
+}
+
+.discover-list {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Row + its hover-revealed "show fewer like this" control. The dismiss
+   button is a SIBLING of the row button (nested buttons are invalid
+   HTML), absolutely placed over its top-right corner. */
+.discover-item-wrap {
+    position: relative;
+    border-bottom: 1px solid var(--color-border-light);
+}
+
+.discover-item-wrap:last-child {
+    border-bottom: none;
+}
+
+.discover-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 8px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background var(--transition-fast);
+}
+
+.discover-item:hover {
+    background: var(--color-surface-hover);
+}
+
+.discover-item-x {
+    display: none;
+    position: absolute;
+    top: 4px;
+    right: 2px;
+    background: var(--color-bg);
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 2px 6px;
+    font-size: var(--text-sm);
+    line-height: 1;
+    color: var(--color-text-tertiary);
+    cursor: pointer;
+}
+
+.discover-item-wrap:hover .discover-item-x { display: block; }
+
+.discover-item-x:hover { color: var(--color-text); }
+
+/* Already-read stories (click signals double as read marks) fade back. */
+.discover-item-wrap.is-read .discover-item-title {
+    color: var(--color-text-secondary);
+    font-weight: 500;
+}
+
+.discover-item-title {
+    display: block;
+    /* Between --text-xs and --text-sm: headline weight without shouting
+       next to the main feed column. */
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--color-text);
+    line-height: 1.3;
+}
+
+/* Layer 2 boost label — the AI's contribution, always visible and
+   attributable, never a silent reorder. */
+.discover-item-why {
+    display: block;
+    margin-top: 2px;
+    font-size: var(--text-xs);
+    font-style: italic;
+    color: var(--color-text-secondary);
+}
+
+.discover-item-meta {
+    display: block;
+    margin-top: 3px;
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+}
+
+.discover-empty {
+    font-style: italic;
+    font-size: var(--text-sm);
+    color: var(--color-text-tertiary);
+    line-height: 1.45;
+    padding: var(--space-sm) 0;
+}
+
+.discover-setup-btn {
+    margin-top: var(--space-sm);
+}
+
+/* ---------- Weather row (deterministic, Open-Meteo) ---------- */
+
+.discover-weather {
+    padding: 6px 8px 8px;
+    margin-bottom: var(--space-sm);
+    border-bottom: 1px solid var(--color-border-light);
+}
+
+.discover-weather-main {
+    display: block;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.discover-weather-meta {
+    display: block;
+    margin-top: 2px;
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+}
+
+/* ---------- "Catch me up" digest (Layer 3) ---------- */
+
+.discover-catchup {
+    width: 100%;
+    margin: 0 0 var(--space-sm);
+    padding: 6px 10px;
+    font-family: inherit;
+    font-size: var(--text-xs);
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: border-color var(--transition-fast), color var(--transition-fast);
+}
+
+.discover-catchup:hover:not(:disabled) {
+    border-color: var(--color-border-hover);
+    color: var(--color-text);
+}
+
+.discover-catchup:disabled {
+    cursor: default;
+    font-weight: 400;
+    font-style: italic;
+}
+
+/* Door to the full News app at the bottom of the headline list. */
+.discover-all-news {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    font-family: inherit;
+    font-size: var(--text-xs);
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    padding: 8px;
+    margin-top: 2px;
+}
+
+.discover-all-news:hover { color: var(--color-text); }
+
+.discover-footer {
+    margin-top: var(--space-md);
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+}
+
+/* ---------- Preferences modal ---------- */
+
+.discover-prefs-modal .modal-body {
+    max-width: 460px;
+}
+
+.discover-prefs-desc {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    margin: 0 0 var(--space-md);
+    line-height: 1.45;
+}
+
+.discover-chip-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.discover-chip {
+    font-size: var(--text-xs);
+    font-family: inherit;
+    padding: 5px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    background: var(--color-surface);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    transition: border-color var(--transition-fast), background var(--transition-fast), color var(--transition-fast);
+}
+
+.discover-chip:hover {
+    border-color: var(--color-border-hover);
+}
+
+.discover-chip.selected {
+    background: var(--color-text);
+    border-color: var(--color-text);
+    color: var(--color-bg);
+}
+
+.discover-custom-row {
+    display: flex;
+    gap: 8px;
+    margin-top: var(--space-md);
+}
+
+.discover-custom-row input,
+.discover-loc-row input {
+    flex: 1;
+    font-size: var(--text-sm);
+    font-family: inherit;
+    padding: 6px 10px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-bg);
+    color: var(--color-text);
+}
+
+.discover-custom-row input:focus,
+.discover-loc-row input:focus {
+    outline: none;
+    border-color: var(--color-border-hover);
+}
+
+.discover-loc-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    margin-top: var(--space-md);
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+}
+
+.discover-loc-row span {
+    white-space: nowrap;
+}
+
+.discover-prefs-hint {
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    margin: var(--space-sm) 0 0;
+}
+
+.discover-muted-reset {
+    background: none;
+    border: none;
+    font-family: inherit;
+    font-size: var(--text-xs);
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    text-decoration: underline;
+    cursor: pointer;
+    padding: 0;
+}
+
+.discover-muted-reset:hover { color: var(--color-text); }
