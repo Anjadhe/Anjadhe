@@ -1,0 +1,268 @@
+#!/usr/bin/env node
+/**
+ * `anjadhe` — terminal client for the running Anjadhe app (C7.3).
+ *
+ * A thin pipe to the app's loopback CLI server: the running app is the
+ * brain (same model, permissions, memory, logs). Enable Terminal access in
+ * Anjadhe: Settings → AI Assistant → Terminal access, then:
+ *
+ *   anjadhe                      interactive session (like this, but yours)
+ *   anjadhe ask  "…"             one question, streamed, exit
+ *   anjadhe task "…" [--yes]     plan → approve → run → report
+ *   anjadhe ping                 is the app listening?
+ *
+ * In a session: type messages for chat turns; /task <goal> runs task mode
+ * (--yes anywhere in it auto-approves the plan); /exit quits. All turns
+ * share one "Terminal" conversation in the app, so context carries across
+ * turns and sessions. Permission asks arrive inline — y (once) /
+ * s (session) / a (always) / n (no).
+ */
+
+'use strict';
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const http = require('http');
+const readline = require('readline');
+
+const CONFIG_PATH = process.env.ANJADHE_CLI_CONFIG || path.join(os.homedir(), '.anjadhe_cli.json');
+const STEP_MARK = { pending: '·', active: '›', done: '✓', failed: '✗', skipped: '–' };
+
+function die(msg, code = 1) { console.error(msg); process.exit(code); }
+
+function config() {
+    try {
+        return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
+    } catch {
+        die('Terminal access is not enabled.\nIn Anjadhe: Settings → AI Assistant → Terminal access, then try again.');
+    }
+}
+
+function post(cfg, urlPath, body) {
+    const data = JSON.stringify(body);
+    const req = http.request({
+        host: '127.0.0.1', port: cfg.port, path: urlPath, method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data), Authorization: `Bearer ${cfg.token}` }
+    });
+    req.on('error', () => {});
+    req.end(data);
+}
+
+function ping(cfg) {
+    return new Promise((resolve, reject) => {
+        const req = http.request({
+            host: '127.0.0.1', port: cfg.port, path: '/v1/ping', method: 'GET',
+            headers: { Authorization: `Bearer ${cfg.token}` }
+        }, (res) => {
+            let d = '';
+            res.on('data', c => d += c);
+            res.on('end', () => {
+                if (res.statusCode !== 200) { reject(new Error(`Anjadhe answered ${res.statusCode}: ${d}`)); return; }
+                try { resolve(JSON.parse(d)); } catch { resolve({}); }
+            });
+        });
+        req.on('error', () => reject(new Error('Could not reach Anjadhe — is the app running (and Terminal access enabled in Settings)?')));
+        req.end();
+    });
+}
+
+/**
+ * One turn (ask or task): stream events to stdout until done.
+ * opts.ask(question) → Promise<answer> supplies the shared prompt for
+ * permission requests (the session's readline, or a throwaway one).
+ */
+function streamTurn(cfg, kind, message, opts) {
+    return new Promise((resolve, reject) => {
+        let streamed = false;
+        let lastTaskLine = '';
+        let settled = false;
+        const finish = (fn, arg) => { stopSpinner(); if (!settled) { settled = true; fn(arg); } };
+
+        // "Thinking" spinner: a local model's prefill can be many seconds
+        // with no output — without this the CLI looks hung, and the burst of
+        // streamed text afterward reads as one shot. Runs only in a real
+        // terminal; cleared the instant any real output arrives.
+        const interactive = !!process.stdout.isTTY;
+        let spinner = null;
+        const startSpinner = () => {
+            if (!interactive || spinner) return;
+            const frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+            let i = 0; const t0 = Date.now();
+            spinner = setInterval(() => {
+                const s = Math.floor((Date.now() - t0) / 1000);
+                process.stdout.write(`\r${frames[i++ % frames.length]} thinking… ${s}s\x1b[K`);
+            }, 100);
+        };
+        function stopSpinner() {
+            if (spinner) { clearInterval(spinner); spinner = null; if (interactive) process.stdout.write('\r\x1b[K'); }
+        }
+
+        const handle = async (ev) => {
+            if (!ev || !ev.type) return;
+            if (ev.type === 'chunk') {
+                stopSpinner();
+                streamed = true;
+                process.stdout.write(ev.text);
+            } else if (ev.type === 'plan') {
+                stopSpinner();
+                console.log('Plan:');
+                ev.steps.forEach((s, i) => console.log(`  ${i + 1}. ${s}`));
+            } else if (ev.type === 'task_update') {
+                stopSpinner();
+                const line = ev.steps.map(s => STEP_MARK[s.status] || '·').join('') + `  ${ev.status}${ev.note ? ' — ' + ev.note : ''}`;
+                if (line !== lastTaskLine) { lastTaskLine = line; console.log(line); }
+            } else if (ev.type === 'permission_request') {
+                stopSpinner();
+                const what = ev.tool === 'run_plan' ? `Run the plan (${ev.args})` : `${ev.tool}${ev.args ? ' ' + ev.args : ''}`;
+                const ans = await opts.ask(`\n⚙ Anjadhe wants to: ${what}\n${ev.note ? ev.note + '\n' : ''}Allow? [y]es once / [s]ession / [a]lways / [n]o: `);
+                const a = String(ans || '').trim().toLowerCase();
+                const scope = (a === 's' || a === 'session') ? 'session' : (a === 'a' || a === 'always') ? 'always' : 'once';
+                const approved = ['y', 'yes', 's', 'session', 'a', 'always'].includes(a);
+                post(cfg, '/v1/answer', { askId: ev.askId, approved, scope });
+                if (!approved) console.log('(declined)');
+                else startSpinner();   // the agent resumes working
+
+            } else if (ev.type === 'done') {
+                if (!streamed && ev.content) process.stdout.write(ev.content);
+                process.stdout.write('\n');
+                finish(resolve);
+            } else if (ev.type === 'error') {
+                finish(reject, new Error(ev.error));
+            }
+        };
+
+        const body = JSON.stringify({ message, yes: !!opts.yes });
+        const req = http.request({
+            host: '127.0.0.1', port: cfg.port, path: `/v1/${kind}`, method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body), Authorization: `Bearer ${cfg.token}` }
+        }, (res) => {
+            if (res.statusCode !== 200) {
+                let d = '';
+                res.on('data', c => d += c);
+                res.on('end', () => {
+                    let msg = d;
+                    try { msg = JSON.parse(d).error || d; } catch { /* raw */ }
+                    finish(reject, new Error(`Anjadhe answered ${res.statusCode}: ${msg}`));
+                });
+                return;
+            }
+            let buf = '';
+            res.on('data', (c) => {
+                buf += c;
+                let nl;
+                while ((nl = buf.indexOf('\n')) !== -1) {
+                    const line = buf.slice(0, nl).trim();
+                    buf = buf.slice(nl + 1);
+                    if (line) { try { handle(JSON.parse(line)); } catch { /* partial */ } }
+                }
+            });
+            res.on('end', () => finish(resolve));
+            res.on('error', (e) => finish(reject, e));
+        });
+        req.on('error', () => finish(reject, new Error('Could not reach Anjadhe — is the app running (and Terminal access enabled in Settings)?')));
+        req.end(body);
+        startSpinner();   // show feedback during the model's prefill/first-token wait
+    });
+}
+
+async function session(cfg) {
+    let info = {};
+    try { info = await ping(cfg); } catch (e) { die(e.message); }
+    console.log(`Anjadhe${info.version ? ' ' + info.version : ''} — interactive session (context carries across turns).`);
+    console.log('Type a message · /task <goal> runs task mode (add --yes to auto-run) · /exit quits.');
+
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout, historySize: 200 });
+    // Persistent line queue: lines that arrive while a turn is streaming
+    // (piped input, or a fast typist) would otherwise fire 'line' with no
+    // listener and be silently dropped. Both the main prompt and mid-turn
+    // permission asks pull from the same queue.
+    let closed = false;
+    const queued = [];
+    const waiters = [];
+    rl.on('line', (l) => { const w = waiters.shift(); if (w) w(l); else queued.push(l); });
+    rl.on('close', () => { closed = true; while (waiters.length) waiters.shift()(undefined); });
+    rl.on('SIGINT', () => {
+        console.log('\n(bye — anything mid-flight keeps running in the app; the transcript is in the "Terminal" conversation)');
+        process.exit(0);
+    });
+    // In a real terminal, let readline OWN the prompt (setPrompt + prompt())
+    // so it renders the same '›' every turn — writing it manually left
+    // readline's own default '> ' to redraw over it in terminal mode (the
+    // inconsistent-prompt bug). A multi-line promptText (permission asks)
+    // prints its context lines above and makes only the final line the
+    // editable prompt, so readline's column tracking stays correct. When
+    // stdout is NOT a TTY (piped input, tests), rl.prompt() interferes with
+    // line delivery, so just write the prompt string — nobody's watching it
+    // render anyway.
+    const interactive = !!process.stdout.isTTY;
+    const ask = (promptText) => {
+        if (queued.length) return Promise.resolve(queued.shift());
+        if (closed) return Promise.resolve(undefined);
+        let p = promptText;
+        if (interactive) {
+            const nl = p.lastIndexOf('\n');
+            if (nl !== -1) { process.stdout.write(p.slice(0, nl + 1)); p = p.slice(nl + 1); }
+            rl.setPrompt(p);
+            rl.prompt();
+        } else {
+            process.stdout.write(p);
+        }
+        return new Promise(res => waiters.push(res));
+    };
+
+    for (;;) {
+        let line = await ask('\n› ');
+        if (line === undefined) break;
+        line = line.trim();
+        if (!line) continue;
+        if (line === '/exit' || line === '/quit') break;
+        if (line === '/help') {
+            console.log('Commands: /task <goal> [--yes] · /exit · anything else is a chat turn.');
+            continue;
+        }
+        let kind = 'ask', msg = line, yes = false;
+        if (line.startsWith('/task')) {
+            kind = 'task';
+            msg = line.slice(5).trim();
+            if (/\s--yes\b|^--yes\b/.test(msg)) { yes = true; msg = msg.replace(/--yes/g, '').trim(); }
+            if (!msg) { console.log('Give the task a goal: /task <goal>'); continue; }
+        }
+        try {
+            await streamTurn(cfg, kind, msg, { yes, ask });
+        } catch (e) {
+            console.error(`\n${e.message}`);
+        }
+    }
+    rl.close();
+}
+
+async function main() {
+    const argv = process.argv.slice(2);
+    const cmd = argv[0];
+    const cfg = config();
+
+    if (!cmd) { await session(cfg); return; }
+    if (cmd === 'ping') {
+        try { const info = await ping(cfg); console.log(`Anjadhe${info.version ? ' ' + info.version : ''} is listening.`); }
+        catch (e) { die(e.message); }
+        return;
+    }
+    const yes = argv.includes('--yes');
+    const message = argv.slice(1).filter(a => a !== '--yes').join(' ').trim();
+    if ((cmd !== 'ask' && cmd !== 'task') || !message) {
+        die('Usage:\n  anjadhe                    interactive session\n  anjadhe ask  "question"\n  anjadhe task "goal" [--yes]\n  anjadhe ping');
+    }
+    // One-shot: a throwaway readline only if a permission ask arrives.
+    const ask = (q) => new Promise((res) => {
+        const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+        rl.question(q, (a) => { rl.close(); res(a); });
+    });
+    try {
+        await streamTurn(cfg, cmd, message, { yes, ask });
+        process.exit(0);
+    } catch (e) {
+        die(e.message);
+    }
+}
+
+main();
