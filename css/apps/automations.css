@@ -1,0 +1,79 @@
+/* Automations page (docs/COWORK_AGENT.md C8.5) — three hairline-separated
+   sections in the app's reading-surface idiom: rows, not cards. */
+
+.automations-body {
+    max-width: 760px;
+}
+
+.automations-section {
+    margin-bottom: var(--space-xl);
+}
+
+.automations-section-title {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-secondary);
+    margin: 0 0 var(--space-sm);
+}
+
+.automations-hint {
+    font-size: var(--text-sm);
+    color: var(--color-text-tertiary);
+    margin: 0 0 var(--space-md);
+}
+
+.automations-empty {
+    font-style: italic;
+    color: var(--color-text-tertiary);
+    font-size: var(--text-sm);
+}
+
+.automations-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-md);
+    padding: var(--space-sm) 0;
+    border-bottom: 1px solid var(--color-border-light);
+}
+
+.automations-row.is-disabled .automations-row-main {
+    opacity: 0.5;
+}
+
+.automations-row-main {
+    min-width: 0;
+}
+
+.automations-row-title {
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.automations-row-sub {
+    font-size: var(--text-xs);
+    color: var(--color-text-secondary);
+    margin-top: 2px;
+}
+
+.automations-error {
+    color: #dc2626;
+}
+
+.automations-row-actions {
+    display: flex;
+    gap: var(--space-xs);
+    flex-shrink: 0;
+}
+
+.automations-mark {
+    display: inline-block;
+    width: 1.1em;
+}
+
+.automations-mark--ok { color: #16a34a; }
+.automations-mark--bad { color: var(--color-text-tertiary); }
