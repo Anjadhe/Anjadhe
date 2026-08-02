@@ -1,0 +1,520 @@
+/**
+ * Goals page UI — two panes: groups + their goals in the left nav, a
+ * drill-down detail pane on the right (all goals › one group › one goal ›
+ * one task). Inline edits persist straight through GoalsPage to
+ * GoalsApp / ScheduleApp / LinkManager.
+ *
+ * Monochrome by design: the only color on this page is semantic goal
+ * status (stuck red, completed green).
+ */
+
+const GoalsPageUI = {
+    _showLinkedNotes: false,
+
+    _esc(s) { return UIUtils.escapeHtml(s == null ? '' : String(s)); },
+
+    // ===================================================================
+    //  WORKSPACE SHELL
+    // ===================================================================
+
+    renderWorkspace() {
+        this.renderBreadcrumb();
+        this.renderNav();
+        this._populateGroupOptions();
+        this.renderDetailPane();
+    },
+
+    /**
+     * Left nav — "All goals" home, then each group as a clickable heading
+     * with its goals beneath. Reuses the Tasks tab's nav classes so the
+     * two tabs read as one system. Group rows accept goal drops; goal rows
+     * drag.
+     */
+    renderNav() {
+        const nav = document.getElementById('goals-nav');
+        if (!nav) return;
+        const selGoal = GoalsPage.goalForSelection();
+        const activeGroup = !GoalsPage.selected ? GoalsPage.currentGroup : null;
+
+        let html = '';
+        for (const g of GoalsApp.getGroups()) {
+            const goals = GoalsApp.getGoalsInGroup(g);
+            const active = goals.filter(x => x.status !== 'completed').length;
+            html += `<button type="button" class="actions-nav-item gnav-group${activeGroup === g ? ' is-active' : ''}"
+                             data-open-group="${this._esc(g)}" title="${this._esc(g)}">
+                <span class="actions-nav-label">${this._esc(g)}</span>
+                ${active ? `<span class="actions-nav-count">${active}</span>` : ''}
+            </button>`;
+            html += goals.map(goal => {
+                const count = LinkManager.getTaskCountForGoal(goal.id);
+                return `<button type="button" class="actions-nav-item gnav-goal${goal.status === 'completed' ? ' completed' : ''}${selGoal && selGoal.id === goal.id ? ' is-active' : ''}"
+                                data-open-goal="${goal.id}" draggable="true" data-drag-goal="${goal.id}" title="${this._esc(goal.title)}">
+                    <span class="actions-nav-label">${this._esc(goal.title)}</span>
+                    ${count.total ? `<span class="actions-nav-count">${count.completed}/${count.total}</span>` : ''}
+                </button>`;
+            }).join('');
+        }
+        nav.innerHTML = html;
+
+        nav.querySelectorAll('[data-open-group]').forEach(el =>
+            el.addEventListener('click', () => GoalsPage.switchGroup(el.dataset.openGroup)));
+        nav.querySelectorAll('[data-open-goal]').forEach(el =>
+            el.addEventListener('click', () => GoalsPage.selectNode('goal', el.dataset.openGoal)));
+        this._wireDragDrop(nav);
+    },
+
+    /**
+     * No breadcrumb TRAIL: the left nav names the selection and is always
+     * up, and the goal detail's in-pane eyebrow links back to its group —
+     * a chrome trail would repeat what the page already says (same rule as
+     * the Tasks tab). The app title itself stays.
+     */
+    renderBreadcrumb() {
+        Breadcrumb.render('goals-breadcrumb', [{ label: 'Actions' }]);
+    },
+
+    /** Fill the shared <datalist> with existing group names for reuse. */
+    _populateGroupOptions() {
+        const dl = document.getElementById('goals-group-options');
+        if (!dl) return;
+        const groups = GoalsApp.getGroups().filter(g => g !== GoalsApp.UNGROUPED);
+        dl.innerHTML = groups.map(g => `<option value="${this._esc(g)}"></option>`).join('');
+    },
+
+    // ===================================================================
+    //  DETAIL PANE
+    // ===================================================================
+
+    renderDetailPane() {
+        const pane = document.getElementById('goals-detail-pane');
+        if (!pane) return;
+        // The pane may currently host the embedded schedule editor — hand
+        // its DOM back BEFORE any innerHTML write, or it would be destroyed.
+        ScheduleApp.restoreEditorHome();
+        const sel = GoalsPage.selected;
+        if (!sel) {
+            this.renderGroupOverview(pane);
+            return;
+        }
+        if (sel.type === 'goal') this.renderGoalDetail(sel.id, pane);
+        else if (sel.type === 'task') this.renderTaskDetail(sel.id, pane);
+    },
+
+    /** The "Set a new goal" prompt pill (+ optional group scope). */
+    _newGoalAskRow(group) {
+        const scope = group && group !== GoalsApp.UNGROUPED ? ` data-ask-group="${this._esc(group)}"` : '';
+        return `<div class="ask-prompt-row goals-ask-row">
+            <button type="button" class="ask-prompt-btn primary" data-ask-new-goal${scope}>&ldquo;Help me set a new goal&rdquo;</button>
+            <button type="button" class="quiet-link-btn goals-manual-add" data-new-goal${scope}>+ New goal by hand</button>
+        </div>`;
+    },
+
+    /**
+     * Group overview — the page home: one group's goals as cards, each
+     * with its task list and conversation doors. One group at a time (the
+     * all-goals view was removed 2026-07-31 — overwhelming). No group
+     * management: a group is just the label its goals carry.
+     */
+    renderGroupOverview(pane) {
+        GoalsPage._ensureGoalsLoaded();
+        const group = GoalsPage.currentGroup;
+        if (!group) {
+            // Blank slate: the page opens as a conversation, not an empty tree.
+            pane.innerHTML = `<div class="goals-overview goals-blank">
+                <h2 class="goals-detail-title">Goals</h2>
+                <p class="goals-blank-lede">A goal here is an outcome with a finish line, a date, and
+                the first steps on your calendar. The assistant builds it with you — a few questions,
+                then a task timeline you approve.</p>
+                ${this._newGoalAskRow(null)}
+            </div>`;
+            this._wireOverview(pane);
+            return;
+        }
+        const goals = GoalsApp.getGoalsInGroup(group);
+        const label = group === GoalsApp.UNGROUPED ? 'Other goals' : group;
+
+        let html = `<div class="goals-overview">
+            <div class="goals-detail-eyebrow"><span>Group</span></div>
+            <div class="goals-head">
+                <h2 class="goals-detail-title">${this._esc(label)}</h2>
+            </div>
+            <div class="goals-overview-sub">${goals.length} goal${goals.length === 1 ? '' : 's'} &mdash; rename or move goals to reshape the group</div>`;
+
+        if (goals.length === 0) {
+            html += '<div class="goals-empty-line">No goals in this group yet.</div>';
+        } else {
+            html += '<div class="goals-card-list">';
+            for (const goal of goals) html += this._renderGoalCard(goal);
+            html += '</div>';
+        }
+        html += this._newGoalAskRow(group);
+        html += '</div>';
+
+        pane.innerHTML = html;
+        this._wireOverview(pane);
+        this._attachGoalCardListeners(pane);
+    },
+
+    /**
+     * A goal card for the group overview: header (collapse twisty, status,
+     * title, n/m count — opens the goal) + the goal's task list and
+     * prompt-buttons when expanded.
+     */
+    _renderGoalCard(goal) {
+        const tasks = LinkManager.getTasksForGoal(goal.id);
+        const taskCount = LinkManager.getTaskCountForGoal(goal.id);
+        const expanded = !GoalsPage.collapsedGoalIds.has(goal.id);
+
+        let html = `<div class="goals-card ${goal.status === 'completed' ? 'completed' : ''}" data-goal-id="${goal.id}">`;
+        html += `<div class="goals-card-header" data-goal-id="${goal.id}">
+                    <button type="button" class="goals-card-collapse" data-collapse-goal="${goal.id}"
+                            aria-expanded="${expanded}" title="${expanded ? 'Hide tasks' : 'Show tasks'}">${expanded ? '&#9662;' : '&#9656;'}</button>
+                    <span class="goals-card-title" draggable="true" data-drag-goal="${goal.id}">${this._esc(goal.title)}</span>
+                    ${goal.status === 'draft' ? '<span class="goals-draft-chip">draft</span>' : ''}
+                    ${taskCount.total > 0 ? `<span class="goals-card-task-count">${taskCount.completed}/${taskCount.total}</span>` : ''}
+                    <span class="goals-card-nav" title="Open goal">&#8594;</span>
+                 </div>`;
+        if (expanded) {
+            if (tasks.length > 0) {
+                html += `<div class="goals-card-tasks">${TaskListUI.renderList(tasks, this._goalTaskOpts(goal.id))}</div>`;
+            }
+            html += `<button class="goals-card-add-task task-list-new-btn">+ New Task</button>`;
+            html += `<div class="ask-prompt-row goals-card-ask">${this._goalAskButtons(goal)}</div>`;
+        }
+        html += '</div>';
+        return html;
+    },
+
+    /**
+     * The quoted prompt-buttons for one goal. A draft's door is finishing
+     * the interview; a live goal's doors are the status conversation.
+     */
+    _goalAskButtons(goal) {
+        if (goal.status === 'draft') {
+            return `<button type="button" class="ask-prompt-btn primary" data-goal-ask="finish" data-goal-title="${this._esc(goal.title)}">&ldquo;Finish planning it&rdquo;</button>`;
+        }
+        return `<button type="button" class="ask-prompt-btn" data-goal-ask="status" data-goal-title="${this._esc(goal.title)}">&ldquo;How is this going?&rdquo;</button>
+            <button type="button" class="ask-prompt-btn" data-goal-ask="stuck" data-goal-title="${this._esc(goal.title)}">&ldquo;I&rsquo;m stuck&rdquo;</button>`;
+    },
+
+    /** Wire goal/group opens, creation, and drags in an overview pane. */
+    _wireOverview(pane) {
+        pane.querySelectorAll('[data-open-goal]').forEach(el =>
+            el.addEventListener('click', () => GoalsPage.selectNode('goal', el.dataset.openGoal)));
+        pane.querySelectorAll('[data-open-group]').forEach(el =>
+            el.addEventListener('click', () => GoalsPage.switchGroup(el.dataset.openGroup)));
+        pane.querySelectorAll('[data-ask-new-goal]').forEach(btn =>
+            btn.addEventListener('click', () => GoalsPage.askNewGoal(btn.dataset.askGroup || null)));
+        pane.querySelectorAll('[data-new-goal]').forEach(btn =>
+            btn.addEventListener('click', () => GoalsPage.createGoalInline(btn.dataset.askGroup || null)));
+        this._wireDragDrop(pane);
+    },
+
+    // Custom MIME type so dragover can tell goal drags apart (dataTransfer
+    // payloads are unreadable until drop).
+    GOAL_MIME: 'application/x-anjadhe-goal',
+
+    /**
+     * Drag-and-drop regrouping: goal rows drag, anything that opens a
+     * group accepts the drop and sets the goal's `group` field.
+     */
+    _wireDragDrop(pane) {
+        pane.querySelectorAll('[data-drag-goal]').forEach(el =>
+            el.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData(this.GOAL_MIME, el.dataset.dragGoal);
+                e.dataTransfer.effectAllowed = 'move';
+            }));
+
+        pane.querySelectorAll('[data-open-group]').forEach(el => {
+            el.addEventListener('dragover', (e) => {
+                if (![...e.dataTransfer.types].includes(this.GOAL_MIME)) return;
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                el.classList.add('is-drop');
+            });
+            el.addEventListener('dragleave', (e) => {
+                if (!el.contains(e.relatedTarget)) el.classList.remove('is-drop');
+            });
+            el.addEventListener('drop', (e) => {
+                const id = e.dataTransfer.getData(this.GOAL_MIME);
+                if (!id) return;
+                e.preventDefault();
+                e.stopPropagation();
+                el.classList.remove('is-drop');
+                GoalsPage.setGoalGroup(id, el.dataset.openGroup, { toast: true });
+            });
+        });
+    },
+
+    /** Wire goal-card headers, twisties, and prompt-buttons. */
+    _attachGoalCardListeners(container) {
+        container.querySelectorAll('.goals-card-header').forEach(header => {
+            header.addEventListener('click', (e) => {
+                if (e.target.closest('.goals-card-collapse')) return;   // twisty owns that click
+                GoalsPage.selectNode('goal', header.dataset.goalId);
+            });
+        });
+        container.querySelectorAll('.goals-card-collapse').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                GoalsPage.toggleGoalCollapsed(btn.dataset.collapseGoal);
+            });
+        });
+        this._attachGoalAskListeners(container);
+
+        // Task rows — the shared TaskListUI, wired per goal card so each
+        // list's new-task context stays unambiguous.
+        container.querySelectorAll('.goals-card[data-goal-id]').forEach(card =>
+            TaskListUI.attach(card, this._goalTaskOpts(card.dataset.goalId)));
+    },
+
+    /**
+     * Goal prompt-buttons: quoted questions that hand the goal to the
+     * assistant (grounded in its linked tasks via the goals tools).
+     */
+    _attachGoalAskListeners(container) {
+        container.querySelectorAll('[data-goal-ask]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (typeof AgentUI === 'undefined' || !AgentUI.askWithPrompt) return;
+                const title = btn.dataset.goalTitle || 'this goal';
+                const prompts = {
+                    finish: `Let's finish planning my goal "${title}". Check what is still missing with start_goal_interview and ask me the next question.`,
+                    stuck: `I am stuck on my goal "${title}". Ask me what is blocking it, then help me find the smallest next step and schedule it.`,
+                    status: `How is my goal "${title}" going? Ground your read in its linked tasks - what got done recently, what is scheduled next, and how long it has been since movement - then tell me plainly.`
+                };
+                AgentUI.askWithPrompt(prompts[btn.dataset.goalAsk] || prompts.status, { newChat: true });
+            });
+        });
+    },
+
+    /**
+     * Goal detail — the FULL goal editor, inline in the pane: title,
+     * status, group, target date, description, the AI review block, the
+     * task list, linked notes/bookmarks. Every field autosaves in place
+     * via GoalsPage -> GoalsApp.
+     */
+    renderGoalDetail(goalId, pane) {
+        GoalsPage._ensureGoalsLoaded();
+        GoalsPage._ensureScheduleLoaded();
+        const goal = (GoalsApp.goals || []).find(g => g.id === goalId);
+        if (!goal) { pane.innerHTML = '<div class="goals-detail-empty">This goal no longer exists.</div>'; return; }
+        const status = goal.status || 'not-started';
+        const group = (goal.group || '').trim();
+
+        const notesExpanded = this._showLinkedNotes;
+        const html = `<div class="goal-editor-main goals-goal-embed">
+            <div class="goals-detail-crumbs">
+                ${group ? `<span class="breadcrumb-link" data-crumb-group="${this._esc(group)}">${this._esc(group)}</span><span class="breadcrumb-separator">&#8250;</span>` : ''}<span class="breadcrumb-current">Goal</span>
+                ${status === 'draft' ? '<span class="goals-draft-chip">draft</span>' : ''}
+            </div>
+            <input type="text" class="detail-title-input goal-embed-title" value="${this._esc(goal.title)}" placeholder="Goal title..." autocomplete="off">
+            <div class="goal-editor-card">
+            <div class="detail-section-header">Details</div>
+            <div class="goal-detail-row">
+                <div class="goal-detail-field">
+                    <label for="goal-embed-group">Group</label>
+                    <input type="text" id="goal-embed-group" class="goal-embed-group" list="goals-group-options"
+                           value="${this._esc(group)}" placeholder="e.g. Work, Health" autocomplete="off">
+                </div>
+                <div class="goal-detail-field">
+                    <label for="goal-embed-target">Target</label>
+                    <input type="date" id="goal-embed-target" class="goal-target-input goal-embed-target" value="${goal.targetDate || ''}">
+                </div>
+                <div class="goal-detail-field goal-detail-field--completed">
+                    <label for="goal-embed-completed">Completed</label>
+                    <input type="checkbox" id="goal-embed-completed" class="goal-completed-input goal-embed-completed" ${goal.status === 'completed' ? 'checked' : ''}>
+                </div>
+            </div>
+            <div class="goal-description-wrapper">
+                <label for="goal-embed-desc">Done means</label>
+                <textarea id="goal-embed-desc" class="goal-description-input goal-embed-desc" placeholder="The finish line, measurably.">${this._esc(goal.description || '')}</textarea>
+            </div>
+            ${goal.why ? `<div class="goals-prose-row"><span class="goals-prose-label">Why</span><p>${this._esc(goal.why)}</p></div>` : ''}
+            ${goal.obstacles ? `<div class="goals-prose-row"><span class="goals-prose-label">Obstacles</span><p>${this._esc(goal.obstacles)}</p></div>` : ''}
+            </div>
+            <div class="ask-prompt-row goals-detail-ask">${this._goalAskButtons(goal)}</div>
+            ${this._goalReviewHtml(goal)}
+            ${TaskListUI.renderSection(LinkManager.getTasksForGoal(goalId), this._goalTaskOpts(goalId))}
+            <div class="goal-linked-notes-section">
+                <button class="goals-linked-toggle schedule-completed-toggle" data-toggle="goal-linked-notes" aria-expanded="${!!notesExpanded}">
+                    <span class="schedule-section-title">Notes &amp; Bookmarks</span>
+                    <span class="schedule-completed-arrow">${notesExpanded ? '&#9652;' : '&#9662;'}</span>
+                </button>
+                <div class="goal-linked-notes-body" style="display:${notesExpanded ? 'block' : 'none'};">
+                    ${LinkedItemsUI.renderAll('goals', goalId, {
+                        sections: [
+                            { targetApp: 'notes', label: 'Notes', buttonLabel: '+ Attach Note' },
+                            { targetApp: 'bookmarks', label: 'Bookmarks', buttonLabel: '+ Link Bookmark' }
+                        ]
+                    })}
+                </div>
+            </div>
+            <div class="goals-detail-actions">
+                <button type="button" class="secondary-btn goal-embed-delete">Delete goal</button>
+            </div>
+        </div>`;
+
+        pane.innerHTML = html;
+        this._attachGoalEmbedListeners(pane, goalId);
+    },
+
+    /** Wire the embedded goal editor's fields, tasks, and notes to persistence. */
+    _attachGoalEmbedListeners(pane, goalId) {
+        pane.querySelectorAll('.breadcrumb-link[data-crumb-group]').forEach(btn =>
+            btn.addEventListener('click', () => GoalsPage.switchGroup(btn.dataset.crumbGroup)));
+
+        const titleEl = pane.querySelector('.goal-embed-title');
+        titleEl.addEventListener('change', () => GoalsPage.setGoalField(goalId, 'title', titleEl.value));
+
+        pane.querySelector('.goal-embed-group').addEventListener('change', (e) =>
+            GoalsPage.setGoalGroup(goalId, e.target.value));
+
+        pane.querySelector('.goal-embed-target').addEventListener('change', (e) =>
+            GoalsPage.setGoalField(goalId, 'targetDate', e.target.value || null));
+
+        pane.querySelector('.goal-embed-completed').addEventListener('change', (e) =>
+            GoalsPage.setGoalStatus(goalId, e.target.checked ? 'completed' : 'not-started'));
+
+        const descEl = pane.querySelector('.goal-embed-desc');
+        descEl.addEventListener('change', () => GoalsPage.setGoalField(goalId, 'description', descEl.value.trim()));
+
+        pane.querySelector('.goal-embed-delete')?.addEventListener('click', () => GoalsPage.deleteGoal(goalId));
+
+        this._attachGoalAskListeners(pane);
+        this._attachGoalReviewListeners(pane);
+
+        // Tasks list — the shared TaskListUI; edits persist in place and
+        // re-render the workspace.
+        TaskListUI.attach(pane.querySelector('.task-list-section'), this._goalTaskOpts(goalId));
+
+        // Notes & Bookmarks collapsible
+        const toggle = pane.querySelector('[data-toggle="goal-linked-notes"]');
+        if (toggle) {
+            toggle.addEventListener('click', () => {
+                this._showLinkedNotes = !this._showLinkedNotes;
+                const body = pane.querySelector('.goal-linked-notes-body');
+                const arrow = toggle.querySelector('.schedule-completed-arrow');
+                body.style.display = this._showLinkedNotes ? 'block' : 'none';
+                arrow.innerHTML = this._showLinkedNotes ? '&#9652;' : '&#9662;';
+                toggle.setAttribute('aria-expanded', this._showLinkedNotes);
+            });
+        }
+        const notesBody = pane.querySelector('.goal-linked-notes-body');
+        if (notesBody) LinkedItemsUI.attachListeners(notesBody, () => this.renderDetailPane());
+    },
+
+    /**
+     * Task detail — the FULL schedule editor (repeat, reminders, timer,
+     * links, history), embedded in the pane so the Goals page keeps its
+     * nav. Back/delete return to the goal the task was opened from
+     * (origin 'plan').
+     */
+    renderTaskDetail(taskId, pane) {
+        const item = GoalsPage._scheduleItem(taskId);
+        if (!item) { pane.innerHTML = '<div class="goals-detail-empty">This task no longer exists.</div>'; return; }
+        // Conversation doors for the task, above the embedded editor — the
+        // same pills the Tasks tab's inline detail shows. The editor gets
+        // its OWN host div: restoreEditorHome() sweeps every host child
+        // back into the schedule editor view, so the ask row must not
+        // share the host with the borrowed editor DOM.
+        const ask = (typeof AgentUI !== 'undefined' && AgentUI.askWithPrompt)
+            ? `<div class="ask-prompt-row goals-task-ask">${ActionsApp.taskAskPillsHtml(item.title)}</div>`
+            : '';
+        pane.innerHTML = ask + '<div class="goals-task-editor-host"></div>';
+        pane.querySelectorAll('[data-ask]').forEach(b =>
+            b.addEventListener('click', () => AgentUI.askWithPrompt(b.dataset.ask, { newChat: true })));
+        ScheduleApp.init();
+        ScheduleApp.embedEditor(pane.querySelector('.goals-task-editor-host'));
+        ScheduleApp.openEditor(taskId, { origin: 'plan', embedded: true });
+    },
+
+    // ── Weekly goal reviews (shared ReviewRoutines pattern) ──
+    //
+    // "Review it weekly" creates a routine titled "Goal Review: <title>"
+    // (GoalInterview.startWeeklyReview — the same recipe the save_goal tool
+    // uses); the goal detail quotes the newest feed post as the goal's
+    // living explanation. Title-match linking: renaming the goal orphans
+    // the routine, and the page simply offers to start again.
+
+    _attachGoalReviewListeners(container) {
+        container.querySelectorAll('[data-goal-review-start]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                GoalInterview.startWeeklyReview(btn.dataset.goalReviewStart);
+                UIUtils.showToast('Weekly reviews scheduled. Adjust anytime in Routines.', 'success');
+                GoalsPage.render();
+            });
+        });
+        container.querySelectorAll('[data-goal-review-stop]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (typeof ReviewRoutines === 'undefined') return;
+                ReviewRoutines.stop(btn.dataset.goalReviewStop);
+                UIUtils.showToast('Weekly reviews stopped. Past reviews stay in the feed.', 'success');
+                GoalsPage.render();
+            });
+        });
+        container.querySelectorAll('[data-goal-review-run]').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                if (typeof PromptFeed === 'undefined' || !PromptFeed.runNow) return;
+                btn.disabled = true;
+                btn.textContent = 'Running…';
+                await PromptFeed.runNow(btn.dataset.goalReviewRun);
+                GoalsPage.render();
+            });
+        });
+        container.querySelectorAll('[data-goal-review-open]').forEach(el => {
+            const open = () => {
+                if (typeof PromptFeed !== 'undefined') PromptFeed.openPost(el.dataset.goalReviewOpen);
+            };
+            el.addEventListener('click', open);
+            el.addEventListener('keydown', (e) => { if (e.key === 'Enter') open(); });
+        });
+    },
+
+    _goalReviewHtml(goal) {
+        if (typeof ReviewRoutines === 'undefined' || !goal.title) return '';
+        const esc = (s) => this._esc(s);
+        const routine = ReviewRoutines.find(GoalInterview.GOAL_REVIEW_PREFIX + goal.title);
+        const post = routine ? ReviewRoutines.latestPost(routine.id) : null;
+        if (post) {
+            const when = (typeof PromptFeed !== 'undefined') ? PromptFeed._timeAgo(post.createdAt) : '';
+            return `
+                <div class="ai-review-quote goals-review" data-goal-review-open="${esc(post.id)}"
+                     role="button" tabindex="0" title="Read the full review">
+                    <div class="ai-review-meta">Anjadhe&rsquo;s review &middot; ${esc(when)}</div>
+                    <p class="ai-review-text">${esc(ReviewRoutines.excerpt(post, 240))}</p>
+                </div>
+                <div class="ai-review-foot goals-review-foot">
+                    Reviews run ${esc(NotePrompts.scheduleLabel(NotePrompts.config(routine)))}
+                    <button type="button" class="quiet-link-btn" data-goal-review-stop="${esc(routine.id)}">Stop</button>
+                </div>`;
+        }
+        if (routine) {
+            return `
+                <div class="ai-review-foot goals-review-foot">
+                    Reviews scheduled ${esc(NotePrompts.scheduleLabel(NotePrompts.config(routine)))} &mdash; the first one posts to your Home feed after its run.
+                    <button type="button" class="quiet-link-btn" data-goal-review-run="${esc(routine.id)}">Run it now</button>
+                    <button type="button" class="quiet-link-btn" data-goal-review-stop="${esc(routine.id)}">Stop</button>
+                </div>`;
+        }
+        return `
+            <div class="ai-review-foot goals-review-foot">
+                <button type="button" class="quiet-link-btn" data-goal-review-start="${esc(goal.title)}">Review it weekly</button>
+            </div>`;
+    },
+
+    /**
+     * TaskListUI context for a goal's task list — open in-pane, × deletes
+     * the task, "+ New Task" links to the goal.
+     */
+    _goalTaskOpts(goalId) {
+        return {
+            onChanged: () => GoalsPage.render(),
+            onOpenTask: (taskId) => GoalsPage.selectNode('task', taskId),
+            allowDelete: true,
+            newTask: { links: [{ app: 'goals', id: goalId }] },
+            linkExisting: { app: 'goals', id: goalId },
+            aiBreakdown: { goalId }
+        };
+    }
+};

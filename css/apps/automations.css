@@ -1,0 +1,157 @@
+/* Automations page (docs/COWORK_AGENT.md C8.5) — hairline-separated
+   sections in the app's reading-surface idiom: compact rows with a hover
+   well, actions hidden until the row is under the cursor (the widget-row
+   pattern), so the page reads as content, not as a grid of buttons.
+   Guidance lives in the empty states, never in standing hint paragraphs. */
+
+/* Reading width rides the house mechanism (core.css caps and centers every
+   .app-view child via --view-content-max) — a max-width on the body itself
+   is overridden by that rule and does nothing. */
+#automations-view {
+    --view-content-max: 760px;
+}
+
+.automations-section {
+    margin-bottom: var(--space-xl);
+}
+
+.automations-section-title {
+    font-size: var(--text-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-secondary);
+    margin: 0 0 var(--space-xs);
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--color-border-light);
+}
+
+.automations-count {
+    font-weight: 400;
+    color: var(--color-text-tertiary);
+    margin-left: 2px;
+}
+
+.automations-empty {
+    font-style: italic;
+    color: var(--color-text-tertiary);
+    font-size: var(--text-sm);
+    line-height: 1.5;
+    margin: var(--space-sm) 0 0;
+}
+
+/* Rows: [ (mark) | title + sub | actions ]. The hover well extends past
+   the text column (negative margins) so content stays on one left axis
+   while the well reads as a full-width surface. */
+.automations-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: 7px 10px;
+    margin: 0 -10px;
+    border-radius: var(--radius-sm);
+    border-bottom: 1px solid transparent;
+}
+
+.automations-row:hover {
+    background: var(--color-surface-hover);
+}
+
+.automations-row + .automations-row {
+    border-top: 1px solid var(--color-border-light);
+    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+}
+
+.automations-row.is-disabled .automations-row-main {
+    opacity: 0.5;
+}
+
+.automations-row-main {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.automations-row-title {
+    font-size: var(--text-sm);
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.automations-row-sub {
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    margin-top: 1px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.automations-error {
+    color: #dc2626;
+}
+
+/* Actions wait for hover (or keyboard focus) — except .is-open, for the
+   "Waiting on you" section, where acting IS the point of the row. */
+.automations-row-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+}
+
+.automations-row:hover .automations-row-actions,
+.automations-row:focus-within .automations-row-actions,
+.automations-row-actions.is-open {
+    opacity: 1;
+}
+
+/* Quiet pill buttons, the widget-row-btn shape. */
+.automations-btn {
+    font-size: var(--text-xs);
+    padding: 2px 9px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background var(--transition-fast), color var(--transition-fast),
+                border-color var(--transition-fast);
+}
+
+.automations-btn:hover {
+    background: var(--color-text);
+    border-color: var(--color-text);
+    color: var(--color-bg);
+}
+
+.automations-btn--primary {
+    background: var(--color-text);
+    border-color: var(--color-text);
+    color: var(--color-bg);
+    font-weight: 600;
+}
+
+.automations-btn--primary:hover {
+    opacity: 0.85;
+}
+
+.automations-btn--danger:hover {
+    background: #dc2626;
+    border-color: #dc2626;
+    color: #fff;
+}
+
+/* Fixed mark column (Recent) so every goal shares a left edge. */
+.automations-mark {
+    flex: 0 0 16px;
+    text-align: center;
+    font-size: var(--text-xs);
+}
+
+.automations-mark--ok { color: #16a34a; }
+.automations-mark--run { color: var(--color-text-tertiary); }
+.automations-mark--bad { color: #dc2626; }
