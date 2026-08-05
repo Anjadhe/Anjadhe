@@ -1,0 +1,2708 @@
+/* ===================================
+   Email App
+   =================================== */
+
+/* Layout — the email view is a full-height workspace, not a scrolling
+   document: the page never scrolls; each pane (sidebar, list, viewer,
+   insights) scrolls internally. Same pattern as the Assistant view. */
+#email-view.active {
+    display: flex;
+    flex-direction: column;
+    /* Subtract the fixed 38px titlebar — a full 100vh would overflow and
+       recreate the page-level scrollbar this layout exists to avoid. */
+    height: calc(100vh - 38px);
+    overflow: hidden;
+}
+
+#email-view .app-header-bar {
+    flex-shrink: 0;
+}
+
+/* The rail-to-list gap is deliberately small: the label pills already end in
+   whitespace and the list rows start with their own --space-md of padding, so
+   a --space-xl gutter here read as a dead band between the two columns. */
+.email-layout {
+    display: flex;
+    gap: var(--space-sm);
+    flex: 1;
+    min-height: 0;
+}
+
+.email-sidebar {
+    width: 200px;
+    min-width: 200px;
+    flex-shrink: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    transition: width var(--transition-base), min-width var(--transition-base);
+}
+
+/* Collapsed labels rail — slides shut; the mail area takes the width.
+   Toggled from the hamburger next to the Email title. */
+.email-layout.sidebar-collapsed .email-sidebar {
+    width: 0;
+    min-width: 0;
+}
+
+.email-layout.sidebar-collapsed {
+    gap: 0;
+}
+
+/* The mail workspace is denser than a reading page: the shared --space-xl
+   header gap pushed all three panes down and left a dead band above the
+   reading pane's toolbar, which is the first thing in it. */
+#email-view .app-header-bar {
+    margin-bottom: var(--space-md);
+}
+
+/* Header left group: sidebar toggle + title (same idiom as the
+   Assistant view's rail toggle). */
+.email-header-left {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    min-width: 0;
+}
+
+.email-sidebar-toggle {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--color-text-tertiary);
+    cursor: pointer;
+    font-size: var(--text-lg);
+    line-height: 1;
+    transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.email-sidebar-toggle:hover {
+    background: var(--color-surface-hover);
+    color: var(--color-text);
+}
+
+.email-main {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    gap: var(--space-lg);
+}
+
+/* Each section is a column whose list/body area scrolls internally.
+   (JS toggles sections with style.display = '' — the stylesheet value
+   below is what '' falls back to.) */
+#email-list-section {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+}
+
+#email-container {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 2px;
+}
+
+#email-viewer-section {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+/* Reading pane: the FULL viewer (all toolbar actions) is docked beside the
+   list at all times, showing a placeholder until a message is picked. The
+   two panes scroll independently. JS owns the .email-split class and never
+   sets it below the two-pane width, so there is no media query undoing it
+   here. The list width is user-draggable (--email-list-w, set by JS from
+   the remembered preference); the divider between the panes is the handle. */
+.email-main.email-split #email-list-section {
+    flex: 0 0 var(--email-list-w, 380px);
+    min-width: 0;
+}
+
+/* Divider / drag handle. A hairline with a fat invisible hit area, so it
+   reads as a seam and still grabs like a control. */
+.email-split-resizer {
+    display: none;
+}
+
+.email-main.email-split > .email-split-resizer {
+    display: block;
+    position: relative;
+    flex: 0 0 1px;
+    background: var(--color-border);
+    cursor: col-resize;
+    transition: background var(--transition-fast);
+}
+
+.email-split-resizer::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -6px;
+    right: -6px;
+}
+
+.email-main.email-split > .email-split-resizer:hover,
+.email-main.email-split > .email-split-resizer.is-dragging,
+.email-main.email-split > .email-split-resizer:focus-visible {
+    background: var(--color-text);
+    outline: none;
+}
+
+/* While dragging, the whole window keeps the resize cursor and stops
+   selecting text under the pointer. */
+body.email-col-resizing {
+    cursor: col-resize;
+    user-select: none;
+}
+
+/* The split list is narrow — one line still: drop the snippet tail and
+   hover actions, shrink the sender column, and let the subject breathe. */
+.email-main.email-split .email-row-snippet,
+.email-main.email-split .email-row-actions {
+    display: none;
+}
+
+.email-main.email-split .email-row-from {
+    width: 104px;
+    min-width: 104px;
+}
+
+/* Bundle cards in the narrow pane: tighter padding. The peek lines stay —
+   they ellipsize, and dropping one here would make the "N more" count lie. */
+.email-main.email-split .email-bundle-card {
+    padding: var(--space-sm) var(--space-md);
+    gap: var(--space-sm);
+}
+
+/* Open email's row: same inverted treatment as the active label. */
+.email-row.is-selected,
+.email-row.is-selected:hover {
+    background: var(--color-surface-hover);
+    box-shadow: inset 2px 0 0 var(--color-text);
+}
+
+/* Reading pane at rest — nothing selected yet. */
+.email-viewer-empty {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-sm);
+    color: var(--color-text-tertiary);
+    font-style: italic;
+}
+
+.email-viewer-empty .empty-icon {
+    font-size: var(--text-3xl);
+    font-style: normal;
+    opacity: 0.4;
+}
+
+/* Header extras */
+.email-header-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+/* Premium header chrome (matches the Actions rungs / Assistant capsule):
+   header buttons share the pill geometry, the settings gear is a quiet
+   ghost circle. .email-header-actions is also used by the Calendar header,
+   so the gear rule rides on it rather than a per-view id. */
+#email-view .app-header-bar .primary-btn,
+#email-view .app-header-bar .secondary-btn {
+    border-radius: 999px;
+    padding: 6px 16px;
+}
+
+.email-header-actions .app-settings-btn {
+    border: none;
+    min-width: 32px;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+}
+
+.email-header-actions .app-settings-btn:hover {
+    background: var(--color-surface-hover);
+}
+
+/* Sync and Compose — same 32px circle as the gear and the reading-pane
+   toggle, so the header reads as one row of icons instead of icons plus two
+   word-buttons. Compose keeps its primary weight by being the filled one. */
+.email-header-icon-btn {
+    border: none;
+    min-width: 32px;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    color: var(--color-text-tertiary);
+}
+
+.email-header-icon-btn svg {
+    width: 17px;
+    height: 17px;
+}
+
+.email-header-icon-btn:hover {
+    background: var(--color-surface-hover);
+    color: var(--color-text);
+}
+
+.email-header-icon-btn.is-primary {
+    background: var(--color-text);
+    color: var(--color-bg);
+}
+
+.email-header-icon-btn.is-primary:hover {
+    background: var(--color-text);
+    color: var(--color-bg);
+    opacity: 0.85;
+}
+
+/* Busy state: the spinner replaces the icon, so keep the circle from
+   collapsing to the spinner's size. */
+.email-header-icon-btn.is-loading {
+    background: var(--color-surface-hover);
+}
+
+.email-header-icon-btn:disabled {
+    cursor: default;
+}
+
+/* Header view toggles (reading pane, unread-only, bundles) — a quiet ghost
+   circle like the gear, filled when the toggle is on, so the current state
+   reads at a glance. */
+.email-reader-toggle,
+.email-toggle-btn {
+    border: none;
+    min-width: 32px;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    color: var(--color-text-tertiary);
+}
+
+.email-reader-toggle svg,
+.email-toggle-btn svg {
+    width: 17px;
+    height: 17px;
+}
+
+.email-reader-toggle:hover,
+.email-toggle-btn:hover {
+    background: var(--color-surface-hover);
+    color: var(--color-text);
+}
+
+.email-reader-toggle.is-active,
+.email-toggle-btn.is-active {
+    background: var(--color-text);
+    color: var(--color-bg);
+}
+
+.email-reader-toggle.is-active:hover,
+.email-toggle-btn.is-active:hover {
+    background: var(--color-text);
+    color: var(--color-bg);
+    opacity: 0.85;
+}
+
+/* Last-sync caption — a footnote at the bottom of the labels rail, not a
+   header item: in the header it took a slice of the row from the search box
+   and its width changed as the wording did ("just now" → "2 hours ago"),
+   nudging every button beside it. */
+.email-sync-status {
+    display: block;
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    padding: var(--space-xs) 0 var(--space-md);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.email-sync-status:empty {
+    display: none;
+}
+
+/* Label sidebar */
+.email-label-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.email-label-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-sm) var(--space-md);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    transition: all var(--transition-fast);
+}
+
+.email-label-item:hover {
+    background: var(--color-surface-hover);
+    color: var(--color-text);
+}
+
+/* Active label — surface fill + inset ring, the Assistant rail's active
+   state. */
+.email-label-item.active {
+    background: var(--color-surface);
+    box-shadow: inset 0 0 0 1px var(--color-border);
+    color: var(--color-text);
+    font-weight: 500;
+}
+
+
+.email-label-name {
+    flex: 1;
+}
+
+/* Thread-state rows (Needs reply / Waiting on them) sit above the labels and
+   are separated by a hairline rather than a second heading — they are a
+   different idea (a queue, not a filing place), and one line says that
+   without spending a row on the word. */
+.email-label-sep {
+    height: 1px;
+    background: var(--color-border-light);
+    margin: var(--space-sm) var(--space-md);
+}
+
+.email-label-count {
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+}
+
+.email-label-badge {
+    font-size: 10px;
+    background: var(--color-text);
+    color: var(--color-bg);
+    padding: 1px 6px;
+    border-radius: 10px;
+    font-weight: 600;
+    min-width: 18px;
+    text-align: center;
+}
+
+/* Door to Email AI at the foot of the labels (2026-08-04 — it was one icon
+   among seven in the header strip, which read as invisible). A real
+   <button> wearing the label-row geometry so it belongs to the rail; the
+   arrow appears on hover, the row idiom for "this goes somewhere else"
+   rather than "this filters here". */
+.email-ai-door {
+    width: 100%;
+    background: none;
+    border: none;
+    font: inherit;
+    text-align: left;
+}
+
+.email-ai-door svg {
+    width: 15px;
+    height: 15px;
+    flex: 0 0 auto;
+}
+
+.email-ai-door-arrow {
+    opacity: 0;
+    color: var(--color-text-tertiary);
+    transition: opacity var(--transition-fast);
+}
+
+.email-ai-door:hover .email-ai-door-arrow,
+.email-ai-door:focus-visible .email-ai-door-arrow {
+    opacity: 1;
+}
+
+/* Sidebar section titles — the Assistant rail's micro-label voice, not the
+   legacy serif .sidebar-title (notes.css). */
+.email-sidebar .sidebar-title {
+    font-family: var(--font-sans);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-text-tertiary);
+    border-bottom: none;
+    padding-bottom: 0;
+    margin-bottom: var(--space-xs);
+}
+
+/* Accounts section */
+.email-accounts-section {
+    margin-top: var(--space-xl);
+    padding-top: var(--space-lg);
+    border-top: 1px solid var(--color-border-light);
+}
+
+.email-account-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-xs) 0;
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+}
+
+.email-account-email {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+}
+
+.email-account-disconnect {
+    background: none;
+    border: none;
+    color: var(--color-text-tertiary);
+    cursor: pointer;
+    font-size: var(--text-base);
+    padding: 0 4px;
+    line-height: 1;
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+}
+
+.email-account-item:hover .email-account-disconnect {
+    opacity: 1;
+}
+
+.email-account-disconnect:hover {
+    color: var(--color-text);
+}
+
+/* Account scope switcher (2+ accounts) — rows reuse .email-label-item for
+   the shared hover/active states; smaller type because addresses are long. */
+.email-account-scope {
+    padding: var(--space-xs) var(--space-md);
+    font-size: var(--text-xs);
+}
+
+.email-account-scope-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.email-accounts-manage-link {
+    display: block;
+    width: 100%;
+    background: none;
+    border: none;
+    color: var(--color-text-tertiary);
+    cursor: pointer;
+    font-size: var(--text-xs);
+    padding: var(--space-xs) 0;
+    margin-top: var(--space-xs);
+    text-align: left;
+    transition: color var(--transition-fast);
+}
+
+.email-accounts-manage-link:hover {
+    color: var(--color-text);
+}
+
+/* Email list */
+.email-list {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Rows — soft borderless pills with a hover fill (like the Assistant's
+   conversation rail); the unread surface fill reads as a filled pill. */
+.email-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: 7px var(--space-md);
+    border-radius: var(--radius-sm);
+    margin-bottom: 1px;
+    cursor: pointer;
+    transition: background var(--transition-fast);
+    min-height: 36px;
+}
+
+.email-row:hover {
+    background: var(--color-surface-hover);
+}
+
+.email-load-more {
+    display: flex;
+    justify-content: center;
+    padding: var(--space-md) var(--space-md) var(--space-lg);
+}
+
+/* Bottom marker for the list's render window: the list draws a page of rows at
+   a time, and this element scrolling near the viewport asks for the next page.
+   Invisible by design, but it needs real height so the observer can see it. */
+.email-list-sentinel {
+    height: 1px;
+}
+
+/* Unread state */
+.email-unread {
+    background: transparent;
+}
+
+.email-unread .email-row-from,
+.email-unread .email-row-subject {
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+/* Star */
+.email-starred .email-star-btn {
+    color: #f5a623;
+}
+
+.email-star-btn:hover {
+    color: #f5a623;
+}
+
+/* Row content */
+.email-row-from {
+    width: 168px;
+    min-width: 110px;
+    flex-shrink: 0;
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Unread: bolder ink instead of a background wash — reads at a glance
+   without making the whole list look zebra-striped. */
+.email-unread .email-row-from,
+.email-unread .email-row-subject {
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.email-row-content {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--text-sm);
+}
+
+.email-row-subject {
+    color: var(--color-text);
+}
+
+.email-row-snippet {
+    color: var(--color-text-tertiary);
+}
+
+.email-row-date {
+    flex-shrink: 0;
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    min-width: 60px;
+    text-align: right;
+}
+
+/* Which-account chip — rendered only in the mixed list (2+ accounts, no
+   scope selected). --color-bg keeps it legible on unread (surface) rows. */
+/* Connect prompt */
+.email-connect-prompt {
+    text-align: center;
+    padding: var(--space-2xl) var(--space-xl);
+}
+
+.email-connect-prompt h3 {
+    font-size: var(--text-lg);
+    font-weight: 500;
+    margin-bottom: var(--space-sm);
+    color: var(--color-text);
+}
+
+.email-connect-prompt p {
+    color: var(--color-text-secondary);
+    margin-bottom: var(--space-lg);
+    font-size: var(--text-sm);
+}
+
+.email-connect-prompt-btn {
+    padding: var(--space-sm) var(--space-xl);
+    background: var(--color-text);
+    color: var(--color-bg);
+    border: none;
+    border-radius: 999px;
+    font-size: var(--text-base);
+    cursor: pointer;
+    transition: opacity var(--transition-fast);
+}
+
+.email-connect-prompt-btn:hover {
+    opacity: 0.8;
+}
+
+/* Viewer — inline in the email layout (sidebar stays), like Insights. */
+/* Tight at the top: the toolbar is the first thing in here and it sticks to
+   the pane's top edge, so a full --space-xl of padding above it just pushed
+   the message down. The other three sides keep the reading margin. */
+.email-viewer-main {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: var(--space-sm) var(--space-xl) var(--space-xl);
+}
+
+/* Action buttons, right-aligned (there is no Back — the list is docked
+   beside the viewer, and the breadcrumb leads back when it isn't).
+   The actions are quiet ghost chips rather than full-size buttons: the
+   labels stay (icon-only rows read ambiguous) but the visual weight
+   drops — xs type, tight padding, shape only on hover. Reply keeps its
+   fill as the one primary action; Delete warns red on hover. */
+.email-viewer-toolbar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    margin-bottom: var(--space-lg);
+    /* Pinned while the viewer pane scrolls — actions stay reachable on
+       long emails. */
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--color-bg);
+    padding: var(--space-xs) 0;
+}
+
+.email-viewer-toolbar-divider {
+    width: 1px;
+    height: 18px;
+    background: var(--color-border);
+    margin: 0 var(--space-xs);
+    flex-shrink: 0;
+}
+
+/* Housekeeping actions as quiet icon buttons — labels made the row wrap. */
+.email-viewer-iconbtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--color-text-tertiary);
+    cursor: pointer;
+    transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.email-viewer-iconbtn svg {
+    width: 17px;
+    height: 17px;
+}
+
+.email-viewer-iconbtn:hover {
+    background: var(--color-surface-hover);
+    color: var(--color-text);
+}
+
+.email-viewer-toolbar .primary-btn,
+.email-viewer-toolbar .secondary-btn {
+    font-size: var(--text-xs);
+    font-weight: 500;
+    padding: 4px 12px;
+    border-radius: 999px;
+}
+
+.email-viewer-toolbar .primary-btn {
+    margin-right: var(--space-xs);
+}
+
+.email-viewer-toolbar .secondary-btn {
+    border-color: transparent;
+    background: transparent;
+    color: var(--color-text-secondary);
+}
+
+.email-viewer-toolbar .secondary-btn:hover {
+    background: var(--color-surface-hover);
+    border-color: var(--color-border);
+    color: var(--color-text);
+}
+
+#email-viewer-delete-btn:hover {
+    color: #dc2626;
+    border-color: color-mix(in srgb, #dc2626 35%, transparent);
+    background: color-mix(in srgb, #dc2626 8%, transparent);
+}
+
+.email-viewer-toolbar-spacer {
+    flex: 1;
+}
+
+.email-viewer-subject {
+    font-family: var(--font-serif);
+    font-size: var(--text-2xl);
+    font-weight: 400;
+    letter-spacing: -0.01em;
+    line-height: 1.25;
+    margin-bottom: var(--space-lg);
+    color: var(--color-text);
+    overflow-wrap: anywhere;
+}
+
+/* Identity row — avatar · name + address / recipient · date. */
+.email-viewer-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    margin-bottom: var(--space-xl);
+    padding-bottom: var(--space-lg);
+    border-bottom: 1px solid var(--color-border-light);
+}
+
+.email-viewer-avatar {
+    flex: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--text-base);
+    font-weight: 600;
+}
+
+.email-viewer-who {
+    flex: 1;
+    min-width: 0;
+}
+
+.email-viewer-from {
+    font-size: var(--text-sm);
+    color: var(--color-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.email-viewer-from-name {
+    font-weight: 600;
+}
+
+.email-viewer-from-addr {
+    margin-left: 6px;
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+}
+
+.email-viewer-to {
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    margin-top: 1px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.email-viewer-date {
+    flex: none;
+    align-self: flex-start;
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    white-space: nowrap;
+    margin-top: 3px;
+}
+
+/* Attachment chips — pill per file, click to save. */
+.email-viewer-attachments {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-lg);
+}
+
+.email-viewer-attachment {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 14px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    cursor: pointer;
+    font-family: var(--font-sans);
+    font-size: var(--text-xs);
+    color: var(--color-text);
+    transition: border-color var(--transition-fast), background var(--transition-fast);
+    max-width: 100%;
+}
+
+.email-viewer-attachment:hover {
+    border-color: var(--color-border-hover);
+    background: var(--color-surface-hover);
+}
+
+.email-viewer-attachment-icon {
+    color: var(--color-text-tertiary);
+}
+
+.email-viewer-attachment-name {
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 260px;
+}
+
+.email-viewer-attachment-size {
+    color: var(--color-text-tertiary);
+    white-space: nowrap;
+}
+
+.email-viewer-body {
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: 1.7;
+    color: var(--color-text-secondary);
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+.email-viewer-body img {
+    max-width: 100%;
+    height: auto;
+}
+
+.email-viewer-body a {
+    color: var(--color-text);
+    text-decoration: underline;
+}
+
+
+.insight-priority-high { background: #fde8e8; color: #c0392b; }
+.insight-priority-medium { background: #fef3e2; color: #d68910; }
+
+[data-theme="dark"] .insight-priority-high { background: rgba(231, 76, 60, 0.15); color: #f87171; }
+[data-theme="dark"] .insight-priority-medium { background: rgba(243, 156, 18, 0.15); color: #fbbf24; }
+.insight-priority-low { background: var(--color-surface); color: var(--color-text-tertiary); }
+
+
+.insight-action-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 6px 0;
+    border-top: 1px solid var(--color-border-light, #f0f0f0);
+}
+
+/* Action item synced to a task — the row is a door to the task detail */
+.insight-action-linked {
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    transition: background var(--transition-fast);
+}
+
+.insight-action-linked:hover {
+    background: var(--color-surface-hover);
+}
+
+/* Visible at rest, quietly (2026-08-03). It used to fade in on hover, and a
+   door nobody can see is a door nobody opens — the analysis panel's action
+   items were reported as "not clickable" when in fact they already were on
+   the FYI tab. Hover deepens it rather than revealing it. */
+.insight-action-open {
+    margin-left: auto;
+    flex-shrink: 0;
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    transition: color var(--transition-fast);
+    white-space: nowrap;
+    padding: 0 6px;
+}
+
+.insight-action-linked:hover .insight-action-open {
+    color: var(--color-text-secondary);
+}
+
+.insight-action-check {
+    color: var(--color-text-tertiary);
+    font-size: 14px;
+    line-height: 1;
+    flex-shrink: 0;
+    margin-top: 6px;
+}
+
+.insight-action-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.insight-action-text {
+    font-size: 13px;
+    color: var(--color-text);
+    line-height: 1.4;
+}
+
+.insight-action-due {
+    display: inline-block;
+    font-size: 11px;
+    color: #c0392b;
+    font-weight: 500;
+    margin-left: 6px;
+}
+
+
+/* Priority indicators in email rows */
+.email-row-indicators {
+    display: flex;
+    gap: 2px;
+    width: 18px;
+    min-width: 18px;
+    flex-shrink: 0;
+    font-size: 8px;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Priority-sender dot (senders matched by Insights priority terms) —
+   the theme's amber, small enough to be a whisper. */
+.email-priority-indicator {
+    color: #d97706;
+}
+
+.email-action-indicator {
+    color: var(--color-text-tertiary);
+    font-size: 12px;
+}
+
+.email-priority-row {
+    border-left: 3px solid #e67e22;
+}
+
+/* Priority label in sidebar */
+.email-label-priority .email-label-name {
+    font-weight: 500;
+}
+
+
+/* Accounts section on the Email Settings page */
+.email-settings-accounts {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    margin-bottom: var(--space-md);
+}
+
+.email-settings-account-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-lg);
+    padding: 10px var(--space-md);
+    margin: 0 calc(-1 * var(--space-md));
+    border-radius: var(--radius-md);
+}
+
+.email-settings-account-row:hover {
+    background: var(--color-surface-hover);
+}
+
+.email-settings-account-info {
+    min-width: 0;
+}
+
+.email-settings-account-name {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--color-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.email-settings-account-email {
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Priority settings view — a single 600px column inside an .app-view-full
+   shell, so the header bar has to be capped to match by hand; the shared
+   .app-view rule in core.css skips full-bleed views. */
+#email-priority-view .app-header-bar {
+    max-width: 600px;
+    margin-inline: auto;
+}
+
+.email-priority-main {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: var(--space-xl) 0;
+}
+
+.priority-settings-title {
+    font-family: var(--font-serif);
+    font-size: var(--text-xl);
+    font-weight: 400;
+    margin-bottom: var(--space-sm);
+}
+
+.priority-settings-desc {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    margin-bottom: var(--space-xl);
+    line-height: 1.6;
+}
+
+.priority-add-form {
+    display: flex;
+    gap: var(--space-sm);
+    align-items: stretch;
+    margin-bottom: var(--space-md);
+}
+
+.priority-add-fields {
+    flex: 1;
+    display: flex;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    transition: border-color var(--transition-fast);
+}
+
+.priority-add-fields:focus-within {
+    border-color: var(--color-text);
+}
+
+.priority-add-fields .search-input {
+    flex: 1;
+    border: none;
+    outline: none;
+    min-width: 0;
+}
+
+.priority-add-fields .priority-category-select {
+    border: none;
+    border-left: 1px solid var(--color-border);
+    border-radius: 0;
+    background: var(--color-surface);
+    padding: 6px 10px;
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    /* Reset the global form-control width:100% (components.css) — otherwise the
+       non-shrinking select claims the whole row and collapses the text input
+       beside it to a sliver. Size to its content instead. */
+    width: auto;
+    flex: 0 0 auto;
+}
+
+.priority-add-form .primary-btn {
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.priority-auto-row {
+    margin-bottom: var(--space-xl);
+    padding-bottom: var(--space-lg);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.priority-auto-label {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    cursor: pointer;
+}
+
+/* Followed / muted senders — clean contact-style list */
+.priority-terms-list {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+.sender-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-sm) var(--space-md);
+    border-bottom: 1px solid var(--color-border-light);
+    transition: background var(--transition-fast);
+}
+
+.sender-row:last-child {
+    border-bottom: none;
+}
+
+.sender-row:hover {
+    background: var(--color-surface-hover);
+}
+
+.sender-avatar {
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--text-xs);
+    font-weight: 600;
+}
+
+.sender-row-name {
+    flex: 1;
+    min-width: 0;
+    font-size: var(--text-sm);
+    color: var(--color-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sender-row-count {
+    flex-shrink: 0;
+    min-width: 1.75em;
+    text-align: center;
+    padding: 1px var(--space-xs);
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-light);
+    border-radius: var(--radius-sm);
+}
+
+.priority-term-category-select {
+    flex-shrink: 0;
+    width: auto;
+    max-width: 130px;
+    padding: 3px var(--space-sm);
+    font-size: var(--text-xs);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-bg);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    transition: border-color var(--transition-fast);
+}
+
+.priority-term-category-select:hover {
+    border-color: var(--color-border-hover);
+}
+
+.priority-term-delete {
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    color: var(--color-text-tertiary);
+    cursor: pointer;
+    font-size: var(--text-lg);
+    padding: 0 var(--space-xs);
+    line-height: 1;
+    opacity: 0;
+    transition: opacity var(--transition-fast), color var(--transition-fast);
+}
+
+.sender-row:hover .priority-term-delete {
+    opacity: 1;
+}
+
+.priority-term-delete:hover {
+    color: var(--color-text);
+}
+
+.priority-empty {
+    font-size: var(--text-sm);
+    color: var(--color-text-tertiary);
+    padding: var(--space-lg);
+    text-align: center;
+}
+
+/* Per-email AI analysis section */
+.email-analysis {
+    margin-bottom: var(--space-xl);
+    padding: var(--space-lg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+}
+
+.analysis-priority-high {
+    border-left: 3px solid #e74c3c;
+}
+
+.analysis-priority-medium {
+    border-left: 3px solid #f39c12;
+}
+
+.analysis-priority-low {
+    border-left: 3px solid #27ae60;
+}
+
+.analysis-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-md);
+}
+
+.analysis-title {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.analysis-priority-badge {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 1px 6px;
+    border-radius: 3px;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-secondary);
+}
+
+.analysis-timestamp {
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    margin-left: auto;
+}
+
+.analysis-summary {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    margin-bottom: var(--space-md);
+    line-height: 1.5;
+}
+
+.analysis-section {
+    margin-bottom: var(--space-md);
+}
+
+.analysis-section:last-child {
+    margin-bottom: 0;
+}
+
+.analysis-section-title {
+    font-size: var(--text-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-tertiary);
+    margin-bottom: var(--space-sm);
+}
+
+/* The rows inside are .insight-action-row (shared with the FYI tab's insight
+   detail, styled above) since 2026-08-03 — the panel's own flat <li> markup
+   went with them, and so did .analysis-action-item / -text / .analysis-due-date. */
+.analysis-action-list {
+    list-style: none;
+    padding: 0;
+}
+
+.analysis-insights-list {
+    padding-left: var(--space-lg);
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+}
+
+.analysis-insights-list li {
+    margin-bottom: var(--space-xs);
+    line-height: 1.5;
+}
+
+/* Responsive */
+/* ========================
+   Compose View
+   ======================== */
+
+#email-compose-view {
+    padding: 0;
+    /* Window height minus the fixed 38px titlebar the view sits under —
+       100vh here pushed the bottom of the compose column (the AI Assist
+       panel) below the window edge. */
+    height: calc(100vh - 38px);
+    overflow: hidden;
+}
+
+.compose-chrome {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 48px 32px 0;
+}
+
+/* Toolbar */
+.compose-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 16px;
+    flex-shrink: 0;
+}
+
+.compose-toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.compose-toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.compose-discard-btn:hover {
+    background: rgba(220, 38, 38, 0.08);
+    color: #dc2626;
+}
+
+.compose-save-indicator {
+    font-size: 12px;
+    color: var(--color-text-tertiary);
+    font-family: var(--font-sans);
+    min-width: 80px;
+    transition: opacity var(--transition-fast);
+}
+
+.compose-save-indicator.is-error {
+    color: #dc2626;
+}
+
+/* Attachment chips row */
+.compose-attachments {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--color-border-light);
+}
+
+.compose-attachment-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 6px 4px 10px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    font-family: var(--font-sans);
+    color: var(--color-text);
+    max-width: 280px;
+}
+
+.compose-attachment-chip.is-loading {
+    opacity: 0.55;
+}
+
+.compose-attachment-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 180px;
+}
+
+.compose-attachment-size {
+    color: var(--color-text-tertiary);
+    font-variant-numeric: tabular-nums;
+}
+
+.compose-attachment-remove {
+    background: none;
+    border: none;
+    color: var(--color-text-tertiary);
+    cursor: pointer;
+    padding: 2px 6px;
+    font-size: 14px;
+    line-height: 1;
+    border-radius: var(--radius-sm);
+}
+
+.compose-attachment-remove:hover {
+    background: var(--color-surface-hover);
+    color: var(--color-text);
+}
+
+.email-drafts-placeholder {
+    padding: 48px 24px;
+    text-align: center;
+    color: var(--color-text-tertiary);
+    font-style: italic;
+    font-family: var(--font-sans);
+}
+
+.compose-toolbar-btn {
+    background: none;
+    border: none;
+    color: var(--color-text-tertiary);
+    font-size: 13px;
+    font-family: var(--font-sans);
+    padding: 6px 14px;
+    cursor: pointer;
+    border-radius: 999px;
+    transition: all 0.15s;
+}
+
+.compose-toolbar-btn:hover {
+    background: var(--color-surface-hover);
+    color: var(--color-text);
+}
+
+.compose-ai-toggle {
+    color: var(--color-text-secondary);
+}
+
+.compose-ai-toggle:hover {
+    background: var(--color-surface-hover);
+    color: var(--color-text);
+}
+
+.compose-send-btn {
+    background: var(--color-text);
+    color: var(--color-bg, #fff);
+    border: none;
+    padding: 7px 20px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 500;
+    font-family: var(--font-sans);
+    cursor: pointer;
+    transition: opacity 0.15s;
+}
+
+.compose-send-btn:hover {
+    opacity: 0.85;
+}
+
+.compose-send-btn:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+/* Editor area */
+.compose-editor {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    border-top: 1px solid var(--color-border);
+}
+
+/* Field rows */
+.compose-field {
+    display: flex;
+    align-items: center;
+    padding: 0;
+    min-height: 40px;
+    border-bottom: 1px solid var(--color-border-light, #f0f0f0);
+}
+
+.compose-label {
+    width: 48px;
+    font-size: 13px;
+    color: var(--color-text-tertiary);
+    flex-shrink: 0;
+    user-select: none;
+}
+
+.compose-input {
+    flex: 1;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    background: none !important;
+    padding: 8px 0;
+    margin: 0;
+    font-size: 14px;
+    font-family: var(--font-sans);
+    color: var(--color-text);
+    -webkit-appearance: none;
+    border-radius: 0;
+}
+
+.compose-input::placeholder {
+    color: var(--color-text-tertiary);
+    opacity: 0.6;
+}
+
+select.compose-input {
+    cursor: pointer;
+}
+
+.compose-field-extras {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+}
+
+.compose-toggle-btn {
+    background: none;
+    border: none;
+    color: var(--color-text-tertiary);
+    font-size: 12px;
+    padding: 4px 8px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.12s;
+}
+
+.compose-toggle-btn:hover {
+    color: var(--color-text);
+    background: var(--color-surface);
+}
+
+/* Subject field — no label, larger text */
+.compose-field-subject {
+    border-bottom: 1px solid var(--color-border);
+}
+
+.compose-subject-input {
+    font-size: 18px !important;
+    font-weight: 500;
+    padding: 10px 0 !important;
+}
+
+.compose-subject-input::placeholder {
+    font-weight: 400;
+    opacity: 0.4;
+}
+
+/* Body area */
+.compose-body-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 0;
+    min-height: 0;
+}
+
+.compose-body {
+    width: 100%;
+    min-height: 300px;
+    border: none;
+    outline: none;
+    box-shadow: none;
+    background: none;
+    padding: 0;
+    margin: 0;
+    font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: 1.75;
+    color: var(--color-text);
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+.compose-body[contenteditable="true"]:empty::before {
+    content: attr(data-placeholder);
+    color: var(--color-text-tertiary);
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* Quoted block rendered by the reply/forward bootstrap HTML. Scoped to the
+   compose body so we can style it consistently without fighting whatever
+   inline styles the original email brought in. */
+.compose-body .gmail_attribution {
+    color: var(--color-text-tertiary);
+    font-size: 13px;
+    margin: 18px 0 6px;
+}
+
+.compose-body blockquote.gmail_quote,
+.compose-body blockquote {
+    margin: 0 0 0 0.4ex;
+    border-left: 2px solid var(--color-border);
+    padding-left: 12px;
+    color: var(--color-text-secondary);
+}
+
+.compose-body img { max-width: 100%; height: auto; }
+.compose-body table { max-width: 100%; }
+
+/* Formatting toolbar */
+.compose-format-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 6px 0 10px;
+    border-bottom: 1px solid var(--color-border-light);
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+}
+
+/* Ghost circles, like the app's other quiet icon buttons. */
+.compose-format-btn {
+    background: none;
+    border: none;
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    cursor: pointer;
+    color: var(--color-text-secondary);
+    border-radius: 999px;
+    font-size: 13px;
+    font-family: var(--font-sans);
+    line-height: 1;
+    transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.compose-format-btn:hover {
+    background: var(--color-surface-hover);
+    color: var(--color-text);
+}
+
+.compose-format-btn:active {
+    background: var(--color-surface);
+}
+
+.compose-format-sep {
+    width: 1px;
+    height: 18px;
+    background: var(--color-border);
+    margin: 0 4px;
+    flex-shrink: 0;
+}
+
+/* ========================
+   AI Assist Panel
+   ======================== */
+
+.compose-ai-panel {
+    flex-shrink: 0;
+    border-top: 1px solid var(--color-border);
+    padding: 16px 0;
+}
+
+.compose-ai-actions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.compose-ai-action-btn {
+    background: transparent;
+    border: 1px solid var(--color-border);
+    border-radius: 20px;
+    padding: 5px 14px;
+    font-size: 12px;
+    font-family: var(--font-sans);
+    color: var(--color-text-tertiary);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.compose-ai-action-btn:hover {
+    border-color: var(--color-text-tertiary);
+    color: var(--color-text);
+}
+
+.compose-ai-action-btn.loading {
+    opacity: 0.4;
+    pointer-events: none;
+}
+
+.compose-ai-result {
+    font-size: 13px;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    padding: 14px;
+    background: var(--color-surface);
+    border-radius: 8px;
+    margin: 12px 0 8px;
+    max-height: 240px;
+    overflow-y: auto;
+    color: var(--color-text);
+}
+
+.compose-ai-accept-row {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+/* Autocomplete dropdown */
+.compose-autocomplete {
+    display: none;
+    position: fixed;
+    background: var(--color-bg, #fff);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    z-index: 9999;
+    max-height: 240px;
+    overflow-y: auto;
+    min-width: 280px;
+}
+
+.compose-ac-item {
+    padding: 8px 14px;
+    font-size: 13px;
+    font-family: var(--font-sans);
+    color: var(--color-text);
+    cursor: pointer;
+    transition: background 0.1s;
+}
+
+.compose-ac-item:hover,
+.compose-ac-item.active {
+    background: var(--color-surface);
+}
+
+@media (max-width: 768px) {
+    .email-layout {
+        flex-direction: column;
+    }
+
+    .email-sidebar {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .email-row-from {
+        width: 100px;
+        min-width: 80px;
+    }
+}
+
+/* Search history suggestions */
+/* Search — a quiet pill on the surface fill (same voice as Tasks/Goals). */
+.email-search-wrap .search-input {
+    padding: 8px 18px;
+    border-radius: 999px;
+    background: var(--color-surface);
+}
+
+.email-search-wrap .search-input:focus {
+    background: var(--color-bg);
+    border-color: var(--color-border-hover);
+    box-shadow: none;
+}
+
+/* Let the actions block absorb the header's spare width so the search box
+   (flex:1 below) can actually grow — the shared .app-header-bar is
+   space-between with content-sized children. Calendar shares this class;
+   scope to the email view. */
+#email-view .email-header-actions {
+    flex: 1;
+    justify-content: flex-end;
+    min-width: 0;
+    margin-left: var(--space-xl);
+}
+
+/* The title is just "Email" (plus an account/bundle crumb) — content-size it
+   so the flexible actions block (and the search box inside it) gets the
+   header's spare width. It may shrink, never grow: a long crumb clips inside
+   .app-breadcrumb's overflow rather than shoving the search box off-row. */
+#email-view .app-header-bar .app-view-title {
+    flex: 0 1 auto;
+    min-width: 0;
+}
+
+/* Mail wants more room than a reading column does, which is what widened
+   core.css's --app-band from 1600px to 1900px. That band is deliberately
+   global rather than an Email override: the rail is fixed and shared, so a
+   per-page band made it slide sideways every time you entered or left the
+   app. Nothing view-specific is needed here now. */
+
+.email-search-wrap {
+    position: relative;
+    /* Take whatever the header row has spare, within reason. */
+    flex: 1;
+    max-width: 420px;
+    min-width: 140px;
+}
+
+.email-header-actions #email-search {
+    width: 100%;
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: var(--text-sm);
+}
+
+/* The last-sync caption is the first thing to give up room. */
+@media (max-width: 1200px) {
+    .email-sync-status {
+        display: none;
+    }
+}
+
+.search-suggestions {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-md);
+    max-height: 280px;
+    overflow-y: auto;
+    z-index: 20;
+}
+
+.search-suggestion-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: 6px var(--space-md);
+    cursor: pointer;
+    font-size: var(--text-sm);
+    color: var(--color-text);
+}
+
+.search-suggestion-item:hover,
+.search-suggestion-item.active {
+    background: var(--color-surface-hover);
+}
+
+.search-suggestion-icon {
+    color: var(--color-text-tertiary);
+    font-size: var(--text-base);
+    flex-shrink: 0;
+}
+
+.search-suggestion-text {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.search-suggestion-remove {
+    background: transparent;
+    border: none;
+    color: var(--color-text-tertiary);
+    cursor: pointer;
+    font-size: var(--text-base);
+    line-height: 1;
+    padding: 2px 6px;
+    border-radius: var(--radius-sm);
+    flex-shrink: 0;
+}
+
+.search-suggestion-remove:hover {
+    background: var(--color-surface);
+    color: var(--color-text);
+}
+
+/* --- AI Insights settings + typed insights --- */
+
+.insight-settings-section {
+    margin-bottom: var(--space-2xl);
+    padding-bottom: var(--space-xl);
+    border-bottom: 1px solid var(--color-border-light);
+}
+.insight-settings-section:last-child {
+    border-bottom: none;
+}
+
+.insight-types-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: var(--space-sm);
+    margin-top: var(--space-md);
+}
+
+.insight-type-toggle {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-sm) var(--space-md);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    font-size: var(--text-sm);
+    cursor: pointer;
+    transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+.insight-type-toggle:hover {
+    border-color: var(--color-border-hover);
+    background: var(--color-surface-hover);
+}
+.insight-type-toggle.is-disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+.insight-type-toggle input {
+    flex-shrink: 0;
+}
+
+/* Type chip on insight cards and the viewer analysis panel. Monochrome to
+   match the Minimal Book theme — differentiation is by label, not color. */
+.insight-type-chip {
+    display: inline-block;
+    font-size: var(--text-xs);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 1px var(--space-sm);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
+    color: var(--color-text-secondary);
+    white-space: nowrap;
+}
+
+/* Feedback / follow / mute row */
+.insight-feedback-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    margin-top: var(--space-md);
+    padding-top: var(--space-sm);
+    border-top: 1px solid var(--color-border-light);
+    flex-wrap: wrap;
+}
+.insight-fb-spacer {
+    flex: 1;
+}
+.insight-fb-btn {
+    font-size: var(--text-xs);
+    padding: 3px var(--space-sm);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+.insight-fb-btn:hover {
+    border-color: var(--color-border-hover);
+    background: var(--color-surface-hover);
+    color: var(--color-text);
+}
+.insight-fb-btn:disabled {
+    cursor: default;
+    opacity: 0.45;
+}
+/* The chosen vote stays emphasized (inverted) even while the pair is locked. */
+.insight-fb-vote.is-selected {
+    background: var(--color-text);
+    border-color: var(--color-text);
+    color: var(--color-bg);
+    opacity: 1;
+}
+/* Sender controls are secondary to the thumbs — quieter, link-like. */
+.insight-fb-manage {
+    border-color: transparent;
+    background: transparent;
+    color: var(--color-text-tertiary);
+}
+.insight-fb-followed {
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    white-space: nowrap;
+}
+
+/* "Add task" is the primary action on the row — filled to stand out from the
+   quieter feedback/sender controls. */
+.insight-fb-addtask {
+    background: var(--color-text);
+    border-color: var(--color-text);
+    color: var(--color-bg);
+    font-weight: 600;
+    white-space: nowrap;
+}
+.insight-fb-addtask:hover {
+    background: var(--color-text);
+    border-color: var(--color-text);
+    color: var(--color-bg);
+    opacity: 0.85;
+}
+/* Quiet confirmation once a task exists for this email. */
+.insight-fb-added {
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    white-space: nowrap;
+}
+
+.muted-sender-remove {
+    border: none;
+    background: transparent;
+    color: var(--color-text-tertiary);
+    font-size: var(--text-lg);
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 var(--space-xs);
+}
+.muted-sender-remove:hover {
+    color: var(--color-text);
+}
+
+/* Per-row hover actions (Mark read / Bundle): readable text chips that
+   overlay the date on hover — no reserved width, no layout shift. */
+.email-row {
+    position: relative;
+}
+
+.email-row-actions {
+    position: absolute;
+    right: var(--space-md);
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    gap: var(--space-xs);
+    align-items: center;
+    opacity: 0;
+    pointer-events: none;
+    /* Matches the row's hover background so the covered date disappears
+       cleanly instead of bleeding through. */
+    background: var(--color-surface-hover);
+    padding-left: var(--space-sm);
+    transition: opacity var(--transition-fast);
+}
+
+.email-row:hover .email-row-actions {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.email-read-btn,
+.email-bundle-move-btn {
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    cursor: pointer;
+    color: var(--color-text-secondary);
+    font-size: var(--text-xs);
+    line-height: 1;
+    padding: 6px 10px;
+    white-space: nowrap;
+    transition: all var(--transition-fast);
+}
+
+.email-read-btn:hover,
+.email-bundle-move-btn:hover {
+    color: var(--color-text);
+    border-color: var(--color-border-hover);
+    box-shadow: var(--shadow-sm);
+}
+
+/* ===================================
+   Compact insight rows
+   =================================== */
+
+.insight-item {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-bg);
+    margin-bottom: 6px;
+    overflow: hidden;
+    transition: box-shadow var(--transition-fast);
+}
+
+.insight-item.is-expanded {
+    box-shadow: var(--shadow-sm);
+}
+
+
+/* The matter timeline on an insight's detail page. */
+.insight-matter-timeline {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+.insight-matter-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-sm) var(--space-md);
+    font-size: var(--text-sm);
+    border-bottom: 1px solid var(--color-border-light);
+}
+
+.insight-matter-row:last-child {
+    border-bottom: none;
+}
+
+.insight-matter-when {
+    flex-shrink: 0;
+    min-width: 5.5rem;
+    color: var(--color-text-tertiary);
+    font-size: var(--text-xs);
+}
+
+.insight-matter-summary {
+    flex: 1;
+    min-width: 0;
+    cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.insight-matter-summary:hover {
+    text-decoration: underline;
+}
+
+.insight-matter-unfold {
+    flex-shrink: 0;
+    padding: 2px var(--space-sm);
+    background: none;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-tertiary);
+    font-family: inherit;
+    font-size: var(--text-xs);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity var(--transition-fast), color var(--transition-fast);
+}
+
+.insight-matter-row:hover .insight-matter-unfold {
+    opacity: 1;
+}
+
+.insight-matter-unfold:hover {
+    color: var(--color-text);
+    border-color: var(--color-border-hover);
+}
+
+
+/* ===================================
+   Bundles (Inbox-style topic cards)
+   =================================== */
+
+/* A card, not a row. The point of a pile is deciding whether to open it,
+   and a name plus a count doesn't tell you that — so line one is icon,
+   name, unread, newest date, and line two names who has been writing. The
+   whole card is the target; clicking it drills into the bundle. */
+.email-bundle-card {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-sm) var(--space-md);
+    margin-bottom: var(--space-sm);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-bg);
+    cursor: pointer;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
+}
+
+.email-bundle-card:hover {
+    border-color: var(--color-border-hover);
+    box-shadow: var(--shadow-sm);
+}
+
+.email-bundle-card:focus-visible {
+    outline: 2px solid var(--color-text);
+    outline-offset: 2px;
+}
+
+/* Bundle glyph — line art, same stroke family as the viewer toolbar. */
+.email-bundle-icon {
+    flex-shrink: 0;
+    width: 30px;
+    height: 30px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
+    color: var(--color-text-secondary);
+}
+
+.email-bundle-icon svg {
+    width: 16px;
+    height: 16px;
+}
+
+.email-bundle-card.has-unread .email-bundle-icon {
+    color: var(--color-text);
+}
+
+.email-bundle-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.email-bundle-head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.email-bundle-name {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--color-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.email-bundle-unread {
+    flex-shrink: 0;
+    font-size: 10px;
+    font-weight: 600;
+    background: var(--color-text);
+    color: var(--color-bg);
+    padding: 1px 6px;
+    border-radius: 999px;
+}
+
+/* Date sits at the far right of the head line; the hover actions cover it. */
+.email-bundle-date {
+    margin-left: auto;
+    flex-shrink: 0;
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    white-space: nowrap;
+}
+
+/* Second line: who has been writing, most recent first. */
+.email-bundle-senders {
+    margin-top: 2px;
+    font-size: var(--text-xs);
+    line-height: 1.5;
+    color: var(--color-text-tertiary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.email-bundle-card.has-unread .email-bundle-senders {
+    color: var(--color-text-secondary);
+}
+
+/* Text chips for the whole-pile verbs. Cards used to carry a pair of these
+   on hover; they live in the sweep bar inside the bundle now. */
+.email-bundle-act {
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    cursor: pointer;
+    color: var(--color-text-secondary);
+    font-size: var(--text-xs);
+    line-height: 1;
+    padding: 6px 10px;
+    white-space: nowrap;
+    transition: all var(--transition-fast);
+}
+
+.email-bundle-act:hover {
+    color: var(--color-text);
+    border-color: var(--color-border-hover);
+    box-shadow: var(--shadow-sm);
+}
+
+/* Sweep bar inside a drilled-into bundle. The card's hover chips can't reach
+   here (there is no card any more), so the whole-bundle verbs get a row of
+   their own above the list. Same chip look as .email-bundle-act, always
+   visible — inside a pile of 200 promos these are the point of the view. */
+.email-bundle-bar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-xs);
+    padding: 0 var(--space-md) var(--space-sm);
+    flex-shrink: 0;
+}
+
+.email-bundle-bar-count {
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    margin-right: auto;
+    white-space: nowrap;
+}
+
+/* In the narrow split list the count line would push the chips onto a third
+   row; the chips are what matter. */
+.email-main.email-split .email-bundle-bar-count {
+    display: none;
+}
+
+
+/* Unread/All segmented toggle — pill capsule like the Actions hub strip. The
+   mail list's own filter is an icon toggle in the header now; this is the
+   Insights list's read filter, where there is room for words. */
+.email-read-filter {
+    display: flex;
+    gap: 2px;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    background: var(--color-surface);
+    padding: 3px;
+    align-self: center;
+    flex-shrink: 0;
+}
+
+.email-filter-btn {
+    border: none;
+    background: transparent;
+    color: var(--color-text-secondary);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    padding: 4px 14px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.email-filter-btn:hover {
+    background: var(--color-surface-hover);
+    color: var(--color-text);
+}
+
+.email-filter-btn.is-active {
+    background: var(--color-text);
+    color: var(--color-bg);
+}
+
+/* ===================================
+   Move-to-bundle picker (modal)
+   =================================== */
+
+.bundle-picker-options {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-bottom: var(--space-md);
+    max-height: 320px;
+    overflow-y: auto;
+}
+
+.bundle-picker-option {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-xs) var(--space-sm);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: var(--text-sm);
+}
+
+.bundle-picker-option:hover {
+    background: var(--color-surface-hover);
+}
+
+.bundle-picker-sender {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-sm);
+    padding: var(--space-sm);
+    border-top: 1px solid var(--color-border-light);
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+}
+
+.bundle-picker-sender strong {
+    color: var(--color-text);
+    word-break: break-all;
+}
+
+/* ===================================
+   Bundle settings (Email Settings view)
+   =================================== */
+
+/* Bundle cards carry the description the AI classifies on, so they're
+   two-line and roomier than the plain insight-type toggles. */
+.bundle-defs-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: var(--space-sm);
+    margin-top: var(--space-md);
+}
+
+.bundle-def-card {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-sm);
+    padding: var(--space-sm) var(--space-md);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: border-color var(--transition-fast), background var(--transition-fast),
+                opacity var(--transition-fast);
+}
+.bundle-def-card:hover {
+    border-color: var(--color-border-hover);
+    background: var(--color-surface-hover);
+}
+.bundle-def-card:focus-within {
+    border-color: var(--color-text);
+}
+/* Unchecked bundles stay legible but visibly stood-down. */
+.bundle-def-card.is-off {
+    background: var(--color-surface);
+    opacity: 0.55;
+}
+
+.bundle-def-card input[type="checkbox"] {
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.bundle-def-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+}
+
+.bundle-def-name {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    font-size: var(--text-sm);
+    font-weight: 600;
+}
+
+.bundle-def-tag {
+    font-size: var(--text-xs);
+    font-weight: 500;
+    letter-spacing: 0.03em;
+    color: var(--color-text-tertiary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: 0 5px;
+}
+
+/* Clamped to two lines: enough to judge the rule, never enough to make the
+   grid rows ragged. */
+.bundle-def-desc {
+    font-size: var(--text-xs);
+    line-height: 1.45;
+    color: var(--color-text-tertiary);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.bundle-def-delete {
+    flex-shrink: 0;
+    margin-top: -2px;
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+}
+.bundle-def-card:hover .bundle-def-delete,
+.bundle-def-delete:focus-visible {
+    opacity: 1;
+}
+
+.bundle-subhead {
+    font-size: var(--text-xs);
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--color-text-secondary);
+    margin: var(--space-xl) 0 var(--space-sm);
+}
+
+.bundle-rules-search {
+    max-width: 340px;
+    margin-bottom: var(--space-sm);
+}
+
+/* Name | description split in the add-bundle form (desc gets the room, but
+   the name field never shrinks below its own placeholder). */
+.bundle-add-form .priority-add-fields #email-bundle-name {
+    flex: 0 0 30%;
+    min-width: 150px;
+    border-right: 1px solid var(--color-border);
+}
+
+.bundle-rule-target {
+    flex-shrink: 0;
+    font-size: var(--text-xs);
+    color: var(--color-text-secondary);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: 2px 8px;
+    white-space: nowrap;
+}
+
+/* Footer action, separated from the add form so it doesn't read as part of it */
+.bundle-reclassify-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    margin-top: var(--space-xl);
+    padding-top: var(--space-md);
+    border-top: 1px solid var(--color-border-light);
+}
+
+.bundle-reclassify-row .secondary-btn {
+    flex-shrink: 0;
+}
+
+.bundle-reclassify-hint {
+    font-size: var(--text-xs);
+    line-height: 1.5;
+    color: var(--color-text-tertiary);
+    max-width: 46ch;
+}
+
+/* ── Email Settings as a master list (2026-08-02) ──
+   Same pattern as Settings › AI Assistant: the root is a list of rows
+   carrying each setting's current value, and opening one hides the list
+   and shows that section alone. Mirrors the rules in settings.css for
+   #llm-settings-view, scoped to the email view. */
+#email-priority-view .email-priority-main > .insight-settings-section {
+    display: none;
+}
+
+#email-priority-view.email-in-section #email-settings-root {
+    display: none;
+}
+
+#email-priority-view.email-in-section .email-priority-main > .insight-settings-section.active {
+    display: block;
+}
+
+/* A section shown as its own page is not "between sections" — its divider
+   reads as a stray hairline under the content. */
+#email-priority-view.email-in-section .insight-settings-section.active {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+#email-settings-root .settings-card-group {
+    margin-bottom: var(--space-md);
+}
+
+/* ── Re-analyze mail ── */
+.reanalyze-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-md);
+}
+
+.reanalyze-label {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+}
+
+/* Sized to its longest option, not to the column. A full-width select for
+   six short phrases reads as a text field. */
+#email-reanalyze-range {
+    flex: 0 1 auto;
+    min-width: 15rem;
+    max-width: 22rem;
+}
+
+/* The button is a consequence of the numbers above it, not a continuation
+   of the sentence — it needs air. (settings.css gives this margin only to
+   .settings-section > .settings-btn-row, and this row is nested deeper.) */
+#email-reanalyze-body .settings-btn-row {
+    margin-top: var(--space-lg);
+    align-items: center;
+    gap: var(--space-md);
+}
+
+/* Three counts on one line: what is here, what would run, what already has
+   an answer. The numbers lead because they are the decision. */
+.reanalyze-facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-lg);
+    padding: var(--space-md) 0;
+    border-top: 1px solid var(--color-border-light);
+    border-bottom: 1px solid var(--color-border-light);
+}
+
+.reanalyze-fact {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.reanalyze-fact-n {
+    font-family: var(--font-serif);
+    font-size: var(--text-xl);
+    font-weight: 600;
+    color: var(--color-text);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+}
+
+.reanalyze-fact-l {
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+}
+
+.reanalyze-note,
+.reanalyze-coverage {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    line-height: 1.6;
+    margin: var(--space-md) 0 0;
+    max-width: 62ch;
+}
+
+/* The range asks for more than this Mac holds — say so rather than let the
+   button quietly under-deliver. */
+.reanalyze-coverage.is-short {
+    color: var(--color-text);
+}
+
+.reanalyze-hint,
+.reanalyze-progress {
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+}
+
+.reanalyze-progress {
+    margin: var(--space-sm) 0 0;
+}
