@@ -1,0 +1,99 @@
+/**
+ * Agent eval suite — shared harness (docs/COWORK_AGENT.md C8.8).
+ *
+ * Launches the real app via playwright-core against a SEEDED demo
+ * ANJADHE_DATA_ROOT — never real data (the 2026-07-30 lesson: app objects
+ * load lazily and save() overwrites; a harness against the live store wiped
+ * 107 journal entries).
+ *
+ * Stubs installed once per launch:
+ * - Notification capture (system notifications land in window.__eval.notifs)
+ * - AgentService._confirmWrite auto-approves (headless: a real dialog blocks
+ *   forever; the dialog path itself has its own journey via DOM click)
+ * - AgentTools.execute recorder (+ per-tool stubs) so a journey can assert
+ *   the CALL, not just the outcome, and stub side-effectful tools
+ */
+const { _electron } = require('playwright-core');
+const { execFileSync } = require('child_process');
+const path = require('path');
+const fs = require('fs');
+const os = require('os');
+
+const REPO = path.resolve(__dirname, '..', '..');
+const FIXTURES = path.join(__dirname, 'fixtures');
+
+async function launchApp({ dataRoot, docsDir, seed = true }) {
+  // Seed fresh demo data — journeys assume the demo persona. A mid-suite
+  // RELAUNCH (after an app crash) passes seed:false so accumulated journey
+  // state survives.
+  if (seed) {
+    execFileSync(path.join(REPO, 'node_modules', '.bin', 'electron'),
+      [path.join(REPO, 'scripts', 'seed-demo-data.js'), dataRoot, '--force'],
+      { env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' }, stdio: 'ignore' });
+  }
+
+  const app = await _electron.launch({
+    executablePath: path.join(REPO, 'node_modules', 'electron', 'dist', 'Electron.app', 'Contents', 'MacOS', 'Electron'),
+    args: [REPO],
+    cwd: REPO,   // .env must load or Gmail-adjacent code paths silently degrade
+    env: {
+      ...process.env,
+      ANJADHE_DATA_ROOT: dataRoot,
+      // Puts journey files inside the fs:read/write no-grant scope so file
+      // journeys run without permission prompts and never touch ~/Anjadhe.
+      ANJADHE_APPS_DIR: docsDir
+    }
+  });
+  const page = await app.firstWindow();
+  await page.waitForTimeout(3000);
+  await page.evaluate(() => window.electronStore.markSetupComplete());
+  await page.reload();
+  await page.waitForTimeout(3000);
+  await installStubs(page);
+  return { app, page };
+}
+
+async function installStubs(page) {
+  await page.evaluate(() => {
+    window.__eval = { notifs: [], calls: [], stubs: {} };
+    window.Notification = class {
+      constructor(title, opts) { window.__eval.notifs.push({ title, body: opts?.body }); }
+    };
+    AgentService._confirmWrite = async () => ({ approved: true, scope: 'once' });
+    const orig = AgentTools.execute.bind(AgentTools);
+    AgentTools.execute = async (name, args) => {
+      window.__eval.calls.push({ name, args });
+      if (name in window.__eval.stubs) return window.__eval.stubs[name];
+      return orig(name, args);
+    };
+  });
+}
+
+/** Reset the per-journey slate: agent stores + recorder. App stays up. */
+async function resetState(page) {
+  await page.evaluate(() => {
+    window.__eval.notifs = [];
+    window.__eval.calls = [];
+    window.__eval.stubs = {};
+    StorageManager.set('agent-recipes', []);
+    StorageManager.set('agent-write-ledger', []);
+    StorageManager.set('agent-automations', []);
+    // Settle any live task so one journey's leftovers can't block the next.
+    const tasks = (StorageManager.get('agent-tasks') || []).map(t =>
+      t && ['planning', 'running', 'verifying', 'awaiting_user', 'paused'].includes(t.status)
+        ? { ...t, status: 'failed', note: 'eval reset' } : t);
+    StorageManager.set('agent-tasks', tasks);
+  });
+}
+
+/** Prepare a scratch docs dir with the checked-in fixtures. */
+function makeDocsDir() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'anjadhe-evals-'));
+  for (const f of fs.readdirSync(FIXTURES)) {
+    if (f.endsWith('.js')) continue;
+    fs.copyFileSync(path.join(FIXTURES, f), path.join(dir, f));
+  }
+  return dir;
+}
+
+module.exports = { REPO, FIXTURES, launchApp, installStubs, resetState, makeDocsDir };
