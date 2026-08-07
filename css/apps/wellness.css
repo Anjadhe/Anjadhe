@@ -1,0 +1,648 @@
+/* Wellness app — Minimal Book Theme. Monochrome; semantic colors only for
+   BP categories (red high / amber elevated / green normal). */
+
+/* Reading width on the view so the header bar shares it (core.css .app-view). */
+#wellness-view {
+    --view-content-max: 860px;
+}
+
+#wellness-view .wellness-body {
+    padding: var(--space-md) 0 var(--space-2xl);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-lg);
+}
+
+/* ── Header log menu ─────────────────────────────────────────────── */
+
+.wellness-log-wrap {
+    position: relative;
+}
+
+.wellness-log-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 60;
+    min-width: 240px;
+    max-height: 70vh;
+    overflow-y: auto;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    padding: var(--space-xs);
+}
+
+/* A display class must not beat the hidden attribute */
+.wellness-log-menu[hidden] {
+    display: none;
+}
+
+.wellness-menu-group {
+    margin: var(--space-xs) var(--space-sm) 2px;
+    font-size: var(--text-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-tertiary);
+}
+
+.wellness-menu-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    width: 100%;
+    padding: 6px var(--space-sm);
+    background: none;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: var(--text-sm);
+    color: var(--color-text);
+    text-align: left;
+    cursor: pointer;
+}
+
+.wellness-menu-item:hover {
+    background: var(--color-surface-hover);
+}
+
+/* ── Monogram chips (kind icons, monochrome by design) ───────────── */
+
+.wellness-mono {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 20px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--color-text-secondary);
+}
+
+/* ── Import banner ───────────────────────────────────────────────── */
+
+.wellness-import-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-md);
+    flex-wrap: wrap;
+    padding: var(--space-md);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+}
+
+.wellness-import-text {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    max-width: 60ch;
+}
+
+.wellness-import-text strong {
+    color: var(--color-text);
+    display: block;
+    margin-bottom: 2px;
+}
+
+.wellness-import-actions {
+    display: flex;
+    gap: var(--space-sm);
+    flex-shrink: 0;
+}
+
+/* ── Empty state ─────────────────────────────────────────────────── */
+
+.wellness-empty {
+    padding: var(--space-xl) var(--space-lg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    text-align: center;
+}
+
+.wellness-empty-title {
+    font-family: var(--font-serif);
+    font-size: var(--text-xl);
+    margin: 0 0 var(--space-xs);
+}
+
+.wellness-empty-sub {
+    max-width: 56ch;
+    margin: 0 auto var(--space-lg);
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+}
+
+.wellness-empty-cat {
+    margin-bottom: var(--space-md);
+}
+
+.wellness-empty-cat-label {
+    font-size: var(--text-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-tertiary);
+    margin-bottom: var(--space-xs);
+}
+
+.wellness-empty-kinds {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--space-xs);
+}
+
+.wellness-empty-kind {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    padding: 5px 10px;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    font-size: var(--text-sm);
+    color: var(--color-text);
+    cursor: pointer;
+    transition: border-color var(--transition-fast);
+}
+
+.wellness-empty-kind:hover {
+    border-color: var(--color-border-hover);
+    box-shadow: var(--shadow-sm);
+}
+
+/* ── Summary tiles ───────────────────────────────────────────────── */
+
+.wellness-tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: var(--space-sm);
+}
+
+.wellness-tile {
+    padding: var(--space-md);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-bg);
+}
+
+.wellness-tile-value {
+    font-family: var(--font-serif);
+    font-size: var(--text-2xl);
+    font-weight: 700;
+    line-height: 1.1;
+    color: var(--color-text);
+}
+
+.wellness-tile-unit {
+    font-size: var(--text-sm);
+    font-weight: 400;
+    color: var(--color-text-secondary);
+}
+
+.wellness-tile-label {
+    margin-top: 2px;
+    font-size: var(--text-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-secondary);
+}
+
+.wellness-tile-meta {
+    margin-top: 4px;
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    min-height: 1.2em;
+}
+
+.wellness-quick-water {
+    padding: 2px 8px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    font-size: var(--text-xs);
+    color: var(--color-text);
+    cursor: pointer;
+}
+
+.wellness-quick-water:hover {
+    background: var(--color-surface-hover);
+    border-color: var(--color-border-hover);
+}
+
+/* ── Cards / sections ────────────────────────────────────────────── */
+
+.wellness-card {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-bg);
+    padding: var(--space-md);
+}
+
+.wellness-section-title {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-secondary);
+    margin: 0;
+}
+
+/* ── Chart ───────────────────────────────────────────────────────── */
+
+.wellness-chart-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-sm);
+    flex-wrap: wrap;
+    margin-bottom: var(--space-sm);
+}
+
+.wellness-chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.wellness-chip {
+    padding: 3px 10px;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    font-size: var(--text-xs);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.wellness-chip:hover {
+    border-color: var(--color-border-hover);
+    color: var(--color-text);
+}
+
+.wellness-chip.active {
+    background: var(--color-text);
+    border-color: var(--color-text);
+    color: var(--color-bg);
+}
+
+.wellness-chip-sm {
+    padding: 3px 8px;
+}
+
+.wellness-chart-container {
+    position: relative;
+}
+
+.wellness-chart-svg {
+    display: block;
+    width: 100%;
+}
+
+.wellness-chart-empty {
+    font-size: var(--text-sm);
+    font-style: italic;
+    color: var(--color-text-tertiary);
+    margin: var(--space-md) 0;
+}
+
+.wellness-gridline {
+    stroke: var(--color-border-light);
+    stroke-width: 1;
+}
+
+.wellness-refline {
+    stroke: var(--color-text-tertiary);
+    stroke-width: 1;
+    stroke-dasharray: 2 4;
+}
+
+.wellness-chart-label {
+    fill: var(--color-text-tertiary);
+    font-size: 10px;
+    font-family: var(--font-sans);
+}
+
+.wellness-line {
+    fill: none;
+    stroke-width: 2;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+}
+
+/* Two-series identity in monochrome: ink vs gray, solid vs dashed —
+   lightness plus dash pattern, never hue. */
+.wellness-line-a { stroke: var(--color-text); }
+.wellness-line-b { stroke: var(--color-text-tertiary); stroke-dasharray: 5 4; }
+.wellness-dot-a { fill: var(--color-text); }
+.wellness-dot-b { fill: var(--color-text-tertiary); }
+
+.wellness-crosshair {
+    stroke: var(--color-border-hover);
+    stroke-width: 1;
+}
+
+.wellness-chart-tooltip {
+    position: absolute;
+    top: 4px;
+    z-index: 10;
+    pointer-events: none;
+    padding: 6px 10px;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-md);
+    font-size: var(--text-xs);
+    color: var(--color-text);
+    white-space: nowrap;
+}
+
+.wellness-tt-time {
+    color: var(--color-text-tertiary);
+    margin-bottom: 2px;
+}
+
+.wellness-tt-row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.wellness-chart-legend {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    margin-top: var(--space-xs);
+    font-size: var(--text-xs);
+    color: var(--color-text-secondary);
+}
+
+.wellness-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.wellness-legend-swatch {
+    display: inline-block;
+    width: 14px;
+    height: 0;
+    border-top: 2px solid var(--color-text);
+}
+
+.wellness-legend-b {
+    border-top-style: dashed;
+    border-top-color: var(--color-text-tertiary);
+}
+
+.wellness-chart-unit {
+    margin-left: auto;
+    color: var(--color-text-tertiary);
+}
+
+/* ── History ─────────────────────────────────────────────────────── */
+
+.wellness-history {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+}
+
+.wellness-history-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-sm);
+}
+
+.wellness-day-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-sm);
+    flex-wrap: wrap;
+    margin-bottom: var(--space-sm);
+}
+
+.wellness-day-title {
+    font-family: var(--font-serif);
+    font-size: var(--text-md, 1rem);
+    font-weight: 700;
+    margin: 0;
+}
+
+.wellness-day-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.wellness-day-chip {
+    padding: 2px 8px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    font-size: var(--text-xs);
+    color: var(--color-text-secondary);
+}
+
+.wellness-day-rows {
+    display: flex;
+    flex-direction: column;
+}
+
+.wellness-row {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-sm);
+    padding: 6px 0;
+    border-top: 1px solid var(--color-border-light);
+}
+
+.wellness-row:first-child {
+    border-top: none;
+}
+
+.wellness-row .wellness-mono {
+    align-self: center;
+}
+
+.wellness-row-time {
+    flex-shrink: 0;
+    width: 62px;
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    font-variant-numeric: tabular-nums;
+}
+
+.wellness-row-main {
+    flex: 1;
+    min-width: 0;
+    font-size: var(--text-sm);
+}
+
+.wellness-row-primary {
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.wellness-row-meta {
+    margin-left: var(--space-xs);
+    font-size: var(--text-xs);
+    color: var(--color-text-secondary);
+}
+
+.wellness-row-actions {
+    flex-shrink: 0;
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+}
+
+.wellness-row:hover .wellness-row-actions {
+    opacity: 1;
+}
+
+.wellness-row-btn {
+    padding: 2px 8px;
+    background: none;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    font-size: var(--text-xs);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+}
+
+.wellness-row-btn:hover {
+    background: var(--color-surface-hover);
+    color: var(--color-text);
+}
+
+/* ── BP categories (semantic colors — deliberate exceptions) ─────── */
+
+.wellness-cat-ok { color: #16a34a; }
+.wellness-cat-warn { color: #d97706; }
+.wellness-cat-high { color: #dc2626; font-weight: 600; }
+
+/* ── Modal form ──────────────────────────────────────────────────── */
+
+.wellness-modal .modal-body {
+    min-width: min(440px, 80vw);
+}
+
+.wellness-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+}
+
+.wellness-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+}
+
+.wellness-field-label {
+    font-size: var(--text-xs);
+    font-weight: 600;
+    color: var(--color-text-secondary);
+}
+
+.wellness-field input,
+.wellness-field select {
+    padding: 7px 10px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-size: var(--text-sm);
+    font-family: var(--font-sans);
+}
+
+.wellness-field input:focus,
+.wellness-field select:focus {
+    outline: none;
+    border-color: var(--color-border-hover);
+}
+
+.wellness-field-pair {
+    display: flex;
+    gap: var(--space-sm);
+}
+
+.wellness-form-hint {
+    margin: 0;
+    padding: var(--space-xs) var(--space-sm);
+    border-left: 2px solid var(--color-border);
+    font-size: var(--text-xs);
+    color: var(--color-text-secondary);
+}
+
+.wellness-hint-empty {
+    font-style: italic;
+    color: var(--color-text-tertiary);
+}
+
+.wellness-segment {
+    display: flex;
+    gap: 4px;
+}
+
+.wellness-seg-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    padding: 5px 2px;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.wellness-seg-btn:hover {
+    border-color: var(--color-border-hover);
+}
+
+.wellness-seg-btn.active {
+    background: var(--color-text);
+    border-color: var(--color-text);
+    color: var(--color-bg);
+}
+
+.wellness-seg-word {
+    font-size: 0.6rem;
+    font-weight: 400;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+    .wellness-tiles {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .wellness-row-actions {
+        opacity: 1;
+    }
+
+    .wellness-field-pair {
+        flex-direction: column;
+    }
+}
