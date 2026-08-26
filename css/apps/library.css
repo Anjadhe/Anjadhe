@@ -1,0 +1,579 @@
+/* Library (docs/LIBRARY.md L1+L2) — Minimal Book: reading surface,
+   hairlines, no card chrome beyond what the shared classes give.
+   Three surfaces since 2026-08-08: home (search + documents), the
+   document reader, and Voice behind the header door. Engine/maintenance
+   moved to Settings › Library. */
+
+/* A single reading column. The cap rides --view-content-max so the shared
+   .app-view rule centres the header bar and the content on ONE left edge
+   (core.css "header matches content") — a max-width on .library-main alone
+   left the header full-bleed over a narrow column. Reader shares the
+   whole stylesheet: same rows, same reader, same column (the DocReader
+   one-renderer rule, in CSS). */
+#library-view,
+#reader-view {
+    --view-content-max: 720px;
+}
+
+#library-view .library-main,
+#reader-view .library-main {
+    padding: var(--space-md) 0 var(--space-2xl);
+}
+
+/* Import drop target — the whole column, shown only mid-drag. */
+#library-view .library-main.is-dragover,
+#reader-view .library-main.is-dragover {
+    outline: 2px dashed var(--color-border-hover);
+    outline-offset: 8px;
+    border-radius: var(--radius-md);
+}
+
+#library-view .library-intro,
+#reader-view .library-intro {
+    color: var(--color-text-secondary);
+    font-size: var(--text-sm);
+    line-height: 1.55;
+    margin: 0 0 var(--space-lg);
+}
+
+#library-view .library-search,
+#reader-view .library-search {
+    margin-bottom: var(--space-md);
+}
+
+/* Search-term highlight — a soft ink wash, not highlighter yellow (the
+   monochrome palette holds; the weight does the pointing). */
+#library-view mark,
+#reader-view mark {
+    background: color-mix(in srgb, var(--color-text) 12%, transparent);
+    color: inherit;
+    font-weight: 600;
+    border-radius: 2px;
+    padding: 0 1px;
+}
+
+/* A button that reads as a link — quiet doors inside prose/meta lines. */
+#library-view .library-linklike,
+#reader-view .library-linklike {
+    border: none;
+    background: none;
+    padding: 0;
+    font-size: inherit;
+    color: var(--color-text-secondary);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
+}
+#library-view .library-linklike:hover,
+#reader-view .library-linklike:hover { color: var(--color-text); }
+
+#library-view .library-keyword-note,
+#reader-view .library-keyword-note,
+#library-view .library-empty,
+#reader-view .library-empty {
+    color: var(--color-text-tertiary);
+    font-style: italic;
+    font-size: var(--text-sm);
+    padding: var(--space-sm) 0;
+    margin: 0;
+}
+
+/* ── Search results: grouped by DOCUMENT ─────────────────────────────
+   The document is the unit the user acts on; the passages under it are
+   why it matched. Every row is a door into the reader. */
+
+#library-view .library-result-doc,
+#reader-view .library-result-doc {
+    margin-top: var(--space-lg);
+}
+
+#library-view .library-result-dochead,
+#reader-view .library-result-dochead {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-sm);
+    width: 100%;
+    border: none;
+    background: none;
+    padding: 0 0 var(--space-xs);
+    border-bottom: 1px solid var(--color-border-light);
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+#library-view .library-result-doctitle,
+#reader-view .library-result-doctitle {
+    font-family: var(--font-serif);
+    font-size: var(--text-base);
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+#library-view .library-result-collection,
+#reader-view .library-result-collection {
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+}
+
+/* The "open" affordance shows at rest, quietly — the insight-action
+   lesson: an affordance only on hover reads as absent. */
+#library-view .library-result-open,
+#reader-view .library-result-open {
+    margin-left: auto;
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    white-space: nowrap;
+}
+#library-view .library-result-dochead:hover .library-result-doctitle,
+#reader-view .library-result-dochead:hover .library-result-doctitle { text-decoration: underline; }
+#library-view .library-result-dochead:hover .library-result-open,
+#reader-view .library-result-dochead:hover .library-result-open { color: var(--color-text); }
+
+#library-view .library-result,
+#reader-view .library-result {
+    display: block;
+    width: 100%;
+    border: none;
+    background: none;
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+    padding: var(--space-sm) var(--space-xs);
+    border-bottom: 1px solid var(--color-border-light);
+    transition: background var(--transition-fast);
+}
+#library-view .library-result:hover,
+#reader-view .library-result:hover { background: var(--color-surface); }
+
+#library-view .library-result-section,
+#reader-view .library-result-section {
+    display: block;
+    color: var(--color-text-tertiary);
+    font-size: var(--text-xs);
+    margin-bottom: 2px;
+}
+
+#library-view .library-result-text,
+#reader-view .library-result-text {
+    margin: 0;
+    color: var(--color-text-secondary);
+    font-size: var(--text-sm);
+    line-height: 1.5;
+}
+
+/* ── Documents (home) ────────────────────────────────────────────── */
+
+#library-view .library-collection,
+#reader-view .library-collection { margin-top: var(--space-md); }
+#library-view .library-collection-title,
+#reader-view .library-collection-title {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    margin: 0 0 var(--space-xs);
+}
+
+#library-view .library-doc-row,
+#reader-view .library-doc-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-md);
+    width: 100%;
+    border: none;
+    background: none;
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+    padding: 0.35rem var(--space-xs);
+    border-bottom: 1px solid var(--color-border-light);
+    font-size: var(--text-sm);
+    color: var(--color-text);
+    transition: background var(--transition-fast);
+}
+#library-view .library-doc-row:hover,
+#reader-view .library-doc-row:hover { background: var(--color-surface); }
+
+#library-view .library-doc-row .library-doc-title,
+#reader-view .library-doc-row .library-doc-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+#library-view .library-doc-row .library-doc-meta,
+#reader-view .library-doc-row .library-doc-meta {
+    color: var(--color-text-tertiary);
+    font-size: var(--text-xs);
+    flex-shrink: 0;
+    max-width: 45%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+#library-view .library-doc-row[data-status="error"] .library-doc-meta,
+#reader-view .library-doc-row[data-status="error"] .library-doc-meta { color: #dc2626; }
+
+/* Remove appears on hover only — a destructive act stays quiet (the
+   exemplar-remove rule). A span, not a nested button. */
+#library-view .library-doc-remove,
+#reader-view .library-doc-remove {
+    flex-shrink: 0;
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    visibility: hidden;
+}
+#library-view .library-doc-row:hover .library-doc-remove,
+#reader-view .library-doc-row:hover .library-doc-remove { visibility: visible; }
+#library-view .library-doc-remove:hover,
+#reader-view .library-doc-remove:hover { color: #dc2626; text-decoration: underline; }
+
+#library-view .library-reader-delete:hover,
+#reader-view .library-reader-delete:hover { color: #dc2626; }
+
+#library-view .library-status-line,
+#reader-view .library-status-line {
+    margin-top: var(--space-lg);
+    color: var(--color-text-tertiary);
+    font-size: var(--text-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+}
+
+/* ── Reader ──────────────────────────────────────────────────────────
+   The document read where it was found — serif title, quiet meta with
+   the doors to the original file, prose at a comfortable measure. */
+
+#library-view .library-back,
+#reader-view .library-back {
+    margin-bottom: var(--space-lg);
+    padding: 4px 12px;
+    font-size: var(--text-xs);
+    color: var(--color-text-secondary);
+}
+#library-view .library-back:hover,
+#reader-view .library-back:hover { color: var(--color-text); }
+
+#library-view .library-reader-title,
+#reader-view .library-reader-title {
+    font-family: var(--font-serif);
+    font-size: var(--text-2xl);
+    font-weight: 600;
+    margin: 0 0 var(--space-xs);
+}
+
+#library-view .library-reader-meta,
+#reader-view .library-reader-meta {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-md);
+    flex-wrap: wrap;
+    padding-bottom: var(--space-sm);
+    border-bottom: 1px solid var(--color-border-light);
+    margin-bottom: var(--space-md);
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+}
+
+#library-view .library-reader-path,
+#reader-view .library-reader-path {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+}
+
+#library-view .library-reader-actions,
+#reader-view .library-reader-actions {
+    margin-left: auto;
+    display: inline-flex;
+    gap: var(--space-md);
+    white-space: nowrap;
+}
+
+#library-view .library-reader-body,
+#reader-view .library-reader-body {
+    font-size: var(--text-base);
+    line-height: 1.7;
+    color: var(--color-text);
+    max-width: 66ch;
+}
+#library-view .library-reader-body p,
+#reader-view .library-reader-body p { margin: 0 0 1em; }
+
+#library-view .library-reader-more,
+#reader-view .library-reader-more { margin-top: var(--space-md); }
+
+/* ── Voice (LIBRARY.md L2) ───────────────────────────────────────────
+   Its own surface behind the header door. Reading surface like the rest:
+   hairline-separated cards, the style page as a quiet document
+   (borderless hover-well textarea — the agent-wiki-doc treatment; the id
+   scope out-specifies the global bordered textarea rule), exemplars as
+   quoted rows. */
+
+#library-view .library-voice-pagetitle,
+#reader-view .library-voice-pagetitle {
+    font-family: var(--font-serif);
+    font-size: var(--text-xl);
+    font-weight: 600;
+    margin: 0 0 var(--space-xs);
+}
+
+/* New-voice row: name + Create on one line. */
+#library-view .library-voice-new,
+#reader-view .library-voice-new {
+    display: flex;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-lg);
+}
+#library-view .library-voice-new .primary-btn,
+#reader-view .library-voice-new .primary-btn { flex: 0 0 auto; }
+
+/* Sample-voice offers under the create row. */
+#library-view .library-voice-starters,
+#reader-view .library-voice-starters {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    margin: calc(-1 * var(--space-sm)) 0 var(--space-lg);
+}
+#library-view .library-voice-starters .library-blurb,
+#reader-view .library-voice-starters .library-blurb { margin: 0; }
+
+/* One row per voice on the list — the same quiet table as documents. */
+#library-view .library-voice-row,
+#reader-view .library-voice-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-md);
+    width: 100%;
+    border: none;
+    background: none;
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+    padding: var(--space-sm) var(--space-xs);
+    border-bottom: 1px solid var(--color-border-light);
+    transition: background var(--transition-fast);
+}
+#library-view .library-voice-row:hover,
+#reader-view .library-voice-row:hover { background: var(--color-surface); }
+#library-view .library-voice-row-name,
+#reader-view .library-voice-row-name {
+    font-family: var(--font-serif);
+    font-size: var(--text-base);
+    font-weight: 600;
+    color: var(--color-text);
+}
+#library-view .library-voice-row-meta,
+#reader-view .library-voice-row-meta {
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    flex-shrink: 0;
+    margin-left: auto;
+}
+
+/* The row's own draft door — visible at rest (the insight-action lesson),
+   a span because buttons cannot nest. */
+#library-view .library-voice-row-draft,
+#reader-view .library-voice-row-draft {
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+#library-view .library-voice-row-draft:hover,
+#reader-view .library-voice-row-draft:hover {
+    color: var(--color-text);
+    text-decoration: underline;
+}
+
+/* The voiceless-documents tail on home: quiet, below the voices. */
+#library-view .library-other-title,
+#reader-view .library-other-title { margin-top: var(--space-2xl); }
+#library-view .library-blurb,
+#reader-view .library-blurb {
+    margin: 2px 0 var(--space-xs);
+    font-size: var(--text-xs);
+    line-height: 1.5;
+    color: var(--color-text-tertiary);
+}
+#library-view .library-other-collection,
+#reader-view .library-other-collection {
+    margin-top: var(--space-sm);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    color: var(--color-text-secondary);
+}
+
+#library-view .library-voice-card,
+#reader-view .library-voice-card {
+    padding: var(--space-md) 0 var(--space-lg);
+    border-top: 1px solid var(--color-border-light);
+}
+#library-view .library-voice-card.is-detail,
+#reader-view .library-voice-card.is-detail { border-top: none; padding-top: 0; }
+
+/* The voice's name is a quiet document title, editable in place (the
+   agent-wiki-doc treatment; the id scope out-specifies the global
+   bordered input rule). */
+#library-view input.library-voice-name-input,
+#reader-view input.library-voice-name-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    padding: 2px var(--space-xs);
+    font-family: var(--font-serif);
+    font-size: var(--text-xl);
+    font-weight: 600;
+    color: var(--color-text);
+}
+#library-view input.library-voice-name-input:hover,
+#reader-view input.library-voice-name-input:hover { background: var(--color-surface); }
+#library-view input.library-voice-name-input:focus,
+#reader-view input.library-voice-name-input:focus {
+    outline: none;
+    background: var(--color-surface);
+    border-color: var(--color-border);
+    box-shadow: none;
+}
+
+#library-view .library-voice-head-actions,
+#reader-view .library-voice-head-actions {
+    display: inline-flex;
+    gap: var(--space-sm);
+    flex: 0 0 auto;
+}
+
+/* Delete is real but quiet, and at the end. */
+#library-view .library-voice-footer,
+#reader-view .library-voice-footer {
+    margin-top: var(--space-lg);
+    padding-top: var(--space-sm);
+    border-top: 1px solid var(--color-border-light);
+}
+#library-view .library-voice-delete:hover,
+#reader-view .library-voice-delete:hover { color: #dc2626; }
+
+#library-view .library-voice-head,
+#reader-view .library-voice-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-md);
+}
+
+#library-view .library-voice-name,
+#reader-view .library-voice-name {
+    font-family: var(--font-serif);
+    font-size: var(--text-lg);
+    font-weight: 600;
+}
+
+#library-view .library-voice-meta,
+#reader-view .library-voice-meta {
+    margin-top: 2px;
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+}
+
+#library-view textarea.library-voice-body,
+#reader-view textarea.library-voice-body {
+    width: 100%;
+    min-height: 160px;
+    margin-top: var(--space-sm);
+    padding: var(--space-sm);
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    font-family: var(--font-sans);
+    font-size: var(--text-sm);
+    line-height: 1.6;
+    color: var(--color-text);
+    resize: vertical;
+}
+#library-view textarea.library-voice-body:hover,
+#reader-view textarea.library-voice-body:hover { background: var(--color-surface); }
+#library-view textarea.library-voice-body:focus,
+#reader-view textarea.library-voice-body:focus {
+    outline: none;
+    background: var(--color-surface);
+    border-color: var(--color-border);
+    box-shadow: none;
+}
+
+#library-view .library-voice-none,
+#reader-view .library-voice-none {
+    margin: var(--space-sm) 0 0;
+    font-size: var(--text-sm);
+    font-style: italic;
+    color: var(--color-text-tertiary);
+}
+
+#library-view .library-voice-ex-title,
+#reader-view .library-voice-ex-title {
+    margin-top: var(--space-md);
+    font-size: var(--text-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+}
+
+#library-view .library-voice-ex,
+#reader-view .library-voice-ex {
+    padding: var(--space-sm) 0;
+    border-bottom: 1px solid var(--color-border-light);
+}
+
+#library-view .library-voice-ex-text,
+#reader-view .library-voice-ex-text {
+    margin: 0;
+    font-size: var(--text-sm);
+    line-height: 1.55;
+    color: var(--color-text-secondary);
+}
+
+#library-view .library-voice-ex-meta,
+#reader-view .library-voice-ex-meta {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-sm);
+    margin-top: 4px;
+    font-size: var(--text-xs);
+}
+
+#library-view .library-voice-ex-from,
+#reader-view .library-voice-ex-from {
+    color: var(--color-text-tertiary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 50%;
+}
+
+#library-view .library-voice-ex-btn,
+#reader-view .library-voice-ex-btn {
+    border: none;
+    background: none;
+    padding: 0;
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    cursor: pointer;
+}
+#library-view .library-voice-ex-btn:hover,
+#reader-view .library-voice-ex-btn:hover { color: var(--color-text); text-decoration: underline; }
+#library-view .library-voice-ex-btn.is-pinned,
+#reader-view .library-voice-ex-btn.is-pinned { color: var(--color-text); font-weight: 600; }
+
+/* Remove appears on hover only — parting with a nomination is a quiet act. */
+#library-view .library-voice-ex-remove,
+#reader-view .library-voice-ex-remove { visibility: hidden; }
+#library-view .library-voice-ex:hover .library-voice-ex-remove,
+#reader-view .library-voice-ex:hover .library-voice-ex-remove { visibility: visible; }
+
+#library-view .library-voice-draft,
+#reader-view .library-voice-draft { margin-top: var(--space-md); }
