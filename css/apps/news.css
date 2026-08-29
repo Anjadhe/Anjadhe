@@ -1,0 +1,860 @@
+/* News app — the headline list + the article reader
+ * (summary-before-browser). Same quiet language as the Discover pane. */
+
+/* The masthead spans the page (its title lines up with every other app's);
+   the reading measure moved down onto .news-main so the topics rail can sit
+   at the page edge under that title rather than inside the column. */
+#news-view {
+    --view-content-max: none;
+    padding: var(--space-lg) var(--space-xl) var(--space-2xl);
+}
+
+.news-layout {
+    display: flex;
+    gap: var(--space-xl);
+    align-items: flex-start;
+}
+
+/* The body is centred in whatever the rail leaves, so collapsing the rail
+   recentres the page rather than shifting it sideways. */
+.news-main {
+    flex: 1;
+    min-width: 0;
+    max-width: 1240px;
+    margin-inline: auto;
+}
+
+.news-sidebar {
+    width: 200px;
+    min-width: 200px;
+    flex-shrink: 0;
+    overflow: hidden;
+    transition: width var(--transition-base), min-width var(--transition-base);
+}
+
+.news-layout.sidebar-collapsed .news-sidebar {
+    width: 0;
+    min-width: 0;
+}
+
+.news-layout.sidebar-collapsed {
+    gap: 0;
+}
+
+.news-topic-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.news-topic-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    width: 100%;
+    background: none;
+    border: none;
+    text-align: left;
+    padding: 7px var(--space-md);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    font-size: var(--text-sm);
+    line-height: 1.4;
+    color: var(--color-text-secondary);
+    transition: all var(--transition-fast);
+}
+
+.news-topic-item:hover {
+    background: var(--color-surface-hover);
+    color: var(--color-text);
+}
+
+.news-topic-item.active {
+    background: var(--color-surface);
+    color: var(--color-text);
+    font-weight: 600;
+    box-shadow: inset 0 0 0 1px var(--color-border);
+}
+
+/* Topics are user-typed and can run long — ellipsis rather than widen the
+   rail or wrap. */
+.news-topic-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.news-topic-count {
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    flex-shrink: 0;
+}
+
+.news-topics-manage-link {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    padding: var(--space-sm) var(--space-md);
+    margin-top: var(--space-xs);
+    text-align: left;
+    width: 100%;
+}
+
+.news-topics-manage-link:hover {
+    color: var(--color-text);
+}
+
+/* All news / Saved are view switches, so they sit above the Topics heading
+   with a little air rather than reading as two more topics. The heading's own
+   rule below them does the separating. */
+.news-nav-list {
+    margin-bottom: var(--space-lg);
+}
+
+/* The rail heading inherits the legacy serif .sidebar-title from notes.css,
+   which outweighs the items under it. Use the app's section-header
+   convention instead, and pull the rule closer to its list. */
+.news-sidebar .sidebar-title {
+    font-family: var(--font-sans);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--color-text-secondary);
+    padding: 0 var(--space-md) var(--space-sm);
+    margin-bottom: var(--space-sm);
+}
+
+/* The masthead needs real air under it — the front-page grid starts right
+   below and the two were reading as one block. */
+.news-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: var(--space-xl);
+}
+
+.news-masthead {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-md);
+    min-width: 0;
+}
+
+/* The hamburger is the one masthead child that shouldn't sit on the text
+   baseline — centre it against the title instead. */
+.news-masthead .email-sidebar-toggle {
+    align-self: center;
+}
+
+.news-title {
+    font-family: var(--font-serif);
+    font-size: var(--text-2xl);
+    font-weight: 700;
+    margin: 0;
+}
+
+.news-dateline {
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.news-head-actions {
+    display: flex;
+    gap: var(--space-sm);
+    align-items: center;
+}
+
+/* Masthead search — filters the cached headlines (and Saved), never the web. */
+.news-search {
+    width: 190px;
+    font-size: var(--text-sm);
+    font-family: inherit;
+    padding: 5px 10px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-bg);
+    color: var(--color-text);
+    transition: width var(--transition-fast), border-color var(--transition-fast);
+}
+
+.news-search:focus {
+    outline: none;
+    border-color: var(--color-border-hover);
+    width: 240px;
+}
+
+.news-search-note {
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    margin: 0 0 var(--space-md);
+}
+
+/* Saved matches sit under the headline hits, in the modal-label voice. */
+.news-search-saved-head {
+    font-size: var(--text-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-text-secondary);
+    margin: var(--space-lg) 0 var(--space-sm);
+}
+
+/* The masthead used to carry a double rule under it. Dropped by request —
+   the header row already separates itself from the grid below, and no other
+   app draws a line under its title. */
+
+.news-empty {
+    font-style: italic;
+    color: var(--color-text-tertiary);
+    font-size: var(--text-sm);
+    line-height: 1.5;
+}
+
+.news-empty-btn {
+    margin-top: var(--space-md);
+}
+
+/* ---------- Timeline: one chronological column of posts ----------
+   The front-page grid (hero + Latest rail + topic sections) was replaced
+   2026-08-28 by request with a social-feed column: avatar left, byline,
+   the headline as the post text, hairlines between posts. */
+
+.news-feed {
+    max-width: 620px;
+    margin: 0 auto;
+}
+
+.news-post-wrap {
+    position: relative;
+}
+
+.news-post-wrap + .news-post-wrap { border-top: 1px solid var(--color-border-light); }
+
+.news-post {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-md);
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: var(--space-md) var(--space-sm);
+    cursor: pointer;
+    font-family: inherit;
+    transition: background var(--transition-fast);
+}
+
+.news-post:hover { background: var(--color-surface-hover); }
+
+/* Publisher avatar: the source's favicon in a quiet circle, with the
+   source-initial letter as placeholder and fallback (`has-img` is added
+   by the load listener only once the favicon really loaded). */
+.news-post-avatar {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text-secondary);
+    font-family: var(--font-serif);
+    font-size: 1rem;
+    font-weight: 700;
+    overflow: hidden;
+}
+
+/* Favicons sit as a glyph inside the circle, not full-bleed — they are
+   small square marks, and stretching one to 38px reads as pixel soup. */
+.news-post-avatar-img {
+    display: none;
+    width: 22px;
+    height: 22px;
+    border-radius: 4px;
+}
+
+.news-post-avatar.has-img .news-post-avatar-char { display: none; }
+.news-post-avatar.has-img .news-post-avatar-img { display: block; }
+
+.news-post-main {
+    flex: 1;
+    min-width: 0;
+}
+
+/* Byline: source · topic · age on one line, clipped rather than wrapped. */
+.news-post-head {
+    display: block;
+    font-size: var(--text-xs);
+    line-height: 1.5;
+    color: var(--color-text-tertiary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.news-post-source {
+    font-size: var(--text-sm);
+    font-weight: 700;
+    color: var(--color-text);
+}
+
+/* Topic tag: the one clickable element inside the post besides the post
+   itself — opens that topic's feed (the rail's drill-in). */
+.news-post-topic {
+    display: inline-block;
+    padding: 0 8px;
+    margin-left: 4px;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    background: var(--color-surface);
+    color: var(--color-text-secondary);
+    font-size: 0.7rem;
+    font-weight: 600;
+    line-height: 1.7;
+    vertical-align: 1px;
+    cursor: pointer;
+    transition: border-color var(--transition-fast), color var(--transition-fast), background var(--transition-fast);
+}
+
+.news-post-topic:hover {
+    border-color: var(--color-border-hover);
+    background: var(--color-surface-hover);
+    color: var(--color-text);
+}
+
+/* The headline is the post text — regular weight, reading size. */
+.news-post-text {
+    display: block;
+    margin-top: 2px;
+    font-size: 0.9375rem;
+    line-height: 1.45;
+    color: var(--color-text);
+}
+
+.news-post-why {
+    display: block;
+    margin-top: 3px;
+    font-size: var(--text-xs);
+    font-style: italic;
+    color: var(--color-text-secondary);
+}
+
+.news-post-wrap.is-read .news-post-text { color: var(--color-text-tertiary); }
+.news-post-wrap.is-read .news-post-source { color: var(--color-text-secondary); font-weight: 600; }
+
+/* ---------- Single-topic drill-in ---------- */
+
+/* Same measure as the timeline, so drilling into a topic (or Saved or
+   search results) reads as the same feed, filtered. */
+.news-topic {
+    max-width: 620px;
+    margin: 0 auto;
+}
+
+.news-topic-title {
+    font-family: var(--font-serif);
+    font-size: var(--text-2xl);
+    font-weight: 700;
+    margin: 0 0 var(--space-md);
+}
+
+/* Hover-revealed dismiss control (sibling button over the post, not
+   nested — the post itself is a button). */
+.news-row-x {
+    display: none;
+    position: absolute;
+    top: 10px;
+    right: 6px;
+    background: none;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 2px 6px;
+    font-size: var(--text-base, 1rem);
+    line-height: 1;
+    color: var(--color-text-tertiary);
+    cursor: pointer;
+}
+
+.news-post-wrap:hover .news-row-x { display: block; }
+
+.news-row-x:hover { color: var(--color-text); }
+
+/* ---------- "Catch me up" digest ---------- */
+
+.news-catchup {
+    display: block;
+    margin-bottom: var(--space-xl);
+    padding: 8px 16px;
+    font-family: inherit;
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: border-color var(--transition-fast), color var(--transition-fast);
+}
+
+.news-catchup:hover:not(:disabled) {
+    border-color: var(--color-border-hover);
+    color: var(--color-text);
+}
+
+.news-catchup:disabled {
+    cursor: default;
+    font-weight: 400;
+    font-style: italic;
+}
+
+.news-digest {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    padding: var(--space-md) var(--space-lg);
+    margin-bottom: var(--space-xl);
+    /* The page is grid-wide; digest prose stays at a readable measure. */
+    max-width: 860px;
+}
+
+.news-digest-note {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-sm);
+    font-size: var(--text-xs);
+    font-style: italic;
+    color: var(--color-text-secondary);
+    margin-bottom: var(--space-sm);
+}
+
+.news-digest-hide {
+    background: none;
+    border: none;
+    font-family: inherit;
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    cursor: pointer;
+    padding: 0;
+}
+
+.news-digest-hide:hover { color: var(--color-text); }
+
+.news-digest p {
+    margin: 0 0 var(--space-sm);
+    font-size: var(--text-sm);
+    line-height: 1.6;
+    color: var(--color-text);
+}
+
+.news-digest p:last-child { margin-bottom: 0; }
+
+/* ---------- Extracted events ("act") ---------- */
+
+.news-events {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-sm) var(--space-md);
+    margin-bottom: var(--space-lg);
+}
+
+.news-events-note {
+    font-size: var(--text-xs);
+    font-style: italic;
+    color: var(--color-text-secondary);
+    margin-bottom: var(--space-xs);
+}
+
+.news-event {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-md);
+    padding: 6px 0;
+}
+
+.news-event + .news-event { border-top: 1px solid var(--color-border-light); }
+
+.news-event-what { min-width: 0; }
+
+.news-event-title {
+    display: block;
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.news-event-when {
+    display: block;
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    margin-top: 2px;
+}
+
+.news-event-add {
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.news-event-add:disabled {
+    cursor: default;
+    font-style: italic;
+}
+
+.news-foot {
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+}
+
+/* ---------- Reader ---------- */
+
+.news-reader {
+    max-width: 760px;
+    margin: 0 auto;
+}
+
+.news-back {
+    background: none;
+    border: none;
+    font-family: inherit;
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    padding: 4px 0;
+    margin-bottom: var(--space-md);
+}
+
+.news-back:hover { color: var(--color-text); }
+
+.news-reader-title {
+    font-family: var(--font-serif);
+    font-size: var(--text-2xl);
+    font-weight: 700;
+    line-height: 1.25;
+    margin: 0 0 var(--space-xs);
+}
+
+.news-reader-meta {
+    font-size: var(--text-sm);
+    color: var(--color-text-tertiary);
+    margin-bottom: var(--space-md);
+}
+
+.news-reader-actions {
+    display: flex;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-lg);
+}
+
+/* Saved reads as on/off: the filled star plus a settled border, no colour. */
+.news-save-btn {
+    white-space: nowrap;
+}
+
+.news-save-btn.is-saved {
+    border-color: var(--color-text);
+    color: var(--color-text);
+    font-weight: 600;
+}
+
+.news-summary-note {
+    font-size: var(--text-xs);
+    color: var(--color-text-secondary);
+    font-style: italic;
+    border-left: 2px solid var(--color-border);
+    padding-left: var(--space-sm);
+    margin-bottom: var(--space-md);
+}
+
+/* The summary is model-written markdown, so its typography comes from the
+   shared .ai-prose class in components.css — the same one the assistant's
+   reply bubble uses. Only the reading measure is a News decision: the reader
+   is a full-width page, and prose past ~68 characters is hard to track. */
+.news-summary-body {
+    max-width: 68ch;
+}
+
+/* Live edge of a streaming summary — same caret the assistant uses, so the
+   two AI surfaces behave alike as well as look alike. */
+@keyframes news-caret-blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+
+.news-summary-body.is-streaming > :last-child::after {
+    content: '';
+    display: inline-block;
+    width: 2px;
+    height: 1em;
+    margin-left: 2px;
+    vertical-align: text-bottom;
+    background: var(--color-text);
+    animation: news-caret-blink 1s step-end infinite;
+}
+
+/* Attribution block under the summary. Deliberately plain and small: it is
+   provenance, not content, and it is the one part of the reader the model
+   never wrote. */
+.news-source {
+    max-width: 68ch;
+    margin-top: var(--space-xl);
+    padding-top: var(--space-md);
+    border-top: 1px solid var(--color-border);
+}
+
+.news-source-head {
+    font-size: var(--text-xs);
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--color-text-secondary);
+    margin-bottom: var(--space-sm);
+}
+
+.news-source-rows {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: 4px var(--space-md);
+    margin: 0;
+    font-size: var(--text-xs);
+    line-height: 1.5;
+}
+
+.news-source-rows dt {
+    color: var(--color-text-tertiary);
+}
+
+.news-source-rows dd {
+    margin: 0;
+    color: var(--color-text-secondary);
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.news-source-link {
+    background: none;
+    border: none;
+    padding: 0;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    color: var(--color-text-secondary);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    overflow-wrap: anywhere;
+}
+
+.news-source-link:hover { color: var(--color-text); }
+
+.news-summary-status {
+    font-style: italic;
+    color: var(--color-text-tertiary);
+    font-size: var(--text-sm);
+}
+
+.news-summary-working::after {
+    content: '';
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    margin-left: 8px;
+    border: 2px solid var(--color-border-hover);
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: news-spin 0.9s linear infinite;
+    vertical-align: middle;
+}
+
+@keyframes news-spin { to { transform: rotate(360deg); } }
+
+/* ==========================================================================
+   News topics dialog (NewsFeed.openPrefs)
+
+   These rules came from css/apps/discover.css, which was deleted with the
+   home Discover pane on 2026-07-29. The dialog outlived the pane — it is
+   how the News app picks topics — so its styles moved here. The class
+   names keep the discover- prefix to match the markup and the storage
+   keys, which are unchanged.
+   ========================================================================== */
+/* ---------- Preferences modal ---------- */
+
+.discover-prefs-modal .modal-body {
+    max-width: 520px;
+}
+
+.discover-prefs-desc {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    margin: 0 0 var(--space-lg);
+    line-height: 1.45;
+}
+
+/* Section headers inside the modal — the app's uppercase-label pattern. */
+.discover-prefs-label {
+    font-size: var(--text-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-text-secondary);
+    margin: 0 0 var(--space-sm);
+}
+
+.discover-prefs-label--gap {
+    margin-top: var(--space-lg);
+}
+
+.discover-count,
+.discover-label-opt {
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: normal;
+    color: var(--color-text-tertiary);
+    margin-left: 4px;
+}
+
+/* Search box over the catalog — same quiet input as the custom-topic row. */
+.discover-topic-filter {
+    display: block;
+    width: 100%;
+    font-size: var(--text-sm);
+    font-family: inherit;
+    padding: 6px 10px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-bg);
+    color: var(--color-text);
+    margin-bottom: var(--space-sm);
+}
+
+.discover-topic-filter:focus {
+    outline: none;
+    border-color: var(--color-border-hover);
+}
+
+/* The grouped catalog scrolls inside the modal so Location and Save stay
+   reachable however long the topic list grows. */
+#discover-catalog {
+    max-height: 320px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.discover-group {
+    margin-bottom: var(--space-md);
+}
+
+.discover-group[hidden] {
+    display: none;
+}
+
+.discover-group-label {
+    margin-bottom: 6px;
+}
+
+.discover-chip-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.discover-chip[hidden] {
+    display: none;
+}
+
+.discover-chip {
+    font-size: var(--text-sm);
+    font-family: inherit;
+    padding: 6px 14px;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    background: var(--color-surface);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    transition: border-color var(--transition-fast), background var(--transition-fast), color var(--transition-fast);
+}
+
+.discover-chip:hover {
+    border-color: var(--color-border-hover);
+    color: var(--color-text);
+}
+
+.discover-chip.selected {
+    background: var(--color-text);
+    border-color: var(--color-text);
+    color: var(--color-bg);
+}
+
+.discover-chip.selected::before {
+    content: "\2713";
+    margin-right: 6px;
+    font-size: 0.85em;
+}
+
+/* Custom topics carry an × to remove them entirely. */
+.discover-chip-x {
+    margin-left: 7px;
+    opacity: 0.55;
+    font-size: 1.05em;
+    line-height: 1;
+}
+
+.discover-chip-x:hover {
+    opacity: 1;
+}
+
+.discover-custom-row {
+    display: flex;
+    gap: 8px;
+    margin-top: var(--space-sm);
+}
+
+.discover-custom-row input,
+.discover-loc-input {
+    flex: 1;
+    font-size: var(--text-sm);
+    font-family: inherit;
+    padding: 6px 10px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-bg);
+    color: var(--color-text);
+}
+
+.discover-custom-row input:focus,
+.discover-loc-input:focus {
+    outline: none;
+    border-color: var(--color-border-hover);
+}
+
+.discover-loc-input {
+    display: block;
+    width: 100%;
+}
+
+.discover-prefs-hint {
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    margin: var(--space-sm) 0 0;
+}
+
+.discover-muted-reset {
+    background: none;
+    border: none;
+    font-family: inherit;
+    font-size: var(--text-xs);
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    text-decoration: underline;
+    cursor: pointer;
+    padding: 0;
+}
+
+.discover-muted-reset:hover { color: var(--color-text); }
