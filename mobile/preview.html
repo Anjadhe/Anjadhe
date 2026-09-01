@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="color-scheme" content="light dark" />
+  <title>Anjadhe preview</title>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="mobile.css" />
+</head>
+<body>
+  <div id="app">
+    <main id="screen"></main>
+    <nav id="navbar"></nav>
+  </div>
+  <script>
+    /* dev-only design preview — seeds sample data, skips pairing/sync.
+       Open ?screen=notes (or journal, home) to land on a screen. */
+    (function () {
+      var S = 'anjadhe:store:';
+      function ds(off) {
+        var d = new Date(); d.setDate(d.getDate() - off);
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0')
+          + '-' + String(d.getDate()).padStart(2, '0');
+      }
+      function iso(off) { var d = new Date(); d.setDate(d.getDate() - off); return d.toISOString(); }
+      function at(off, h, m) {
+        var d = new Date(); d.setDate(d.getDate() - off); d.setHours(h, m, 0, 0);
+        return d.toISOString();
+      }
+      localStorage.setItem(S + 'app_schedule', JSON.stringify({ scheduleItems: [
+        { id: 't1', title: 'Morning stand-up', startTime: '09:30', repeat: 'daily', lastCompletedDate: null },
+        { id: 't2', title: 'Review design feedback', startTime: '14:00', repeat: 'daily', lastCompletedDate: null },
+        { id: 't3', title: 'Book flights for the trip', startTime: '', repeat: 'none', scheduledDate: ds(0), lastCompletedDate: null }
+      ] }));
+      localStorage.setItem(S + 'app_notes', JSON.stringify({ notes: [
+        { id: 'n1', title: 'Mobile app ideas', content: '<p>Bottom tab nav, calm typography, a paper feel throughout.</p>', pinned: true, modifiedAt: iso(0) },
+        { id: 'n2', title: 'Books to read', content: '<p>Atomic Habits, The Creative Act, A Pattern Language.</p>', modifiedAt: iso(1) },
+        { id: 'n3', title: 'Weekend plans', content: '<p>Farmers market, a hike, dinner with friends.</p>', modifiedAt: iso(2) },
+        { id: 'n4', title: '', content: '<p>Quick thought — try the coffee place on 5th.</p>', modifiedAt: iso(3) }
+      ] }));
+      localStorage.setItem(S + 'app_journal', JSON.stringify({ entries: [
+        { id: 'j1', content: '<p>Shipped the pairing flow today — the phone talking to the Mac felt like magic.</p>', mood: 'great', date: iso(0), createdAt: iso(0) },
+        { id: 'j2', content: '<p>A slower day. Spent it mostly reading and resting.</p>', mood: 'okay', date: iso(2), createdAt: iso(2) },
+        { id: 'j3', content: '<p>Long week — looking forward to the weekend.</p>', mood: 'low', date: iso(4), createdAt: iso(4) }
+      ] }));
+      localStorage.setItem(S + 'app_calendar', JSON.stringify({ events: [
+        { id: 'e1', summary: 'Team sync', location: 'Zoom', allDay: false,
+          start: at(0, 10, 0), end: at(0, 10, 30), htmlLink: 'https://calendar.google.com' },
+        { id: 'e2', summary: 'Lunch with Sam', location: 'Cafe Vero', allDay: false,
+          start: at(0, 12, 30), end: at(0, 13, 30) },
+        { id: 'e3', summary: 'Quarterly planning', allDay: true, start: ds(-2) },
+        { id: 'e4', summary: 'Flight to NYC', allDay: false, start: at(-5, 7, 15) }
+      ] }));
+      localStorage.setItem(S + 'app_prompts', JSON.stringify({ prompts: [
+        { id: 'p1', title: 'Summarize an article',
+          body: 'Summarize the article below in five concise bullet points, then give a one-line takeaway.\n\n---\n',
+          tags: [], modifiedAt: iso(0) },
+        { id: 'p2', title: 'Code review',
+          body: 'Review this code for correctness bugs, edge cases, and naming. Be specific and cite line numbers.',
+          tags: [], modifiedAt: iso(1) },
+        { id: 'p3', title: 'Weekly reflection',
+          body: 'Ask me five thoughtful questions to reflect on my week, one at a time.',
+          tags: [], modifiedAt: iso(2) }
+      ], tags: [] }));
+      localStorage.setItem(S + 'app_agent-conversations', JSON.stringify({ conversations: [
+        { id: 'conv_preview', title: 'Phone: what does my day look like?', channel: 'mobile',
+          createdAt: iso(0), updatedAt: new Date().toISOString(), messages: [
+            { role: 'user', content: 'What does my day look like?' },
+            { role: 'assistant', content: 'Three things today:\n\n- **Morning stand-up** at 9:30\n- [Review design feedback](anjadhe://task/t2) at 2:00 PM\n- [Book flights for the trip](anjadhe://task/t3) — no time set\n\nYour calendar also has lunch with Sam at 12:30.' }
+          ] }
+      ] }));
+      localStorage.setItem(S + 'app_bookmarks', JSON.stringify({ bookmarks: [
+        { id: 'b1', title: 'Anjadhe', url: 'https://anjadhe.com', description: 'The product site.', modifiedAt: iso(0) },
+        { id: 'b2', title: 'Hacker News', url: 'https://news.ycombinator.com', description: '', modifiedAt: iso(1) },
+        { id: 'b3', title: 'MDN Web Docs', url: 'https://developer.mozilla.org', description: 'Web platform reference.', modifiedAt: iso(2) }
+      ] }));
+      localStorage.setItem(S + 'app_goals', JSON.stringify({ goals: [
+        { id: 'g1', title: 'Ship the mobile restructure', group: 'Anjadhe', status: 'not-started', targetDate: ds(-14), description: 'Assistant as the spine; every app reachable.' },
+        { id: 'g2', title: 'Run a 10k', group: 'Health', status: 'not-started', targetDate: ds(-60) },
+        { id: 'g3', title: 'Read 12 books', status: 'completed' }
+      ] }));
+      localStorage.setItem(S + 'app_links', JSON.stringify({ links: [
+        { id: 'l1', sourceApp: 'goals', sourceId: 'g1', targetApp: 'schedule', targetId: 't2' }
+      ] }));
+      localStorage.setItem(S + 'app_wellness', JSON.stringify({ entries: [
+        { id: 'w1', kind: 'water', time: ds(0) + 'T09:10', amount: 8, unit: 'oz', createdAt: iso(0) },
+        { id: 'w2', kind: 'mood', time: ds(0) + 'T08:00', mood: 4, energy: 3, createdAt: iso(0) },
+        { id: 'w3', kind: 'sleep', time: ds(1) + 'T07:00', hours: 7.5, quality: 4, createdAt: iso(1) }
+      ] }));
+      // Mac-served view caches (raw keys — App.macView reads these).
+      localStorage.setItem('anjadhe:view:insights', JSON.stringify({ at: Date.now(), data: {
+        at: Date.now(), unread: 2,
+        insights: [
+          { emailId: 'e1', type: 'payment', title: 'Water bill due', from: 'City Utilities', dueDate: ds(-3), matterDate: ds(-3), read: false, summary: 'Auto-pay is off; $84.20 due Friday.' },
+          { emailId: 'e2', type: 'reservation', title: 'Flight to Seattle', from: 'Alaska Airlines', matterDate: ds(-10), read: false, summary: 'Confirmation ABC123, departs 7:15am.' },
+          { emailId: 'e3', type: 'shipping', title: 'Package out for delivery', from: 'UPS', matterDate: ds(0), read: true }
+        ],
+        trips: [{ label: 'Seattle', start: ds(-10), end: ds(-13) }]
+      } }));
+      localStorage.setItem('anjadhe:view:news', JSON.stringify({ at: Date.now(), data: {
+        at: Date.now(), generatedAt: Date.now() - 20 * 60000,
+        items: [
+          { title: 'Open-weight models close the gap again', url: 'https://example.com/1', topic: 'AI', source: 'The Verge' },
+          { title: 'Markets drift ahead of jobs report', url: 'https://example.com/2', topic: 'Stock markets', source: 'Reuters' },
+          { title: 'New llama.cpp release lands speculative decoding', url: 'https://example.com/3', topic: 'AI', source: 'GitHub' }
+        ]
+      } }));
+      localStorage.setItem('anjadhe:view:portfolio', JSON.stringify({ at: Date.now(), data: {
+        at: Date.now(), totalValue: 482000, netWorth: 391000, liabilitiesTotal: 91000,
+        dayChange: 2140, dayChangePercent: 0.6, totalPL: 61200, totalPLPercent: 14.5,
+        movers: [
+          { ticker: 'NVDA', dayChange: 1350, dayChangePercent: 2.1 },
+          { ticker: 'VTI', dayChange: -420, dayChangePercent: -1.2 }
+        ]
+      } }));
+      // Preview stub for the sync layer so the Assistant screen renders its
+      // transcript (the real AnjadheSync only exists in the phone build).
+      window.AnjadheSync = {
+        isPaired: function () { return true; },
+        isConnected: function () { return false; },
+        getState: function () { return 'idle'; },
+        getTransport: function () { return 'direct'; },
+        sync: function () {},
+        onStateChange: function (cb) { cb('idle'); return function () {}; },
+        onChat: function () { return function () {}; },
+        sendChat: function () { return false; },
+      };
+    })();
+  </script>
+  <script src="js/adapter/mobile-bridge.js"></script>
+  <script src="js/core/storage-manager.js"></script>
+  <script src="app.js"></script>
+  <script src="screens/today.js"></script>
+  <script src="screens/assistant.js"></script>
+  <script src="screens/apps.js"></script>
+  <script src="screens/search.js"></script>
+  <script src="screens/notes.js"></script>
+  <script src="screens/journal.js"></script>
+  <script src="screens/tasks.js"></script>
+  <script src="screens/calendar.js"></script>
+  <script src="screens/goals.js"></script>
+  <script src="screens/wellness.js"></script>
+  <script src="screens/fyi.js"></script>
+  <script src="screens/news.js"></script>
+  <script src="screens/portfolio.js"></script>
+  <script src="screens/prompts.js"></script>
+  <script src="screens/feed.js"></script>
+  <script src="screens/bookmarks.js"></script>
+  <script src="screens/settings.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      App.start();
+      var m = location.search.match(/screen=([a-z]+)/);
+      if (m && App.screens[m[1]]) App.go(m[1]);
+    });
+  </script>
+</body>
+</html>

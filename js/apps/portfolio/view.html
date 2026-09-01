@@ -1,0 +1,234 @@
+<!-- Portfolio views — appended to #app-views by BundledApps (manifest.json `view`):
+     the one-page overview plus the ticker / property / liability / transaction /
+     snapshots pages the app routes between. -->
+<!-- Portfolio View — one page. A left nav of accounts scopes the
+     right pane: "All Accounts" or one account. There is no separate
+     account-detail view any more; PortfolioApp.openAccountDetail
+     just changes the scope. -->
+<div id="portfolio-view" class="view app-view app-view-full">
+    <div class="app-header-bar">
+        <div class="email-header-left">
+            <button id="portfolio-sidebar-toggle" class="email-sidebar-toggle" type="button" title="Toggle accounts sidebar" aria-label="Toggle accounts sidebar"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg></button>
+            <h2 class="app-view-title">
+                <span id="portfolio-breadcrumb" class="app-breadcrumb">Portfolio</span>
+            </h2>
+        </div>
+        <div class="editor-actions">
+            <span id="portfolio-prices-asof" class="portfolio-prices-asof" title="When stock prices were last fetched"></span>
+            <button class="icon-btn app-help-btn" data-help-for="portfolio" title="Portfolio help" aria-label="Portfolio help"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.3 9.3a2.7 2.7 0 0 1 5.4.6c0 1.8-2.7 2.1-2.7 3.6"/><line x1="12" y1="16.8" x2="12" y2="16.81"/></svg></button>
+            <button id="portfolio-toggle-values" class="secondary-btn portfolio-icon-btn" title="Hide values" aria-label="Hide values">
+                <svg class="portfolio-eye-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                <svg class="portfolio-eye-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+            </button>
+            <!-- Account actions appear only when one account is selected -->
+            <button id="portfolio-account-cash-btn" class="secondary-btn" hidden>Cash</button>
+            <button id="portfolio-account-edit-btn" class="secondary-btn" hidden>Edit</button>
+            <button id="portfolio-account-delete-btn" class="secondary-btn" hidden>Delete</button>
+            <button id="portfolio-more-btn" class="secondary-btn portfolio-icon-btn" title="More actions" aria-label="More actions" aria-haspopup="menu" aria-expanded="false">
+                <svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>
+            </button>
+            <button id="portfolio-add-transaction-btn" class="primary-btn">+ Transaction</button>
+        </div>
+    </div>
+
+    <div class="portfolio-layout">
+        <!-- Accounts nav — rendered by PortfolioUI.renderNav -->
+        <nav id="portfolio-nav" class="portfolio-nav" aria-label="Accounts"></nav>
+        <div id="portfolio-nav-resizer" class="actions-nav-resizer" role="separator"
+             aria-orientation="vertical" aria-label="Resize sidebar"
+             title="Drag to resize &mdash; double-click to reset"></div>
+
+        <div class="portfolio-main">
+            <!-- Strategy scope: the AI-native strategy page replaces the
+                 whole pane (PortfolioStrategyPage; .strategy-scope on
+                 .portfolio-main hides the account machinery below). -->
+            <div id="portfolio-strategy-page" class="portfolio-strategy-page" hidden></div>
+            <!-- Account scope: name + type above the masthead -->
+            <div id="portfolio-scope-header" class="portfolio-account-header" hidden>
+                <h2 id="portfolio-account-name"></h2>
+                <span id="portfolio-account-type-display" class="portfolio-account-type-label"></span>
+            </div>
+            <div id="portfolio-summary" class="portfolio-masthead">
+                <!-- Summary masthead rendered here -->
+            </div>
+            <!-- Strategy line: name + objective, click opens the Strategy
+                 page. Rendered by PortfolioUI.renderStrategyLine. -->
+            <div id="portfolio-strategy-card"></div>
+            <div id="portfolio-value-chart" class="portfolio-chart-container">
+                <!-- Value history chart rendered here -->
+            </div>
+            <div class="portfolio-tabs">
+                <button id="portfolio-holdings-tab" class="portfolio-tab active">Holdings</button>
+                <button id="portfolio-txns-tab" class="portfolio-tab">Transactions</button>
+            </div>
+            <div id="portfolio-holdings">
+                <!-- Holdings table or transaction list rendered here -->
+            </div>
+            <!-- Headlines on the scope's holdings (PortfolioNews.renderForScope;
+                 empty when web access is off or there is nothing to show). -->
+            <div id="portfolio-news" class="portfolio-news-section"></div>
+            <!-- Decisions saved about the scoped account (DecisionsUI;
+                 cleared at All Accounts — decisions key on one
+                 account, and 'overview' has no id). -->
+            <div id="portfolio-decisions"></div>
+            <!-- Linked notes: the portfolio 'overview' pseudo-item at
+                 All Accounts, the account itself when scoped.
+                 Rendered by PortfolioUI.renderNotesSection. -->
+            <div id="portfolio-notes" class="portfolio-notes-section"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Portfolio Ticker Detail View -->
+<div id="portfolio-ticker-view" class="view app-view">
+    <div class="app-header-bar">
+        <h2 class="app-view-title">
+            <span id="portfolio-ticker-breadcrumb" class="app-breadcrumb"></span>
+        </h2>
+        <div class="editor-actions">
+            <!-- Watchlist toggle — content (star + Watch/Watching) is
+                 set by PortfolioApp._updateWatchBtn per ticker; hidden
+                 for cash and option contracts. The old "Open in" menu
+                 button lives on as pills inside the detail content. -->
+            <button id="portfolio-watch-btn" class="secondary-btn" hidden></button>
+        </div>
+    </div>
+    <div id="portfolio-ticker-content" class="portfolio-ticker-layout">
+        <!-- Ticker detail rendered here -->
+    </div>
+</div>
+
+<!-- Portfolio Property Detail View -->
+<div id="portfolio-property-view" class="view app-view">
+    <div class="app-header-bar">
+        <h2 class="app-view-title">
+            <span id="portfolio-property-breadcrumb" class="app-breadcrumb"></span>
+        </h2>
+    </div>
+    <div id="portfolio-property-content" class="portfolio-ticker-layout">
+        <!-- Property detail rendered here -->
+    </div>
+</div>
+
+<!-- Portfolio Liability Detail View (mortgage / loan) -->
+<div id="portfolio-liability-view" class="view app-view">
+    <div class="app-header-bar">
+        <h2 class="app-view-title">
+            <span id="portfolio-liability-breadcrumb" class="app-breadcrumb"></span>
+        </h2>
+    </div>
+    <div id="portfolio-liability-content" class="portfolio-ticker-layout">
+        <!-- Liability detail rendered here -->
+    </div>
+</div>
+
+<!-- Portfolio Transaction Editor View -->
+<div id="portfolio-transaction-view" class="view app-view">
+    <div class="editor-header">
+        <h2 class="app-view-title">
+            <span id="portfolio-transaction-breadcrumb" class="app-breadcrumb"></span>
+        </h2>
+        <div class="editor-actions">
+            <button id="portfolio-transaction-delete-btn" class="secondary-btn" style="display: none;">Delete</button>
+            <button id="portfolio-transaction-save-btn" class="primary-btn">Save</button>
+        </div>
+    </div>
+
+    <div class="portfolio-editor-main">
+        <div class="portfolio-type-toggle portfolio-asset-toggle">
+            <input type="radio" name="txn-asset" id="txn-asset-stock" value="stock" checked>
+            <label for="txn-asset-stock">Stock</label>
+            <input type="radio" name="txn-asset" id="txn-asset-option" value="option">
+            <label for="txn-asset-option">Option</label>
+        </div>
+        <div class="portfolio-type-toggle">
+            <input type="radio" name="txn-type" id="txn-type-buy" value="buy" checked>
+            <label for="txn-type-buy">Buy</label>
+            <input type="radio" name="txn-type" id="txn-type-sell" value="sell">
+            <label for="txn-type-sell">Sell</label>
+            <input type="radio" name="txn-type" id="txn-type-holding" value="holding">
+            <label for="txn-type-holding">Holding</label>
+        </div>
+        <p id="txn-type-hint" class="txn-form-hint" hidden>Records shares you already own at their average cost &mdash; cash is not affected.</p>
+        <div class="txn-form-row">
+            <div class="form-group">
+                <label class="form-label">Account</label>
+                <select id="txn-account-select">
+                    <option value="">Select account...</option>
+                </select>
+            </div>
+            <div class="form-group" id="txn-ticker-group">
+                <label class="form-label">Ticker Symbol</label>
+                <input type="text" id="txn-ticker-input" placeholder="e.g., AAPL, MSFT">
+            </div>
+            <div class="form-group" id="txn-underlying-group" hidden>
+                <label class="form-label">Underlying Ticker</label>
+                <input type="text" id="txn-opt-underlying" placeholder="e.g., AAPL">
+            </div>
+        </div>
+        <!-- Option contract fields (shown when asset = Option) -->
+        <div class="txn-form-row" id="txn-option-row" hidden>
+            <div class="form-group">
+                <label class="form-label">Type</label>
+                <div class="portfolio-type-toggle">
+                    <input type="radio" name="txn-opt-type" id="txn-opt-call" value="call" checked>
+                    <label for="txn-opt-call">Call</label>
+                    <input type="radio" name="txn-opt-type" id="txn-opt-put" value="put">
+                    <label for="txn-opt-put">Put</label>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Strike Price</label>
+                <input type="number" id="txn-opt-strike" placeholder="250" min="0" step="0.01">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Expiration</label>
+                <input type="date" id="txn-opt-expiration">
+            </div>
+        </div>
+        <div class="txn-form-row">
+            <div class="form-group">
+                <label class="form-label" id="txn-quantity-label">Quantity (Shares)</label>
+                <input type="number" id="txn-quantity-input" placeholder="10" min="0" step="any">
+                <p id="txn-owned-hint" class="txn-form-hint" hidden></p>
+            </div>
+            <div class="form-group">
+                <div class="form-label-row">
+                    <label class="form-label" id="txn-price-label">Price Per Share</label>
+                    <button type="button" id="txn-use-price-btn" class="txn-use-price-btn" hidden>Use current price</button>
+                </div>
+                <input type="number" id="txn-price-input" placeholder="150.00" min="0" step="0.01">
+                <p id="txn-premium-hint" class="txn-form-hint" hidden>The quoted per-share premium. One contract covers 100 shares, so cost = contracts &times; premium &times; 100.</p>
+            </div>
+        </div>
+        <!-- Live math: what this order costs and where cash lands.
+             Filled by PortfolioUI.updateTxnPreview as fields change. -->
+        <div id="txn-summary" class="txn-summary" hidden></div>
+        <div class="form-group">
+            <label class="form-label">Date</label>
+            <input type="date" id="txn-date-input">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Notes</label>
+            <textarea id="txn-notes-input" rows="2" placeholder="Optional notes..."></textarea>
+        </div>
+    </div>
+</div>
+
+<!-- Portfolio Snapshots View -->
+<div id="portfolio-snapshots-view" class="view app-view">
+    <div class="app-header-bar">
+        <h2 class="app-view-title">
+            <span id="portfolio-snapshots-breadcrumb" class="app-breadcrumb"></span>
+        </h2>
+        <div class="editor-actions">
+            <button id="portfolio-snapshots-take-btn" class="primary-btn">Take Snapshot</button>
+        </div>
+    </div>
+    <div id="portfolio-snapshots-chart" class="portfolio-chart-container">
+        <!-- Chart rendered here -->
+    </div>
+    <div id="portfolio-snapshots-table">
+        <!-- Snapshot table rendered here -->
+    </div>
+</div>
