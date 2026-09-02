@@ -1,0 +1,158 @@
+{
+  "_comment": [
+    "Fixtures for scripts/eval-reservations.js — the phase 3 gate in docs/LIFE_ORG.md.",
+    "",
+    "These are SYNTHETIC. They are written to look like the real thing (HTML-ish",
+    "boilerplate, fare rules between the outbound and return legs, marketing",
+    "footers) but they are not real vendor mail, so a good score here is a floor",
+    "and not the gate. The gate is 20 real confirmations across 6+ vendors, run",
+    "with `--store` against a COPY of a real mailbox.",
+    "",
+    "`expect` uses null to mean 'must come back null' — that scores hallucination,",
+    "not just misses. Omit a field entirely to skip scoring it.",
+    "`today` pins the clock so relative-date and missing-year cases are stable."
+  ],
+  "today": "2026-08-02",
+  "cases": [
+    {
+      "id": "flight-roundtrip-buried-return",
+      "note": "The return leg sits after a wall of fare rules — the case that motivated an 8000-char body slice.",
+      "from": "United Airlines <confirmation@united.com>",
+      "subject": "Your itinerary is confirmed: San Francisco to New York",
+      "body": "Thanks for choosing United.\n\nConfirmation number: AER8Q2\n\nDEPART  Wed, Aug 12\nUA 505  San Francisco (SFO) 6:00 AM  ->  New York/Newark (EWR) 2:30 PM\nNonstop | Economy | Seat 14C\n\n--------------------------------------------------------------\nFARE RULES AND CONDITIONS OF CARRIAGE\nTickets are non-refundable. Changes permitted for a fee plus any\ndifference in fare. Checked baggage allowance: one bag up to 50 lbs.\nCarry-on restrictions apply. Boarding closes 15 minutes prior to\ndeparture. Passengers requiring special assistance should contact us\nat least 48 hours before departure. Fare is subject to government\ntaxes and carrier-imposed surcharges already included in the total\nshown below. Travel must be completed within one year of issue.\nThis itinerary is subject to the contract of carriage available at\nunited.com/legal. Mileage accrual varies by fare class.\n--------------------------------------------------------------\n\nRETURN  Sun, Aug 16\nUA 712  New York/Newark (EWR) 5:45 PM  ->  San Francisco (SFO) 9:10 PM\nNonstop | Economy | Seat 22A\n\nTotal charged: $412.00\n\nManage your trip at united.com. Download the app for mobile boarding passes.",
+      "expect": {
+        "kind": "flight",
+        "confirmationCode": "AER8Q2",
+        "start": "2026-08-12T06:00",
+        "end": "2026-08-12T14:30",
+        "returnStart": "2026-08-16T17:45",
+        "returnEnd": "2026-08-16T21:10",
+        "from": "SFO",
+        "to": "EWR",
+        "status": "confirmed"
+      }
+    },
+    {
+      "id": "hotel-checkout-date",
+      "note": "Check-out is the fact nothing else in the app holds.",
+      "from": "Marriott <reservations@marriott.com>",
+      "subject": "Reservation confirmed - Marriott Downtown Manhattan",
+      "body": "Your reservation is confirmed.\n\nConfirmation Number: 88213366\nMarriott Downtown Manhattan\n85 West Street, New York, NY 10006\n\nCheck-in:  Wednesday, August 12, 2026 (after 4:00 PM)\nCheck-out: Saturday, August 15, 2026 (by 11:00 AM)\n\n1 King Bed, Higher Floor | 2 Guests | 3 Nights\nTotal for stay: $1,047.00\n\nFree cancellation until August 10, 2026. After that, one night will be charged.\n\nWe look forward to welcoming you.",
+      "expect": {
+        "kind": "lodging",
+        "confirmationCode": "88213366",
+        "start": "2026-08-12",
+        "end": "2026-08-15",
+        "cancelBy": "2026-08-10",
+        "status": "confirmed"
+      }
+    },
+    {
+      "id": "car-pickup-dropoff",
+      "from": "Hertz <no-reply@hertz.com>",
+      "subject": "Your Hertz reservation is confirmed",
+      "body": "HERTZ RESERVATION CONFIRMATION\n\nConfirmation: K4471902US\n\nPick-up:  Newark Liberty Intl (EWR) - Terminal B\n          Wed Aug 12, 2026, 3:30 PM\nReturn:   Newark Liberty Intl (EWR) - Terminal B\n          Sun Aug 16, 2026, 3:00 PM\n\nVehicle class: Intermediate SUV or similar\nEstimated total: $284.55\n\nPrepaid fuel not selected. Additional driver fees may apply.",
+      "expect": {
+        "kind": "car",
+        "confirmationCode": "K4471902US",
+        "start": "2026-08-12T15:30",
+        "end": "2026-08-16T15:00",
+        "status": "confirmed"
+      }
+    },
+    {
+      "id": "dining-no-code-no-end",
+      "note": "No confirmation code at all. Must return null rather than invent one.",
+      "from": "Resy <notifications@resy.com>",
+      "subject": "Your table is booked: Bellwether, Saturday 7:00 PM",
+      "body": "You're all set.\n\nBellwether\n112 Greenwich Ave, New York\n\nSaturday, August 15, 2026 at 7:00 PM\nParty of 4\n\nRunning late? Let the restaurant know. Cancellations within 2 hours may incur a fee.",
+      "expect": {
+        "kind": "dining",
+        "confirmationCode": null,
+        "start": "2026-08-15T19:00",
+        "end": null,
+        "status": "confirmed"
+      }
+    },
+    {
+      "id": "flight-missing-year",
+      "note": "No year printed anywhere. Must resolve forward from today, not to the current year when that puts it in the past.",
+      "from": "Alaska Airlines <no-reply@alaskaair.com>",
+      "subject": "Trip confirmation - SEA to SFO",
+      "body": "Confirmation code: QWERTZ\n\nDepart: Jan 14 - Alaska 322\nSeattle (SEA) 7:20 AM to San Francisco (SFO) 9:45 AM\n\nOne way. Main cabin.",
+      "expect": {
+        "kind": "flight",
+        "confirmationCode": "QWERTZ",
+        "start": "2027-01-14T07:20",
+        "from": "SEA",
+        "to": "SFO",
+        "status": "confirmed"
+      }
+    },
+    {
+      "id": "cancellation",
+      "note": "status must be cancelled, or phase 4 leaves a dead event on the calendar forever.",
+      "from": "Marriott <reservations@marriott.com>",
+      "subject": "Your reservation has been cancelled",
+      "body": "This confirms that the following reservation has been cancelled.\n\nConfirmation Number: 88213366\nMarriott Downtown Manhattan\nArrival: August 12, 2026\nDeparture: August 15, 2026\n\nNo charge has been applied. Cancellation number: C-55120.",
+      "expect": {
+        "kind": "lodging",
+        "status": "cancelled",
+        "start": "2026-08-12",
+        "end": "2026-08-15"
+      }
+    },
+    {
+      "id": "change-notice",
+      "from": "United Airlines <confirmation@united.com>",
+      "subject": "Schedule change to your trip AER8Q2",
+      "body": "We've had to change your flight.\n\nConfirmation: AER8Q2\n\nNEW: UA 505 San Francisco (SFO) 8:15 AM -> New York/Newark (EWR) 4:40 PM, Wed Aug 12, 2026\nPREVIOUS: UA 505 departed 6:00 AM\n\nIf these times don't work, you may rebook at no charge.",
+      "expect": {
+        "kind": "flight",
+        "confirmationCode": "AER8Q2",
+        "start": "2026-08-12T08:15",
+        "status": "changed",
+        "from": "SFO",
+        "to": "EWR"
+      }
+    },
+    {
+      "id": "event-tickets",
+      "from": "Ticketmaster <no-reply@ticketmaster.com>",
+      "subject": "Your tickets: Hamilton, Aug 14",
+      "body": "Order #TM-9930514\n\nHamilton\nRichard Rodgers Theatre, New York NY\nFriday, August 14, 2026 at 8:00 PM\n\n2 tickets, Orchestra Row K\nTotal: $398.00\n\nTickets are non-transferable. Doors open 45 minutes before curtain.",
+      "expect": {
+        "kind": "event",
+        "start": "2026-08-14T20:00",
+        "status": "confirmed"
+      },
+      "expectOneOf": { "confirmationCode": ["TM-9930514", "9930514"] }
+    },
+    {
+      "id": "rail-overnight",
+      "note": "Crosses midnight — end date must advance a day.",
+      "from": "Amtrak <no-reply@amtrak.com>",
+      "subject": "eTicket for your trip",
+      "body": "Reservation number: XJ44Q\n\nAmtrak 48 Lake Shore Limited\nDepart Chicago Union Station (CHI) Aug 20, 2026 at 9:30 PM\nArrive New York Penn Station (NYP) Aug 21, 2026 at 6:23 PM\n\nRoomette 7, Car 2. eTicket attached as PDF.",
+      "expect": {
+        "kind": "rail",
+        "confirmationCode": "XJ44Q",
+        "start": "2026-08-20T21:30",
+        "end": "2026-08-21T18:23",
+        "returnStart": null,
+        "returnEnd": null,
+        "from": "CHI",
+        "to": "NYP",
+        "status": "confirmed"
+      }
+    },
+    {
+      "id": "marketing-not-a-booking",
+      "note": "Should never reach this extractor in production (type would not be booking), but if it does it must not fabricate a reservation.",
+      "from": "Hotels.com <deals@hotels.com>",
+      "subject": "Hotel deals in New York from $89",
+      "body": "Your next trip could be cheaper. Browse tonight's deals in New York, Boston and Chicago. Members save an extra 10%. Prices from $89 per night. Book by Sunday.",
+      "expectNull": true
+    }
+  ]
+}

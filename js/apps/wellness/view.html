@@ -1,0 +1,18 @@
+<!-- Wellness view — appended to #app-views by BundledApps (manifest.json `view`).
+     Header chrome only; the body is fully rendered by WellnessUI. -->
+<div id="wellness-view" class="view app-view">
+    <div class="app-header-bar">
+        <h2 class="app-view-title">
+            <span id="wellness-breadcrumb" class="app-breadcrumb">Wellness</span>
+        </h2>
+        <div class="app-header-actions">
+            <button class="icon-btn app-help-btn" data-help-for="wellness" title="Wellness help" aria-label="Wellness help"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.3 9.3a2.7 2.7 0 0 1 5.4.6c0 1.8-2.7 2.1-2.7 3.6"/><line x1="12" y1="16.8" x2="12" y2="16.81"/></svg></button>
+            <button id="wellness-units-btn" class="secondary-btn" title="Measurement units">Units</button>
+            <div class="wellness-log-wrap">
+                <button id="wellness-log-btn" class="primary-btn">+ Log</button>
+                <div id="wellness-log-menu" class="wellness-log-menu" hidden></div>
+            </div>
+        </div>
+    </div>
+    <div id="wellness-body" class="wellness-body"></div>
+</div>

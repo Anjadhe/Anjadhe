@@ -1,0 +1,234 @@
+# PUBLIC repo release workflow — lands in Anjadhe/Anjadhe as
+# .github/workflows/release.yml (copied there by the private repo's mirror.yml).
+# Do NOT rename it here; the mirror job places it at the right path.
+#
+# Triggered when mirror.yml force-pushes a `v*` tag to this repo. Builds the
+# universal macOS DMG, signs + notarizes it (build.mac.notarize is true in
+# package.json), and publishes a GitHub Release using the repo's own ephemeral
+# GITHUB_TOKEN — no long-lived PAT is involved in publishing.
+#
+# Secrets to add in the PUBLIC repo (Settings > Secrets and variables > Actions):
+#   ENV_PRODUCTION        — full contents of .env.production (the bundled Google
+#                           OAuth client id/secret). Written to .env.production at
+#                           build time so electron-builder bundles it. Already
+#                           extractable from the shipped DMG, so this is not a new
+#                           exposure — it just keeps it out of git.
+#   MAC_CSC_LINK          — base64 of the Developer ID Application .p12 certificate
+#   MAC_CSC_KEY_PASSWORD  — password for that .p12
+#   APPLE_API_KEY_P8      — contents of the App Store Connect API key (.p8)
+#   APPLE_API_KEY_ID      — the API key id
+#   APPLE_API_ISSUER      — the API key issuer id
+name: Build & publish release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write   # lets electron-builder create the GitHub Release via GITHUB_TOKEN
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Materialize build-time secrets
+        env:
+          ENV_PRODUCTION: ${{ secrets.ENV_PRODUCTION }}
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$ENV_PRODUCTION" > .env.production
+          printf '%s' "$APPLE_API_KEY_P8" > "$RUNNER_TEMP/AuthKey.p8"
+
+      # The Apple Reminders/Calendar import's EventKit helper (end users have
+      # no Swift toolchain, so the DMG must carry a prebuilt binary). Built
+      # UNIVERSAL because the app ships as a universal build — a single-arch
+      # Mach-O would fail electron-builder's universal merge. It rides
+      # package.json `files` + `asarUnpack`, which is also what gets it
+      # signed: electron-builder signs every executable it finds under
+      # app.asar.unpacked (same path the sqlite-vec native modules take).
+      - name: Build Apple import helper (universal)
+        run: |
+          set -euo pipefail
+          mkdir -p native/apple-reminders/build
+          swiftc -O -target arm64-apple-macos12 native/apple-reminders/reminders-helper.swift -o "$RUNNER_TEMP/rh-arm64"
+          swiftc -O -target x86_64-apple-macos12 native/apple-reminders/reminders-helper.swift -o "$RUNNER_TEMP/rh-x64"
+          lipo -create "$RUNNER_TEMP/rh-arm64" "$RUNNER_TEMP/rh-x64" -output native/apple-reminders/build/reminders-helper
+          lipo -info native/apple-reminders/build/reminders-helper
+
+      # continue-on-error because the verify step below is the authoritative
+      # gate, and electron-builder's exit code has proven unreliable in BOTH
+      # directions: it exited 0 with uploads unfinished (.26, .27), and on .30
+      # it exited 1 AFTER creating the release and uploading 3 of 5 assets
+      # (a retried create-release call answered 422 already_exists) — which
+      # skipped the verify step that had everything needed to finish the job.
+      - name: Build, sign, notarize & publish
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}          # publish to THIS repo's Releases
+          CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+          APPLE_API_KEY: ${{ runner.temp }}/AuthKey.p8   # electron-builder notarize (API key)
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: npx electron-builder --mac --publish always
+
+      # v0.1.0-alpha.33 shipped a launch crash: main.js required
+      # llamacpp/embed-manager.js, but build.files listed that folder's one
+      # OLD file by name, so the new module never entered the asar — and a
+      # main-process require crash also kills the auto-updater, bricking
+      # every updated install until a manual download. CI builds but never
+      # launches the app, so nothing caught it. This asserts every relative
+      # require in main.js (the only entry outside the js/** glob's cover)
+      # resolves inside the packaged asar.
+      - name: Verify main-process modules are packaged
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ASAR=$(ls -d dist/*/Anjadhe.app/Contents/Resources/app.asar 2>/dev/null | head -1)
+          if [ -z "$ASAR" ]; then echo "::error::no app.asar under dist/"; exit 1; fi
+          npx --yes @electron/asar list "$ASAR" > /tmp/asar-list.txt
+          if ! node -e '
+            const fs = require("fs");
+            const list = new Set(fs.readFileSync("/tmp/asar-list.txt", "utf8")
+              .split("\n").map(s => s.replace(/^\//, "").trim()));
+            const src = fs.readFileSync("main.js", "utf8");
+            const missing = [];
+            for (const m of src.matchAll(/require\((["\x27])\.\/([^"\x27]+)\1\)/g)) {
+              let p = m[2];
+              if (!p.endsWith(".js")) p += ".js";
+              if (!list.has(p)) missing.push(p);
+            }
+            if (missing.length) {
+              console.error("::error::main.js requires missing from app.asar: " + missing.join(", "));
+              process.exit(1);
+            }
+            console.log("main-process requires all packaged");
+          '; then
+            # The release is already published (--publish always runs first) —
+            # pull it back before failing, or every install auto-updates into
+            # a launch crash that kills the updater itself (the alpha.33 way).
+            echo "::error::drafting the release — this build cannot launch"
+            gh release edit "${GITHUB_REF_NAME}" -R "${GITHUB_REPOSITORY}" --draft || true
+            exit 1
+          fi
+
+      # electron-builder has twice exited 0 with its uploads unfinished
+      # (v0.1.0-alpha.26 and .27), leaving a green build and a release carrying
+      # nothing but a 0-byte blockmap: no DMG, no zip, no latest-mac.yml. A
+      # release in that state looks published, cannot be downloaded, and
+      # silently breaks auto-update, because the updater reads the zip named in
+      # latest-mac.yml. Recovery used to be a manual delete-and-rerun.
+      #
+      # So: wait for uploads that may still be in flight, then repair anything
+      # missing from the dist/ directory this job just built, and only then
+      # decide whether the release is sound. Failing loudly is the floor;
+      # repairing is possible because the artifacts are sitting right here.
+      # This step, not electron-builder's exit code, decides the job's fate:
+      # a missing release (build or notarization actually failed) or an
+      # unrepairable asset fails here, loudly.
+      - name: Verify and repair published assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="${TAG#v}"
+          EXPECTED="Anjadhe.dmg Anjadhe.dmg.blockmap Anjadhe-${VERSION}-universal-mac.zip Anjadhe-${VERSION}-universal-mac.zip.blockmap latest-mac.yml"
+          # A truncated upload is worse than an absent one: it looks complete.
+          # The DMG and zip are ~220MB, so anything under 50MB is a bad upload.
+          MIN_BIG=52428800
+
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            echo "::error::No release exists for $TAG — electron-builder did not create one."
+            exit 1
+          fi
+
+          # Twin cleanup: electron-builder's retried create-release call can
+          # publish TWO release objects on one tag (alpha.31, alpha.36).
+          # Every edit then 422s (Release.tag_name already_exists) and
+          # view/upload act on an arbitrary one, so dedupe BEFORE verifying:
+          # keep the release holding the most expected assets, delete the
+          # rest by id — deleting by id never touches the tag. Listed via
+          # the API so a draft twin is found too.
+          IDS=$(gh api "repos/${GITHUB_REPOSITORY}/releases" --paginate \
+                -q ".[] | select(.tag_name==\"$TAG\") | .id")
+          if [ "$(echo "$IDS" | grep -c .)" -gt 1 ]; then
+            echo "multiple release objects share $TAG — keeping the most complete"
+            KEEP=""; KEEP_SCORE=-1
+            for id in $IDS; do
+              score=0
+              for f in $EXPECTED; do
+                size=$(gh api "repos/${GITHUB_REPOSITORY}/releases/$id" \
+                       -q ".assets[] | select(.name==\"$f\") | .size" 2>/dev/null || true)
+                [ -n "$size" ] && [ "$size" != "0" ] && score=$((score+1))
+              done
+              echo "  release $id: $score/5 expected assets"
+              if [ "$score" -gt "$KEEP_SCORE" ]; then KEEP="$id"; KEEP_SCORE="$score"; fi
+            done
+            for id in $IDS; do
+              [ "$id" = "$KEEP" ] && continue
+              echo "  deleting duplicate release $id (keeping $KEEP)"
+              gh api -X DELETE "repos/${GITHUB_REPOSITORY}/releases/$id"
+            done
+          fi
+
+          # Echoes the names that are absent, zero-byte, or implausibly small.
+          bad_assets() {
+            out=""
+            for f in $EXPECTED; do
+              size=$(gh release view "$TAG" --json assets \
+                     -q ".assets[] | select(.name==\"$f\") | .size" 2>/dev/null || true)
+              if [ -z "$size" ] || [ "$size" = "0" ]; then
+                out="$out $f"
+              else
+                case "$f" in
+                  *.dmg|*.zip) [ "$size" -lt "$MIN_BIG" ] && out="$out $f" ;;
+                esac
+              fi
+            done
+            echo "$out"
+          }
+
+          for attempt in 1 2 3 4 5 6; do
+            BAD=$(bad_assets)
+            [ -z "$BAD" ] && break
+            echo "attempt $attempt/6 — not yet uploaded:$BAD"
+            sleep 20
+          done
+
+          BAD=$(bad_assets)
+          if [ -n "$BAD" ]; then
+            echo "Repairing from dist/ —$BAD"
+            for f in $BAD; do
+              if [ -f "dist/$f" ]; then
+                echo "  uploading $f"
+                gh release upload "$TAG" "dist/$f" --clobber
+              else
+                echo "::error::dist/$f does not exist — the build did not produce it."
+                exit 1
+              fi
+            done
+          fi
+
+          BAD=$(bad_assets)
+          if [ -n "$BAD" ]; then
+            echo "::error::Release $TAG is incomplete after repair —$BAD"
+            exit 1
+          fi
+
+          echo "All 5 assets present on $TAG:"
+          gh release view "$TAG" --json assets -q '.assets[] | "  \(.name)  \(.size) bytes"'
