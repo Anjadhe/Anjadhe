@@ -1,0 +1,4098 @@
+/**
+ * App Manager
+ * Handles app registration, routing, and lifecycle
+ */
+
+const Breadcrumb = {
+    /**
+     * App display labels
+     */
+    appLabels: {
+        actions: 'Tasks',
+        goals: 'Projects', fyi: 'Email AI', schedule: 'Tasks', notes: 'Notes',
+        email: 'Inbox',
+        calendar: 'Calendar',
+        // Bundled packages add their own (BundledApps: manifest `name` /
+        // `extraApps[].name` — reader/library come from js/apps/reader/).
+        settings: 'Settings', agent: 'Assistant'
+    },
+
+    /**
+     * Render breadcrumbs into a container element
+     * @param {string} containerId - DOM element ID
+     * @param {Array} crumbs - Array of {label, action} where action is a function or null (current)
+     */
+    render(containerId, crumbs) {
+        const el = document.getElementById(containerId);
+        if (!el) return;
+
+        let html = '';
+        crumbs.forEach((crumb, i) => {
+            if (i > 0) html += '<span class="breadcrumb-separator">&#8250;</span>';
+            // A crumb renders as a link whenever it has an action, even if
+            // it's the last one — useful for detail views where the page
+            // itself is implicitly "current" and the last named crumb (e.g.
+            // "Email") should still link back to its list.
+            if (crumb.action) {
+                html += `<span class="breadcrumb-link" data-crumb-index="${i}">${AppManager.escapeHtml(crumb.label)}</span>`;
+            } else {
+                html += `<span class="breadcrumb-current">${AppManager.escapeHtml(crumb.label)}</span>`;
+            }
+        });
+
+        el.innerHTML = html;
+
+        el.querySelectorAll('.breadcrumb-link').forEach(link => {
+            link.addEventListener('click', () => {
+                const idx = parseInt(link.dataset.crumbIndex);
+                const crumb = crumbs[idx];
+                if (crumb && crumb.action) crumb.action();
+            });
+        });
+    }
+};
+
+const AppManager = {
+    currentApp: null,
+    apps: {},
+    // Titlebar Back button history: app names (or 'home'), most recent last.
+    // In-memory on purpose — history is a within-session notion. _navBack is
+    // true only while goBack() is retracing, so the step isn't re-recorded.
+    _navStack: [],
+    _navBack: false,
+    isLocked: false,
+    activityTimer: null,
+    activityCheckInterval: null,
+    lastActivityTime: Date.now(),
+    authAvailable: false,
+    authEnabled: false,
+    autoLockTimeout: 5,
+
+    // Per-app "Locked apps" feature (distinct from the whole-app Touch ID
+    // lock above). A user-chosen set of sensitive apps require auth on entry.
+    // Config lives in the synced `app-lock` StorageManager key; the unlocked
+    // state is in-memory and re-locks after idle. See the App Lock section.
+    sensitiveUnlocked: false,
+    _pendingLocked: null,
+
+    /**
+     * Initialize the app manager
+     */
+    async init() {
+        // Check for first-run setup
+        if (window.electronStore.isFirstRun()) {
+            this.showSetup();
+            return;
+        }
+
+        // Hide any UI marked with data-feature="<key>" when its flag is off.
+        // Must run before routing so gated apps aren't reachable via hash.
+        if (typeof FEATURES !== 'undefined') {
+            FEATURES.applyToDocument();
+            // Phone<->Mac channel: main never connects to the relay on its
+            // own — it waits for this call, which only happens with the
+            // mobilesync flag on. A localStorage override + Cmd+R therefore
+            // enables the whole feature without an app restart.
+            if (FEATURES.isEnabled('mobilesync') && window.electronChannel?.ensure) {
+                window.electronChannel.ensure();
+            }
+        }
+
+        // Bundled app packages (js/apps/bundled.json — docs/PLATFORM.md "App
+        // packages"): styles, view, registry tile and scripts come from the
+        // package folder. Before user apps (id collision check) and before
+        // SideNav/applyHiddenApps (they read the registry tiles).
+        if (typeof BundledApps !== 'undefined') {
+            try {
+                await BundledApps.load();
+            } catch (e) {
+                console.error('Bundled app loading failed:', e);
+            }
+        }
+
+        // User-built apps (docs/PLATFORM.md). Sync reconcile runs first so
+        // apps merged from other Macs are on disk before mounting; loading
+        // must run before setupNavigation so dashboard tiles pick up the
+        // same click wiring as built-ins, and before handleRoute so a
+        // #<user-app> hash survives a refresh.
+        if (typeof UserAppsSync !== 'undefined') {
+            UserAppsSync.init();
+            try {
+                await UserAppsSync.reconcile();
+            } catch (e) {
+                console.error('User app sync reconcile failed:', e);
+            }
+        }
+        try {
+            await this._loadUserApps();
+        } catch (e) {
+            console.error('User app loading failed:', e);
+        }
+
+        this.setupTheme();
+        this.setupNavigation();
+        // Repaint every "AI Assistant" surface with the user-chosen name
+        // (setup's last step / Settings › AI Assistant), if one is set —
+        // and, when there isn't one and it was never waved away, mount the
+        // quiet "give it a name" nudge on Home + the assistant view.
+        if (typeof AssistantIdentity !== 'undefined') {
+            AssistantIdentity.applyToDom();
+            AssistantIdentity.mountNudges();
+        }
+        this.setupMenuActions();
+        // ⌘K. Binds one document-level listener; the overlay mounts lazily
+        // on first open (docs/POSITIONING.md — this is what lets the app
+        // list leave the nav).
+        if (typeof CommandPalette !== 'undefined') CommandPalette.init();
+        // Titlebar app switcher beside the wordmark — the popover mounts
+        // lazily on first open, same as ⌘K.
+        if (typeof AppSwitcher !== 'undefined') AppSwitcher.init();
+        // The global left rail. After _loadUserApps above, so a user-built
+        // app is in the registry before the first paint; applyHiddenApps
+        // and handleRoute below re-render and mark the active row.
+        if (typeof SideNav !== 'undefined') SideNav.init();
+        this.setupRouting();
+        this.setupSyncIndicator();
+
+        if (typeof MemoryManager !== 'undefined') MemoryManager.init();
+
+        // Focus areas → goal group labels (2026-07-31): stamp `group` on
+        // goals that predate the field, then purge the retired focus links.
+        // One-shot, idempotent — steady-state startups write nothing.
+        // MUST run before cleanupStaleLinks: getItemMeta no longer resolves
+        // 'focus', so the cleanup would otherwise drop the very links the
+        // migration derives the groups from.
+        GoalsApp.migrateFromFocus();
+        // Clean up stale cross-app links on startup
+        LinkManager.cleanupStaleLinks();
+        // Decisions whose host record is gone (deleted goal, removed
+        // account). Grace-windowed and existence-tri-stated inside — see
+        // DecisionStore.pruneOrphans.
+        try { if (typeof DecisionStore !== 'undefined') DecisionStore.pruneOrphans(); } catch (e) { console.warn('[decisions] orphan prune failed:', e); }
+        // Assistant to the top of the nav/switcher (2026-08-08): unhide it
+        // once for installs that had hidden the old "Do"-group tile.
+        try { this.unhideAgentOnce(); } catch (e) { console.warn('[apps] agent unhide failed:', e); }
+        // Default-hidden launcher set (More apps page re-enables) — must run
+        // before applyHiddenApps paints the nav.
+        try { this.seedDefaultHiddenOnce(); } catch (e) { console.warn('[apps] default-hidden seed failed:', e); }
+
+        // IMPORTANT: handleRoute MUST run before updateStats. The empty-state
+        // redirect inside updateWelcome (called from updateStats) opens the
+        // About app, which rewrites window.location.hash and clobbers the
+        // hash we'd otherwise restore. Routing first sets currentApp to the
+        // user's actual app, then the updateWelcome guard "currentApp !== null"
+        // suppresses the redirect entirely. This cost users their app on every
+        // page refresh until it was reordered.
+        this.handleRoute();
+        this.updateStats();
+        this.applyHiddenApps();
+
+        // Start schedule notifications (runs globally, not just when schedule app is open)
+        this.setupScheduleNotifications();
+
+        // Seed the out-of-the-box starter prompts once per install — before
+        // the scheduler starts, so their pre-stamped run anchors are in place.
+        if (typeof StarterPrompts !== 'undefined') StarterPrompts.seed();
+
+        // The routine trigger engine — scheduler, queue, per-routine state
+        // (docs/ROUTINE_TRIGGERS.md R5). Started HERE, before any UI, because
+        // that is defect D5: a trigger's liveness must never depend on a view
+        // being visited. It also starts the mail sync when an armed routine
+        // carries an email trigger, which used to be the Home widget's job.
+        if (typeof RoutineEngine !== 'undefined') RoutineEngine.init();
+
+        // The feed surface itself (rendering, run execution). No-ops with no
+        // routines or no local model.
+        if (typeof PromptFeed !== 'undefined') PromptFeed.init();
+
+        // Pick the email-insight backlog back up, whatever view this session
+        // opened on. It is persisted work (a Re-analyze run is hundreds of
+        // model calls), and BackgroundWork lets a Cmd+R through without asking
+        // precisely because it resumes — but resuming used to depend on
+        // landing in Email or on Home. Deferred past first paint: the drain
+        // itself is paced, and a session with nothing queued pays one kv read.
+        if (typeof EmailApp !== 'undefined') {
+            setTimeout(() => { EmailApp.resumeAnalysisBacklog(); }, 3000);
+        }
+
+        // iCloud Reminders → Tasks import (per-Mac opt-in; no-op when off).
+        // Started here, not from a view — an import's liveness must not
+        // depend on Settings or Schedule being visited (the D5 rule).
+        if (typeof AppleImport !== 'undefined') AppleImport.init();
+        // Notes + Journal as Markdown files in ~/Anjadhe/ — projection out,
+        // outside edits in. Same rule: started here, never from a view.
+        if (typeof ContentFiles !== 'undefined') ContentFiles.init();
+        // Telegram remote channel — answers messages main's bridge forwards.
+        // Same rule again: a remote question must be answered whether or not
+        // any particular view was ever opened.
+        if (typeof TelegramChannel !== 'undefined') TelegramChannel.init();
+        // Notification funnel — caches whether Telegram forwarding is live
+        // so the reminder scan below runs even without macOS permission.
+        if (typeof Notify !== 'undefined') Notify.init();
+        // Phone chat — the same remote-answer rule, on our own encrypted
+        // phone<->Mac channel (see js/agent/mobile-channel.js).
+        if (typeof MobileChannel !== 'undefined') MobileChannel.init();
+        // Mac-served phone views (email insights, news, portfolio digests).
+        if (typeof MobileViews !== 'undefined') MobileViews.init();
+
+
+        // Setup authentication
+        await this.setupAuth();
+        // Wire the per-app lock overlay (the locked-apps feature).
+        this.setupAppLock();
+
+        // Opt-in usage analytics: if the user has enabled it, schedule a
+        // delayed upload of any pending events. Throttled to once per hour.
+        if (typeof AnalyticsManager !== 'undefined') {
+            AnalyticsManager.noteLaunch();
+            AnalyticsManager.scheduleStartupUpload();
+            if (AnalyticsManager.shouldNudgeOptIn()) {
+                // Delay the ask so it doesn't land on top of any first-paint
+                // work or a route-restored view the user is already reading.
+                setTimeout(() => this._showAnalyticsOptInNudge(), 12000);
+            }
+        }
+
+        // The alpha-license claim door (js/core/license-claim.js): reads
+        // status from main, materialises the checklist step, and schedules
+        // the one-time nudge for installs that dismissed the checklist. It
+        // checks the analytics nudge above so the two never share a launch.
+        if (typeof LicenseClaim !== 'undefined') {
+            LicenseClaim.init().catch(() => {});
+        }
+
+        // Resolve the local-model context window from the user's
+        // setting (or auto-derive from RAM) up-front so prewarm and the
+        // first sendMessage agree on num_ctx — otherwise the engine loads
+        // a second runner copy and we pay ~3-4s + ~5GB extra weight.
+        if (typeof AgentService !== 'undefined' && typeof AgentService.initNumCtx === 'function') {
+            AgentService.initNumCtx().catch(() => { /* falls back to default */ });
+        }
+
+        // Pre-warm the local model into resident memory so the user's first
+        // message doesn't pay the cold-load cost. Deferred past first paint
+        // and non-blocking — remote-only users and missing-engine setups no-op.
+        if (typeof AgentService !== 'undefined' && typeof AgentService.prewarm === 'function') {
+            setTimeout(() => { AgentService.prewarm(); }, 2500);
+        }
+
+        // While llama.cpp network sharing is on, other Macs rely on this
+        // machine's llama-server staying up — the watchdog re-loads the model
+        // if it ever goes away mid-session (crash, eviction). No-op otherwise.
+        if (typeof AgentService !== 'undefined' && typeof AgentService.startShareWatchdog === 'function') {
+            AgentService.startShareWatchdog();
+        }
+
+        // Guard against losing in-flight model work to a window close, Cmd+Q
+        // or a Force Reload. Setting returnValue cancels the unload; the main
+        // process (will-prevent-unload) then shows a native "Leave anyway?"
+        // confirm worded from what we send it here. Cmd+R goes through
+        // requestReload, which shows its own richer dialog first and sets
+        // _unloadConfirmed so the user is not asked twice. Resumable
+        // background work (ambient email analysis) never prompts — same rule
+        // as the reload dialog, for the same reason: a dialog that fires for
+        // work nothing is lost on trains the reflex click.
+        window.addEventListener('beforeunload', (e) => {
+            if (this._unloadConfirmed) return;
+            // The eval harness (tests/agent-evals) closes the app with fixture
+            // work still registered; a native Stay/Leave dialog there hangs the
+            // run. Same exemption _confirmWrite makes for the consent dialog.
+            if (window.__eval) return;
+            const guard = this._unloadGuard();
+            if (!guard) return;
+            try { window.electronMenu?.setUnloadGuard?.(guard); } catch { /* dialog falls back to generic copy */ }
+            e.preventDefault();
+            // Non-empty so Electron fires will-prevent-unload (where the
+            // main process shows the actual confirm). The string itself is
+            // not displayed.
+            e.returnValue = 'work-in-progress';
+        });
+
+        // Daily memory consolidation: merge near-duplicate agent memories via
+        // the local model so the store (and the briefing ranking it feeds)
+        // stays tight, keeping the assistant's context small and responses
+        // fast. Deferred well past prewarm so it never contends with launch or
+        // the user's first message; self-throttles to once per 24h and no-ops
+        // when a chat is mid-stream. (See AgentService.maybeConsolidateMemories.)
+        if (typeof AgentService !== 'undefined' && typeof AgentService.maybeConsolidateMemories === 'function') {
+            setTimeout(() => { AgentService.maybeConsolidateMemories(); }, 15000);
+        }
+    },
+
+    _showAnalyticsOptInNudge() {
+        if (typeof AnalyticsManager === 'undefined' || typeof Modal === 'undefined') return;
+        if (!AnalyticsManager.shouldNudgeOptIn()) return;
+        // Record "we asked" up front and durably — so the nudge never
+        // reappears even if the modal is dismissed without a button
+        // (overlay click, Escape) or a later state write races it.
+        AnalyticsManager.markNudged();
+
+        const content = document.createElement('div');
+        content.innerHTML = `
+            <p style="margin: 0 0 var(--space-md); line-height: 1.6;">
+                Help us understand which features are useful without
+                us seeing a single word of your content.
+            </p>
+            <p style="margin: 0 0 var(--space-md); font-size: var(--text-sm); color: var(--color-text-secondary); line-height: 1.6;">
+                If you turn this on, Anjadhe will send anonymous event
+                counts &mdash; things like &ldquo;email view opened&rdquo;
+                &mdash; tagged with a random install ID. Your notes,
+                journal, emails, and projects stay on this Mac. You can
+                inspect exactly what would be sent, or change your mind,
+                from Settings &rsaquo; Privacy at any time.
+            </p>
+        `;
+
+        let decided = false;
+        const markDecided = () => {
+            if (decided) return;
+            decided = true;
+            AnalyticsManager.markNudged();
+        };
+
+        const modal = Modal.create({
+            title: 'Help improve Anjadhe?',
+            content,
+            buttons: [
+                {
+                    text: 'No thanks',
+                    className: 'secondary-btn',
+                    onClick: () => {
+                        markDecided();
+                        modal.close();
+                    },
+                },
+                {
+                    text: 'Enable analytics',
+                    className: 'primary-btn',
+                    onClick: () => {
+                        AnalyticsManager.setEnabled(true);
+                        markDecided();
+                        modal.close();
+                        if (typeof UIUtils !== 'undefined' && UIUtils.showToast) {
+                            UIUtils.showToast('Analytics enabled — thank you', 'success');
+                        }
+                    },
+                },
+            ],
+            onClose: () => markDecided(),
+        });
+    },
+
+    /**
+     * Show first-run setup screen
+     */
+    showSetup() {
+        this._clearInitialLoader();
+
+        // The wizard owns the whole window — hide the global left nav
+        // (finishSetup reloads, which clears this again).
+        document.body.classList.add('in-setup');
+
+        // Hide dashboard
+        document.getElementById('dashboard-view').classList.remove('active');
+
+        // Show setup view
+        const setupView = document.getElementById('setup-view');
+        setupView.style.display = 'flex';
+
+        const pathDisplay = document.getElementById('setup-path-display');
+
+        // ── Step 2 sub-phase helpers ─────────────────────────────────────
+        // Step 2 is the first-model download; the llama.cpp engine installs
+        // inline as part of it (no separate engine-install phase).
+
+        // Currently-selected model in the Step 2b list. Starts null and is
+        // populated by populateModelList() once RemoteConfig delivers the
+        // curated catalog; row-click handlers update it when the user picks
+        // a different row. We deliberately do NOT seed this with a hardcoded
+        // model name — the catalog in remote-config.json is the only source
+        // of truth for model identifiers.
+        let selectedModel = null;
+
+        // Parse size strings like "5.5 GB" into a number (Infinity on parse
+        // failure so unknown sizes sort to the bottom of any numeric sort).
+        const parseModelSize = (s) => {
+            const m = String(s || '').match(/([\d.]+)/);
+            return m ? parseFloat(m[1]) : Infinity;
+        };
+
+        // Pick the best-fit model for first-run. Prefers the largest minRam
+        // tier that fits the machine; within a tier a catalog entry flagged
+        // "default": true wins (lets remote config steer the pick regardless
+        // of download size), then ties break by larger size. The catalog
+        // tiers per-RAM defaults (8→qwen3.5:4b, 16→qwen3.5:9b — the small
+        // tiers reopened 2026-08-26; 32→gemma4:12b, 48→qwen3.6:27b,
+        // 64→qwen3.6:35b-a3b, 96→gpt-oss:120b). Sub-8 GB Macs still get
+        // the low-RAM step. Caps first-run downloads at
+        // 24 GB — enough to recommend the 48/64 GB tier defaults, while a
+        // 96+ GB machine isn't pushed toward the 63 GB gpt-oss:120b during
+        // onboarding (it stays a manual pick in the list).
+        const MAX_FIRST_RUN_SIZE_GB = 24;
+        const pickDefaultModel = (totalMemGB, models) => {
+            if (!totalMemGB || !Array.isArray(models) || models.length === 0) {
+                return null;
+            }
+            const candidates = models.filter(m =>
+                totalMemGB >= (m.minRam || 0) &&
+                parseModelSize(m.size) <= MAX_FIRST_RUN_SIZE_GB
+            );
+            if (candidates.length === 0) return null;
+            candidates.sort((a, b) =>
+                (b.minRam || 0) - (a.minRam || 0) ||
+                (b.default === true) - (a.default === true) ||
+                parseModelSize(b.size) - parseModelSize(a.size)
+            );
+            return candidates[0];
+        };
+
+        // Render the Step 2b list: every model whose minRam fits the current
+        // machine, sorted with the recommended pick pinned first followed by
+        // the rest in minRam-desc then size-desc order. Each row is a
+        // .settings-model-item (same styling as the model list in Settings)
+        // and selection is tracked as an .active class + the selectedModel
+        // closure variable that the download handler reads.
+        const populateModelList = async () => {
+            const listEl = document.getElementById('setup-model-list');
+            const introEl = document.getElementById('setup-model-intro');
+            const downloadBtn = document.getElementById('setup-download-model-btn');
+
+            if (!listEl) return;
+            listEl.innerHTML = '<div class="setup-progress-text">Detecting hardware...</div>';
+            if (downloadBtn) downloadBtn.disabled = true;
+
+            let totalMemGB = null;
+            let allModels = [];
+
+            try {
+                const cfg = await window.electronConfig.get();
+                totalMemGB = cfg && cfg.machine && cfg.machine.totalMemGB;
+                allModels = (cfg && cfg.models) || [];
+            } catch (e) {
+                console.warn('[setup] Could not load remote config:', e);
+            }
+
+            // First-run downloads through the built-in llama.cpp engine, so
+            // only catalog entries with a GGUF source are offerable here.
+            allModels = allModels.filter(m => m.gguf);
+
+            // Filter to models that fit the machine's RAM. No size cap here —
+            // the user explicitly sees the tradeoff and can pick a big model
+            // if they want. The size cap only influences which one is marked
+            // "Recommended".
+            let viable = allModels.filter(m => totalMemGB && totalMemGB >= (m.minRam || 0));
+
+            // Three distinct no-model cases, each with a different fix.
+            // Disambiguate by looking at whether the catalog itself loaded
+            // and whether we detected hardware:
+            //
+            //   (a) hardware detection failed          → retry network
+            //   (b) catalog didn't load               → retry network
+            //   (c) catalog loaded, but this Mac is   → point at running the
+            //       under the floor for every entry     model on the user's own server
+            if (viable.length === 0) {
+                if (!totalMemGB) {
+                    listEl.innerHTML = '<div class="setup-progress-text">Could not detect hardware. Check your connection and reopen this step.</div>';
+                    if (downloadBtn) downloadBtn.disabled = true;
+                    return;
+                }
+                if (allModels.length === 0) {
+                    listEl.innerHTML = '<div class="setup-progress-text">Could not load the model catalog. Check your connection and reopen this step.</div>';
+                    if (downloadBtn) downloadBtn.disabled = true;
+                    return;
+                }
+                // Case (c): RAM-below-floor. Switch to the own-server panel.
+                showStep2c(totalMemGB);
+                return;
+            }
+
+            const recommended = pickDefaultModel(totalMemGB, allModels);
+            const recommendedName = recommended && recommended.name;
+
+            // Sort: recommended first, then by minRam desc, size desc.
+            viable.sort((a, b) => {
+                if (a.name === recommendedName) return -1;
+                if (b.name === recommendedName) return 1;
+                return (b.minRam || 0) - (a.minRam || 0) ||
+                       parseModelSize(b.size) - parseModelSize(a.size);
+            });
+
+            // Pre-select the first row after sorting (which is the recommended
+            // pick, or the largest-fits-your-RAM fallback if there was no
+            // explicit recommendation).
+            selectedModel = viable[0];
+
+            const selWrap  = document.getElementById('setup-selected-model');
+            const listWrap = document.getElementById('setup-model-list-wrap');
+            const selName  = document.getElementById('setup-selected-name');
+            const selDesc  = document.getElementById('setup-selected-desc');
+            const selSize  = document.getElementById('setup-selected-size');
+
+            // Show the chosen model as a compact summary; the full list
+            // stays hidden behind the "Change" link until the user wants it.
+            const renderSelected = () => {
+                if (selName) selName.textContent = selectedModel.name;
+                if (selDesc) selDesc.textContent = selectedModel.desc || '';
+                if (selSize) selSize.textContent = selectedModel.size || '';
+                if (selWrap) selWrap.style.display = '';
+                if (listWrap) listWrap.style.display = 'none';
+            };
+
+            // Render the rows. Uses the same class structure as
+            // settings-app.js model-library renderer so the CSS already fits.
+            listEl.innerHTML = viable.map(m => {
+                const isActive = m.name === selectedModel.name;
+                const isRec = m.name === recommendedName;
+                const badge = isRec
+                    ? '<span class="settings-model-default-tag">Recommended</span>'
+                    : '';
+                return `<div class="settings-model-item ${isActive ? 'active' : ''}"
+                    data-model="${UIUtils.escapeHtml(m.name)}"
+                    data-size="${UIUtils.escapeHtml(m.size || '')}"
+                    data-desc="${UIUtils.escapeHtml(m.desc || '')}">
+                    <span class="settings-model-radio"></span>
+                    <div class="settings-model-info">
+                        <span class="settings-model-name">${UIUtils.escapeHtml(m.name)}${badge}</span>
+                        <span class="settings-model-desc">${UIUtils.escapeHtml(m.desc || '')}</span>
+                    </div>
+                    <span class="settings-model-status">${UIUtils.escapeHtml(m.size || '')}</span>
+                </div>`;
+            }).join('');
+
+            // Wire up selection. Clicking a row deselects all others and
+            // updates the closure-scoped selectedModel that the download
+            // button will read.
+            listEl.querySelectorAll('.settings-model-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    listEl.querySelectorAll('.settings-model-item').forEach(el =>
+                        el.classList.remove('active'));
+                    item.classList.add('active');
+                    const name = item.dataset.model;
+                    selectedModel = viable.find(m => m.name === name) || selectedModel;
+                    renderSelected();
+                });
+            });
+
+            // "Change" reveals the full list; picking a row collapses it
+            // back to the summary. Guard against double-wiring since
+            // populateModelList() can run again if the user revisits 2b.
+            const changeLink = document.getElementById('setup-change-model-link');
+            if (changeLink && !changeLink._wired) {
+                changeLink._wired = true;
+                changeLink.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    if (selWrap) selWrap.style.display = 'none';
+                    if (listWrap) listWrap.style.display = '';
+                });
+            }
+
+            renderSelected();
+
+            // Update the intro line with detected specs.
+            if (totalMemGB) {
+                introEl.textContent = `We checked your Mac (${totalMemGB} GB memory) and picked the AI that runs best on it:`;
+            } else {
+                introEl.textContent = 'We could not check your Mac automatically. Pick an option below; you can change it later in Settings.';
+            }
+
+            if (downloadBtn) downloadBtn.disabled = false;
+        };
+
+        const showStep2c = (totalMemGB) => {
+            document.getElementById('setup-step-2b').style.display = 'none';
+            const stepC = document.getElementById('setup-step-2c');
+            if (stepC) stepC.style.display = '';
+            const intro = document.getElementById('setup-lowram-intro');
+            if (intro && totalMemGB) {
+                intro.textContent = `A large language model is your assistant's brain, and running one on the Mac itself takes more memory than this Mac has (${totalMemGB} GB). For a Mac this size, Anjadhe suggests Anjadhe Cloud:`;
+            }
+            // This divert runs async (after specs resolve), well past
+            // setBack's deferred placement — carry the back chip into
+            // this panel's own action row.
+            placeBack();
+        };
+        const showStep2b = () => {
+            document.getElementById('setup-step-2b').style.display = '';
+            const stepC = document.getElementById('setup-step-2c');
+            if (stepC) stepC.style.display = 'none';
+            // Reset leftovers from a previous visit's download UI — Back
+            // from a later step re-enters here, and a finished download had
+            // hidden the action buttons and left the progress area up
+            // ("Download complete!" with no way forward, plus an empty tip
+            // card that read as a blank button).
+            stopDownloadTips();
+            const progress = document.getElementById('setup-model-progress');
+            if (progress) progress.style.display = 'none';
+            const actions = document.getElementById('setup-model-actions');
+            if (actions) actions.style.display = '';
+            const noteHint = document.querySelector('#setup-step-2b .setup-note-hint');
+            if (noteHint) noteHint.style.display = '';
+            // Render the list based on machine specs. Fire-and-forget —
+            // the button is disabled until it resolves so there's no race.
+            populateModelList();
+        };
+
+        // Per-step back control: each transition declares where "← Back"
+        // leads (null on the welcome screen — there is nowhere back from
+        // the first impression). Choices already made stay undoable: the
+        // web step's Skip actively clears the provider, so backtracking
+        // and changing your mind is honest, not cosmetic.
+        const backBtn = document.getElementById('setup-back-btn');
+        // The chip is ONE shared node that lives FIRST in the visible
+        // step's .setup-actions row, reading "← Back" (2026-08-20 by
+        // request — it was pinned top-left of the container before, and
+        // briefly named its destination step; both reverted by request).
+        // Re-parenting runs twice per transition: synchronously (so the
+        // chip never paints at its old spot for a frame) and deferred
+        // (goToStep2 flips the nested 2b/2c panels AFTER calling setBack,
+        // so the row to land in may not be rendered yet). The async
+        // low-RAM divert (showStep2c) calls placeBack itself.
+        const placeBack = () => {
+            if (!backBtn || backBtn.style.display === 'none') return;
+            const row = Array.from(document.querySelectorAll('#setup-view .setup-actions'))
+                .find((el) => el.offsetParent !== null);
+            if (row && backBtn.parentElement !== row) row.insertBefore(backBtn, row.firstChild);
+        };
+        const setBack = (fn) => {
+            if (!backBtn) return;
+            backBtn.style.display = fn ? '' : 'none';
+            backBtn.onclick = fn || null;
+            if (fn) { placeBack(); setTimeout(placeBack, 0); }
+        };
+
+        // Back to the welcome/story screen (step indicator hides again).
+        const goToStep1 = () => {
+            document.getElementById('setup-step-1').style.display = '';
+            document.getElementById('setup-step-2').style.display = 'none';
+            document.getElementById('setup-step-3').style.display = 'none';
+            document.getElementById('setup-step-name').style.display = 'none';
+            const steps = document.getElementById('setup-steps');
+            if (steps) steps.style.visibility = 'hidden';
+            setBack(null);
+        };
+
+        // Welcome → Private AI (step "1. Private AI"). Reveal the step
+        // indicator here — it's hidden on the story screen so the first
+        // impression is the pitch, not a wizard chrome.
+        const goToStep2 = async () => {
+            document.getElementById('setup-step-1').style.display = 'none';
+            document.getElementById('setup-step-2').style.display = '';
+            document.getElementById('setup-step-3').style.display = 'none';
+            document.getElementById('setup-step-name').style.display = 'none';
+            const steps = document.getElementById('setup-steps');
+            if (steps) steps.style.visibility = 'visible';
+            document.getElementById('setup-step-ind-1').classList.add('active');
+            document.getElementById('setup-step-ind-2').classList.remove('active');
+            document.getElementById('setup-step-ind-name').classList.remove('active');
+            setBack(goToStep1);
+
+            // Straight to the model choice — the built-in llama.cpp engine
+            // installs inline (~11 MB) when the download starts, so there is
+            // no separate engine phase. populateModelList() diverts to the
+            // low-RAM panel (2c) when nothing in the catalog fits.
+            showStep2b();
+        };
+
+        // Private AI → Web access (step "2. Web access"). Web search is
+        // OFF by default; this step is the explicit opt-in. Shown on every
+        // path out of step 2 — including skip-AI — so the choice is made
+        // once and holds when a brain is connected later.
+        // The web-access step left setup 2026-08-31: web search asks for
+        // approval on FIRST USE instead (AgentService._resolvePermission /
+        // the read-batch egress gate — the standard dialog is the opt-in).
+        // Model step → Your data (step "3. Storage").
+        const goToStep3 = () => {
+            document.getElementById('setup-step-1').style.display = 'none';
+            document.getElementById('setup-step-2').style.display = 'none';
+            document.getElementById('setup-step-3').style.display = '';
+            document.getElementById('setup-step-name').style.display = 'none';
+            const steps = document.getElementById('setup-steps');
+            if (steps) steps.style.visibility = 'visible';
+            document.getElementById('setup-step-ind-1').classList.remove('active');
+            document.getElementById('setup-step-ind-2').classList.add('active');
+            document.getElementById('setup-step-ind-name').classList.remove('active');
+            // Back re-enters the model step (repopulates the list; the
+            // low-RAM divert re-applies on machines it concerns).
+            setBack(() => { goToStep2(); });
+
+            // Backup default: pre-check the opt-in when this Mac actually
+            // has iCloud Drive (backups would land somewhere that syncs).
+            // Applied once so a user's manual uncheck survives re-entry.
+            (async () => {
+                if (this._setupBackupDefaultApplied) return;
+                this._setupBackupDefaultApplied = true;
+                try {
+                    const s = await window.electronBackup?.getSettings?.();
+                    if (s?.icloudDriveAvailable) {
+                        const check = document.getElementById('setup-backup-check');
+                        if (check) check.checked = true;
+                    }
+                } catch { /* leave unchecked */ }
+            })();
+
+            // Second-Mac detection: another machine's journal folder in
+            // iCloud Drive means an existing Anjadhe setup — say so, and
+            // name the Settings door that pulls it in (sync left the setup
+            // flow 2026-08-31; it is a Settings › Storage & Backup feature).
+            // Fire-and-forget; the step works unchanged if the lookup fails
+            // or finds nothing.
+            (async () => {
+                try {
+                    const status = await window.electronSync?.getStatus?.();
+                    const peers = (status?.machines || []).filter(m => !m.isCurrent);
+                    if (!peers.length) return;
+                    const names = peers.map(m => m.hostname || m.machineId).join(', ');
+                    const found = document.getElementById('setup-sync-found');
+                    found.textContent = `Found Anjadhe from another Mac in your iCloud Drive: ${names}. To pull that data in, turn on sync in Settings › Storage & Backup after setup.`;
+                    found.style.display = '';
+                } catch { /* detection is best-effort */ }
+            })();
+        };
+
+        // Your data → Name your assistant (step "4. Name") — the last step.
+        // Optional and skippable; a name replaces the "AI Assistant" label
+        // across the app and rides the assistant's system prompt.
+        const goToStepName = () => {
+            document.getElementById('setup-step-1').style.display = 'none';
+            document.getElementById('setup-step-2').style.display = 'none';
+            document.getElementById('setup-step-3').style.display = 'none';
+            document.getElementById('setup-step-name').style.display = '';
+            const steps = document.getElementById('setup-steps');
+            if (steps) steps.style.visibility = 'visible';
+            document.getElementById('setup-step-ind-1').classList.remove('active');
+            document.getElementById('setup-step-ind-2').classList.remove('active');
+            document.getElementById('setup-step-ind-name').classList.add('active');
+            setBack(goToStep3);
+            // A name may already exist — e.g. just merged in when the user
+            // enabled sync on this second Mac. Surface it instead of blank.
+            const nameInput = document.getElementById('setup-assistant-name');
+            if (nameInput && !nameInput.value && typeof AssistantIdentity !== 'undefined') {
+                nameInput.value = AssistantIdentity.get() || '';
+            }
+            setTimeout(() => nameInput?.focus(), 50);
+        };
+
+        const finishSetup = () => {
+            window.electronStore.markSetupComplete();
+            // Land in the Assistant, not the 12-app grid (positioning:
+            // never open with the suite). Read + cleared on next boot.
+            try { localStorage.setItem('anjadhe_land_assistant', '1'); } catch {}
+            window.location.reload();
+        };
+
+        // ── Step 1: Welcome / story ──────────────────────────────────────
+        document.getElementById('setup-welcome-continue-btn').addEventListener('click', () => {
+            goToStep2();
+        });
+
+        const whatLeavesLink = document.getElementById('setup-what-leaves-link');
+        if (whatLeavesLink) {
+            whatLeavesLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                // The "what leaves your machine" page is a marketing/trust
+                // surface for the skeptical beachhead — open the canonical
+                // public version (in-app routing isn't up during setup).
+                window.electronAuth?.openExternal?.('https://anjadhe.ai/privacy');
+            });
+        }
+
+        // ── Step 3: Your data (local by default, sync + backup opt-in) ──
+        // The backup checkbox applies to whichever exit is clicked; backups
+        // are encrypted with the same key as sync and default OFF.
+        const applySetupBackupChoice = async () => {
+            try {
+                if (document.getElementById('setup-backup-check')?.checked) {
+                    await window.electronBackup?.setEnabled?.(true);
+                }
+            } catch (e) { console.warn('[setup] enable backup failed:', e); }
+        };
+
+        // The step's one advance button (the sync button left setup
+        // 2026-08-31 — enabling sync lives in Settings › Storage & Backup,
+        // over the same sync-set-enabled IPC as always).
+        document.getElementById('setup-keep-local-btn').addEventListener('click', async () => {
+            await applySetupBackupChoice();
+            goToStepName();
+        });
+
+        // ── Step 4: Name the assistant (optional) ────────────────────────
+        // Finish saves whatever is typed (blank = no name); Skip finishes
+        // without saving. Enter in the field = Finish.
+        const finishWithName = () => {
+            try {
+                const typed = document.getElementById('setup-assistant-name')?.value || '';
+                if (typed.trim() && typeof AssistantIdentity !== 'undefined') {
+                    AssistantIdentity.set(typed);
+                } else if (typeof AssistantIdentity !== 'undefined') {
+                    // Finishing with a blank field = declining, same as Skip:
+                    // don't re-ask via the home/assistant nudge later.
+                    AssistantIdentity.dismissNudge();
+                }
+            } catch (e) { console.warn('[setup] save assistant name failed:', e); }
+            finishSetup();
+        };
+        document.getElementById('setup-name-finish-btn').addEventListener('click', finishWithName);
+        document.getElementById('setup-name-skip-btn').addEventListener('click', () => {
+            // An explicit "no thanks" — remember it so the in-app nudge
+            // never re-asks what setup already asked.
+            try { AssistantIdentity.dismissNudge(); } catch (_) {}
+            finishSetup();
+        });
+        document.getElementById('setup-assistant-name').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); finishWithName(); }
+        });
+        // Suggestion chips fill the field (still editable) — a tappable
+        // example beats one trapped in the placeholder.
+        document.querySelectorAll('#setup-name-suggest [data-name-suggest]').forEach(chip => {
+            chip.addEventListener('click', () => {
+                const input = document.getElementById('setup-assistant-name');
+                if (!input) return;
+                input.value = chip.dataset.nameSuggest;
+                input.focus();
+            });
+        });
+
+        // Show default path for context
+        const defaultPath = window.electronStore.getDefaultPath();
+        if (pathDisplay && defaultPath) {
+            pathDisplay.textContent = `Default location: ${defaultPath}`;
+        }
+
+        // ── Step 2b: Download first model ────────────────────────────────
+        // The local engine is llama.cpp: the ~11 MB llama-server build
+        // installs inline right here (no separate wizard phase), then the
+        // model's GGUF downloads.
+
+        // The model download is the longest the user ever waits in setup
+        // (minutes to tens of minutes, entirely network-bound), so the
+        // progress area works to stay worth looking at: a live stats line
+        // (downloaded / total / speed / time left) proves movement, and a
+        // slowly rotating card says what the app will do once it's ready.
+        //
+        // NONE OF THESE MAY DESCRIBE THE MODEL. Any entry in the catalog can
+        // be the one downloading (the user picks, and the catalog ships from
+        // remote-config), so parameter counts, context windows and "an
+        // open-weight model from Google" are wrong for most of them — these
+        // cards used to recite Gemma 4's 12B/256K facts over a gpt-oss:120b
+        // or qwen3.6 download. Say what ANJADHE does instead; the model's own
+        // name, size and blurb are already on the row above the bar.
+        const DOWNLOAD_TIPS = [
+            { label: 'What happens next', text: 'When this finishes, your assistant is ready — ask it about your email, notes, tasks and calendar, and it answers from this Mac.' },
+            { label: 'Private by default', text: 'Your chats, email and notes are processed right here. Anything that leaves this Mac is opt‑in, explicit, and goes only where you point it.' },
+            { label: 'One brain, every app', text: 'The model you picked powers all of it: the assistant, email insights, filing your action items, and your routines.' },
+            { label: 'Your mail, read for you', text: 'Connect Gmail and Anjadhe picks out the bills, renewals, appointments and deliveries — anything with a date lands on your schedule as a task.' },
+            { label: 'Routines', text: 'Ask for a news digest every weekday at 7am, or a weekly look at your projects — Anjadhe runs it on its own and posts the answer on your home page.' },
+            { label: 'One shortcut for everything', text: '⌘K searches across your tasks, notes, journal, projects and bookmarks, and opens any app by name.' },
+            { label: 'Projects, in conversation', text: 'Tell the assistant what you want to achieve; it works through it with you, breaks it into tasks, and checks in every week.' },
+            { label: 'Your data stays yours', text: 'Everything you write lives in a file on this Mac. Turn on sync and your other Macs get it through your own iCloud Drive, encrypted.' },
+            { label: 'Change your mind later', text: 'You can switch models — or run one on another computer you own — any time in Settings › AI Assistant.' }
+        ];
+
+        let tipTimer = null;
+        const startDownloadTips = () => {
+            const el = document.getElementById('setup-download-tip');
+            if (!el) return;
+            let i = 0;
+            const show = () => {
+                const tip = DOWNLOAD_TIPS[i % DOWNLOAD_TIPS.length];
+                el.innerHTML = `<span class="setup-tip-label">${tip.label}</span>${tip.text}`;
+                el.classList.remove('fading');
+                i++;
+            };
+            show();
+            tipTimer = setInterval(() => {
+                el.classList.add('fading');
+                setTimeout(show, 400); // matches the CSS opacity transition
+            }, 8000);
+        };
+        const stopDownloadTips = () => {
+            if (tipTimer) { clearInterval(tipTimer); tipTimer = null; }
+            // Clear the card so a failure message (or the finished state)
+            // isn't competing with a leftover tip.
+            const el = document.getElementById('setup-download-tip');
+            if (el) { el.innerHTML = ''; el.classList.remove('fading'); }
+        };
+
+        // Rolling download-speed estimate from progress events. Exponentially
+        // smoothed so the MB/s and time-left readings don't flicker with every
+        // network burst; the ETA is deliberately coarse ("about 6 min") —
+        // false precision on a fluctuating connection reads as wrong.
+        const makeSpeedometer = () => {
+            let lastBytes = null, lastTime = 0, ema = 0;
+            // Decimal GB, matching how the catalog (and every download site)
+            // states model sizes — mixing in GiB here reads as a shrinking bug.
+            const fmtGB = (b) => (b / 1e9).toFixed(1) + ' GB';
+            const fmtEta = (sec) => {
+                if (!Number.isFinite(sec) || sec <= 0) return '';
+                if (sec < 60) return 'less than a minute left';
+                if (sec < 120) return 'about a minute left';
+                return `about ${Math.round(sec / 60)} min left`;
+            };
+            return (completed, total) => {
+                if (!completed || !total) return '';
+                const now = Date.now();
+                if (lastBytes !== null && now > lastTime) {
+                    const inst = (completed - lastBytes) / ((now - lastTime) / 1000);
+                    if (inst >= 0) ema = ema ? ema * 0.7 + inst * 0.3 : inst;
+                }
+                lastBytes = completed; lastTime = now;
+                const parts = [`${fmtGB(completed)} of ${fmtGB(total)}`];
+                if (ema > 0) {
+                    const mbs = ema / 1024 / 1024;
+                    parts.push(`${mbs >= 10 ? Math.round(mbs) : mbs.toFixed(1)} MB/s`);
+                    const eta = fmtEta((total - completed) / ema);
+                    if (eta) parts.push(eta);
+                }
+                return parts.join(' · ');
+            };
+        };
+        document.getElementById('setup-download-model-btn').addEventListener('click', async () => {
+            // Read whichever row is currently selected in the list —
+            // populateModelList() initializes this to the recommended pick
+            // and row-click handlers update it when the user overrides. If
+            // the catalog failed to load, populateModelList disables the
+            // button, but guard here too in case of races.
+            if (!selectedModel) return;
+            const modelName = selectedModel.name;
+            const progressContainer = document.getElementById('setup-model-progress');
+            const progressFill = document.getElementById('setup-progress-fill');
+            const progressText = document.getElementById('setup-progress-text');
+            const progressStats = document.getElementById('setup-progress-stats');
+            const actionsEl = document.getElementById('setup-model-actions');
+
+            actionsEl.style.display = 'none';
+            progressContainer.style.display = '';
+            // No backing out mid-download — the transfer would keep running
+            // and yank the user forward on completion. Failure paths restore
+            // it alongside the action buttons.
+            setBack(null);
+            // The own-server alternative hint is moot once the user commits
+            // to downloading, and its privacy line duplicates the tip cards.
+            const noteHint = document.querySelector('#setup-step-2b .setup-note-hint');
+            if (noteHint) noteHint.style.display = 'none';
+            startDownloadTips();
+            const speedometer = makeSpeedometer();
+
+            try {
+                // First-run runs on the built-in llama.cpp engine.
+                await window.electronLLM?.setLocalBackend?.('llamacpp');
+
+                // Engine not on disk yet? Install it inline — ~11 MB, a few
+                // seconds; the model download below is the real wait.
+                let engineStatus = null;
+                try { engineStatus = await window.electronLlamaCpp.status(); } catch {}
+                if (!engineStatus || !engineStatus.isInstalled) {
+                    progressText.textContent = 'Setting up the AI engine…';
+                    const installed = await window.electronLlamaCpp.install((p) => {
+                        if (p.phase === 'download' && p.percent !== null && p.percent !== undefined) {
+                            progressText.textContent = `Setting up the AI engine… (${p.percent}%)`;
+                        }
+                    });
+                    if (installed && installed.error) {
+                        stopDownloadTips();
+                        progressText.textContent = 'Engine setup failed: ' + installed.error;
+                        actionsEl.style.display = '';
+                        setBack(goToStep1);
+                        return;
+                    }
+                }
+
+                let shownPct = 0;
+                const result = await window.electronLlamaCpp.pullModel(modelName, (progress) => {
+                    if (progress.percent !== null && progress.percent !== undefined) {
+                        // Never let the bar move backwards (defensive — the
+                        // manager already clamps, but resume emits can race).
+                        shownPct = Math.max(shownPct, progress.percent);
+                        progressFill.style.width = shownPct + '%';
+                        progressText.textContent = `${progress.status} (${shownPct}%)`;
+                    } else {
+                        progressText.textContent = progress.status;
+                    }
+                    if (progressStats) progressStats.textContent = speedometer(progress.completed, progress.total);
+                });
+
+                if (result.error) {
+                    stopDownloadTips();
+                    progressText.textContent = 'Download failed: ' + result.error;
+                    actionsEl.style.display = '';
+                    setBack(goToStep1);
+                    return;
+                }
+
+                stopDownloadTips();
+                if (progressStats) progressStats.textContent = '';
+                progressFill.style.width = '100%';
+                progressText.textContent = 'Download complete!';
+
+                // Save as selected model
+                const agentSettings = StorageManager.get('agent-settings') || {};
+                agentSettings.selectedModel = modelName;
+                agentSettings.models = agentSettings.models || [];
+                if (!agentSettings.models.includes(modelName)) {
+                    agentSettings.models.push(modelName);
+                }
+                StorageManager.set('agent-settings', agentSettings);
+
+                // Register a model ENTRY too — the composer model dropdown
+                // and the Settings model library render entries, and the
+                // one-time entry migration (ensureModelList) may already
+                // have run on this boot, before any model existed. The
+                // first entry becomes the default brain (selectedModel,
+                // provider=local, localBackend=llamacpp follow via
+                // saveModelList's write-through).
+                try {
+                    if (typeof AgentService !== 'undefined') {
+                        AgentService.addEntry({ engine: 'llamacpp', model: modelName });
+                        if (typeof AnalyticsManager !== 'undefined') {
+                            AnalyticsManager.record('model.added', { engine: 'llamacpp', source: 'wizard' });
+                        }
+                    }
+                } catch (err) {
+                    console.warn('[setup] model entry registration failed:', err);
+                }
+
+                setTimeout(goToStep3, 1000);
+            } catch (e) {
+                stopDownloadTips();
+                progressText.textContent = 'Download failed: ' + (e.message || 'Unknown error');
+                actionsEl.style.display = '';
+                setBack(goToStep1);
+            }
+        });
+
+        document.getElementById('setup-skip-model-btn').addEventListener('click', goToStep3);
+
+        // ── Step 2c: low-RAM Macs ─────────────────────────────────────────
+        // Shown when populateModelList() detects the machine is below the
+        // catalog's local floor. Anjadhe Cloud is the suggested default
+        // there (its primary button is a .setup-alt-open like any other);
+        // Continue skips AI for now.
+        const setupSkipAiBtn = document.getElementById('setup-skip-ai-btn');
+        if (setupSkipAiBtn) {
+            setupSkipAiBtn.addEventListener('click', goToStep3);
+        }
+
+        // ── Alternate brains: server / BYOK, collapsed under the
+        // recommendation on both model steps (local on 2b, Anjadhe Cloud
+        // on the low-RAM 2c). Reuses the Settings add-model steps so
+        // validation, key storage, and entry creation stay one code path.
+        // Adding a model counts as the assistant set up — the wizard moves
+        // on to the web-access step.
+        [['setup-alt-toggle', 'setup-alt-body'],
+         ['setup-lowram-alt-toggle', 'setup-lowram-alt-body']].forEach(([toggleId, bodyId]) => {
+            const altToggle = document.getElementById(toggleId);
+            if (!altToggle) return;
+            altToggle.addEventListener('click', () => {
+                const altBody = document.getElementById(bodyId);
+                const isOpen = altBody.style.display !== 'none';
+                altBody.style.display = isOpen ? 'none' : '';
+                altToggle.innerHTML = `More ways to run the AI ${isOpen ? '&#9656;' : '&#9662;'}`;
+            });
+        });
+        document.querySelectorAll('.setup-alt-open').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                if (typeof SettingsApp === 'undefined' || typeof Modal === 'undefined'
+                    || typeof AgentService === 'undefined') return;
+                const mode = btn.dataset.alt;
+                SettingsApp._addModelSource = 'wizard';
+                const titles = {
+                    anjadhe: 'Use Anjadhe Cloud',
+                    server: 'Connect a server you own',
+                    openai: 'Use your OpenAI API key',
+                    anthropic: 'Use your Anthropic API key'
+                };
+                const before = AgentService.getModelList().length;
+                const body = document.createElement('div');
+                body.className = 'settings-add-model';
+                const modal = Modal.create({
+                    title: titles[mode] || 'Add a model',
+                    content: body,
+                    className: 'settings-add-model-modal modal-wide',
+                    onClose: () => {
+                        // An entry was added — that IS the assistant setup
+                        // (first entry becomes the brain); move the wizard on.
+                        if (AgentService.getModelList().length > before) {
+                            UIUtils.showToast('Model added — your assistant is ready', 'success');
+                            goToStep3();
+                        }
+                    }
+                });
+                if (mode === 'server') SettingsApp._renderAddServerStep(body, modal);
+                else if (mode === 'anjadhe') SettingsApp._renderAddAnjadheStep(body, modal);
+                else SettingsApp._renderAddCloudStep(body, modal, mode);
+            });
+        });
+
+    },
+
+    /**
+     * Setup hash-based routing
+     */
+    setupRouting() {
+        // Handle browser back/forward buttons. Hash assignments made by
+        // openApp/showDashboard themselves are queued as echoes and skipped
+        // here — without this, every navigation re-ran the target app's
+        // init() a second time via its own hashchange (which, among other
+        // things, clobbered consume-once deep-link flags like the email
+        // app's _openToInsightDetail).
+        window.addEventListener('hashchange', (e) => {
+            const target = e.newURL ? (e.newURL.split('#')[1] || '') : window.location.hash.slice(1);
+            const echoes = this._routeEchoes || [];
+            const idx = echoes.indexOf(target);
+            if (idx !== -1) {
+                echoes.splice(idx, 1);
+                return;
+            }
+            this.handleRoute();
+        });
+    },
+
+    // Record that the next hashchange for `hash` is our own doing (an
+    // openApp/showDashboard hash write), not a back/forward navigation.
+    _queueRouteEcho(hash) {
+        if (!this._routeEchoes) this._routeEchoes = [];
+        this._routeEchoes.push(hash);
+    },
+
+    /**
+     * Handle the current route based on URL hash
+     * Supports: #app, #app/view/id, #app/edit/id
+     */
+    handleRoute() {
+        const hash = window.location.hash.slice(1); // Remove the #
+
+        // First boot after onboarding: land in the Assistant (the one
+        // blade), never the 12-app grid. One-shot — cleared immediately so
+        // later navigation behaves normally. We deliberately do NOT seed a
+        // prompt: on a fresh install there are no tasks and no connected
+        // inbox, so a data-dependent prompt would visibly no-op. Just open
+        // the assistant and focus the empty input so the user can start.
+        try {
+            if (localStorage.getItem('anjadhe_land_assistant') === '1') {
+                localStorage.removeItem('anjadhe_land_assistant');
+                if (this.apps['agent']) {
+                    this.openApp('agent', false);
+                    this._clearInitialLoader();
+                    setTimeout(() => {
+                        try {
+                            const input = (typeof AgentUI !== 'undefined' && AgentUI.getInput)
+                                ? AgentUI.getInput()
+                                : document.getElementById('dash-agent-input');
+                            if (input) input.focus();
+                        } catch {}
+                    }, 150);
+                    return;
+                }
+            }
+        } catch {}
+
+        if (hash === '' || hash === 'home') {
+            this.showDashboard(false);
+            this._clearInitialLoader();
+            return;
+        }
+
+        // The More apps page is chrome, not an app — but it still owns a
+        // route: without one, a refresh restored whatever hash the LAST
+        // app wrote (reported as "refresh lands on Routines").
+        if (hash === 'more-apps') {
+            this.openAppVisibilityModal();
+            this._clearInitialLoader();
+            return;
+        }
+
+        const parts = hash.split('/');
+        // The old Plan tab's app id — #focus hashes (bookmarks, refreshes
+        // from before the rename) land on the Goals page; area deep-links
+        // (#focus/focus/<id>) degrade to the Goals home since areas are gone.
+        const appName = parts[0] === 'focus' ? 'goals' : parts[0];
+        const action = parts[1]; // 'view', 'edit', or undefined
+        const id = parts.slice(2).join('/'); // ID (may contain /)
+
+        if (!this.apps[appName]) {
+            this.showDashboard(false);
+            this._clearInitialLoader();
+            return;
+        }
+
+        this.openApp(appName, false);
+
+        // Route to detail page if action + id present. Done synchronously so
+        // the list view never paints before the detail view on refresh.
+        if (action && id) {
+            const app = this.apps[appName];
+            if (action === 'edit' && app.openEditor) {
+                app.openEditor(id);
+            } else if (action === 'view' && app.openViewer) {
+                app.openViewer(id);
+            }
+        }
+
+        this._clearInitialLoader();
+    },
+
+    _clearInitialLoader() {
+        document.body.classList.remove('app-loading');
+    },
+
+    /**
+     * Update the URL hash for detail page routing (does not trigger hashchange navigation)
+     */
+    setDetailHash(appName, action, id) {
+        const newHash = id ? `${appName}/${action}/${id}` : appName;
+        if (window.location.hash.slice(1) !== newHash) {
+            history.replaceState(null, '', '#' + newHash);
+        }
+    },
+
+    /**
+     * Register an app
+     * @param {string} name - App name
+     * @param {Object} app - App instance
+     */
+    register(name, app) {
+        this.apps[name] = app;
+    },
+
+    /**
+     * Tell the app we're navigating away from that it is no longer on
+     * screen. Hiding a view only removes .active, which is display:none —
+     * enough for ordinary DOM, but not for anything that keeps running
+     * unseen. A <webview> in particular carries on rendering and playing
+     * audio while hidden, so the Web Browser kept making noise from a page
+     * the user could no longer see.
+     *
+     * The counterpart is init()/render(), which already run on the way in.
+     * Never let a misbehaving app block navigation.
+     */
+    _notifyAppHidden() {
+        const app = this.currentApp && this.apps[this.currentApp];
+        if (app && typeof app.onHide === 'function') {
+            try { app.onHide(); } catch (e) { console.warn('[nav] onHide failed', e); }
+        }
+    },
+
+    /* ----------------------------------------------------------------
+     * User-built apps (docs/PLATFORM.md). Each folder under
+     * ~/Anjadhe/apps/<id>/ with a manifest.json is loaded at startup:
+     * stylesheet injected, a view container created, app.js evaluated
+     * (it must call Anjadhe.registerApp), then a dashboard tile added.
+     * Built-in apps keep their hardcoded views in index.html — this is
+     * a parallel path, not a rewrite.
+     * ---------------------------------------------------------------- */
+
+    _userAppsByDir: {},
+
+    async _loadUserApps() {
+        if (!window.electronApps?.list) return;
+        this._wireUserAppsRow();
+        // Subscribe to hot reload even with zero apps installed — the first
+        // app a coding agent writes should appear without a restart.
+        if (!this._userAppsWatching && window.electronApps.onChanged) {
+            this._userAppsWatching = true;
+            window.electronApps.onChanged((dirs) => {
+                this._reloadUserApps(dirs).catch(e => console.error('User app reload failed:', e));
+            });
+        }
+        // Preload the Spec engine source for the sandbox (so Anjadhe.Spec works
+        // inside the isolated frame) before mounting any app. No-op when the
+        // flag is off.
+        if (typeof FEATURES !== 'undefined' && FEATURES.isEnabled('sandboxUserApps')
+            && typeof UserAppSandbox !== 'undefined') {
+            await UserAppSandbox.preload();
+        }
+        const entries = await window.electronApps.list();
+        if (!Array.isArray(entries)) return;
+        for (const entry of entries) {
+            // One broken app must not take down startup or its siblings.
+            try {
+                this._mountUserApp(entry);
+            } catch (e) {
+                console.error(`User app "${entry?.dir || '?'}" failed to mount:`, e);
+                if (entry?.dir) window.electronApps.logError?.(entry.dir, `mount: ${e.message}`);
+            }
+        }
+    },
+
+    /**
+     * Hot reload: the main process watched ~/Anjadhe/apps and reported
+     * changed app folders. Tear each one down completely (tools, style,
+     * view, tile, registry) and mount the fresh files. If the user was
+     * looking at the app, re-open it so the new code renders immediately.
+     */
+    async _reloadUserApps(dirs) {
+        if (!Array.isArray(dirs) || !dirs.length) return;
+        const activeApp = this.currentApp;
+        const entries = await window.electronApps.list();
+        const byDir = {};
+        for (const e of entries) byDir[e.dir] = e;
+        for (const dirName of dirs) {
+            const removedId = this._unmountUserApp(dirName);
+            const entry = byDir[dirName];
+            if (entry) {
+                // Fresh log per remount: the file means "errors from the
+                // code on disk right now". Coding-agent CLIs write files
+                // directly, so write-time clearing can't be relied on —
+                // a transient mid-creation error would stick forever.
+                await window.electronApps.clearErrors?.(dirName);
+                try {
+                    this._mountUserApp(entry);
+                } catch (e) {
+                    console.error(`User app "${dirName}" failed to remount:`, e);
+                    window.electronApps.logError?.(dirName, `mount: ${e.message}`);
+                }
+            }
+            if (removedId && activeApp === removedId) {
+                const newId = this._userAppsByDir[dirName];
+                if (newId) this.openApp(newId, false);
+                else this.showDashboard();
+            }
+        }
+        // Publish the change to other Macs (no-op when the change itself
+        // came from sync — export compares content first).
+        if (typeof UserAppsSync !== 'undefined') {
+            UserAppsSync.exportDirs(dirs).catch(e => console.error('User app sync export failed:', e));
+        }
+    },
+
+    _unmountUserApp(dirName) {
+        const id = this._userAppsByDir[dirName];
+        if (!id) return null;
+        AgentTools.unregisterBySource(id);
+        // Tear down any sandbox bookkeeping (pending tool calls, records); the
+        // iframe element itself is removed with #<id>-view just below.
+        if (typeof UserAppSandbox !== 'undefined') UserAppSandbox.unmount(id);
+        if (typeof Widgets !== 'undefined') { Widgets.unregister(`userapp-${id}`); Widgets.refresh(); }
+        document.querySelector(`style[data-user-app="${CSS.escape(id)}"]`)?.remove();
+        document.getElementById(`${id}-view`)?.remove();
+        const row = document.getElementById('dash-user-apps-row');
+        row?.querySelector(`.dash-app-tile[data-app="${CSS.escape(id)}"]`)?.remove();
+        const group = document.getElementById('dash-user-apps-group');
+        if (group && row && !row.children.length) group.style.display = 'none';
+        delete this.apps[id];
+        delete this._userAppsByDir[dirName];
+        return id;
+    },
+
+    /**
+     * Delegated click handling for the "Your Apps" row. Tiles come and go
+     * with hot reload, so per-tile listeners (the setupNavigation pattern)
+     * would be lost on remount — setupNavigation skips this row.
+     */
+    _wireUserAppsRow() {
+        const row = document.getElementById('dash-user-apps-row');
+        if (!row || row.dataset.wired) return;
+        row.dataset.wired = '1';
+        row.addEventListener('click', (e) => {
+            const tile = e.target.closest('.dash-app-tile[data-app]');
+            if (!tile) return;
+            e.stopPropagation();
+            if ((e.metaKey || e.ctrlKey) && window.electronWindow?.openNew) {
+                window.electronWindow.openNew(tile.dataset.app);
+            } else {
+                this.openApp(tile.dataset.app);
+            }
+        });
+    },
+
+    _mountUserApp(entry) {
+        const logError = (msg) => {
+            console.error(`User app "${entry.dir}": ${msg}`);
+            window.electronApps?.logError?.(entry.dir, msg);
+        };
+        if (entry.error) {
+            logError(`could not be read: ${entry.error}`);
+            return;
+        }
+        const check = AppManifest.validate(entry.manifest);
+        if (!check.ok) {
+            logError(`invalid manifest: ${check.errors.join('; ')}`);
+            return;
+        }
+        const manifest = check.manifest;
+        if (this.apps[manifest.id] || document.getElementById(`${manifest.id}-view`)) {
+            logError(`id "${manifest.id}" collides with an existing app`);
+            return;
+        }
+
+        // Compute tool keywords up front — both the sandbox and legacy paths
+        // scope this app's assistant tools to messages that mention it.
+        const toolKeywords = [manifest.name, manifest.id.replace(/-/g, ' '), ...manifest.keywords];
+
+        // SECURITY (H3): sandboxed execution for CODE apps when the flag is on.
+        // Spec apps (entry.spec != null) are pure data rendered by the trusted
+        // engine and never need isolation. The sandbox path runs app.js in an
+        // opaque-origin iframe with no bridges, so the css/view/surface/
+        // new-Function machinery below is skipped entirely.
+        const sandboxed = entry.spec == null
+            && typeof FEATURES !== 'undefined' && FEATURES.isEnabled('sandboxUserApps')
+            && typeof UserAppSandbox !== 'undefined';
+        if (sandboxed) {
+            const app = UserAppSandbox.mountCodeApp(manifest, entry, {
+                keywords: toolKeywords
+            });
+            app.anjadhe = { id: manifest.id, manifest };  // compat shim
+            this.register(manifest.id, app);
+            this._userAppsByDir[entry.dir] = manifest.id;
+            this._addUserAppTile(manifest);
+            return;  // the guest self-inits and registers its tools on load
+        }
+
+        // Stylesheet before the view so first open doesn't flash unstyled.
+        if (entry.css) {
+            const style = document.createElement('style');
+            style.dataset.userApp = manifest.id;
+            style.textContent = entry.css;
+            document.head.appendChild(style);
+        }
+
+        // View container — same shape as the hardcoded built-in views.
+        // manifest.layout 'full' drops the centered reading-width cap so the
+        // app owns the whole content area (dashboards, boards, split panes).
+        const view = document.createElement('div');
+        view.id = `${manifest.id}-view`;
+        view.className = manifest.layout === 'full' ? 'view app-view app-view-full' : 'view app-view';
+        document.getElementById('app-views').appendChild(view);
+
+        // The per-app platform surface. Built BEFORE the script runs and
+        // passed in as a scoped `anjadhe` binding, so app code can use
+        // `anjadhe.storage` etc. anywhere — including arrow functions,
+        // where `this.anjadhe` would be undefined (a bug class generated
+        // models fall into constantly). Tools registered here are scoped
+        // into the assistant prompt only when the message mentions the app
+        // (name/id/keywords), keeping local-model prompts small.
+        const surface = {
+            id: manifest.id,
+            manifest,
+            storage: Anjadhe.storageFor(manifest.id),
+            navigate: (name) => this.openApp(name),
+            // A card on home (Anjadhe.registerWidgetFor — data shape or markup).
+            registerWidget: (def) => Anjadhe.registerWidgetFor(manifest.id, def),
+            // Another app's exposed API, gated on the manifest's `uses`
+            // (in-process: the object itself; sandboxed apps get proxies).
+            use: (name) => {
+                if (!(manifest.uses || []).includes(name)) {
+                    throw new Error(`Declare uses:["${name}"] in manifest.json to call that app's API`);
+                }
+                return Anjadhe.use(name);
+            },
+            // Third arg: { ask } — a tool that changes or removes the user's
+            // data asks before every run (the generic dialog names the tool).
+            registerTool: (definition, handler, opts) =>
+                AgentTools.register(definition, handler, {
+                    source: manifest.id, keywords: toolKeywords, ask: !!(opts && opts.ask)
+                }),
+            // Read-only access to built-in app data, gated on the manifest's
+            // declared reads — the permission is visible in the manifest, and
+            // the data comes back as a deep copy so apps can't mutate the
+            // source blob in place.
+            readData: (name) => {
+                if (!manifest.reads.includes(name)) {
+                    throw new Error(`Declare reads:["${name}"] in manifest.json to read that app's data`);
+                }
+                const data = StorageManager.get(name);
+                return data == null ? null : JSON.parse(JSON.stringify(data));
+            }
+        };
+
+        let app;
+        if (entry.spec != null) {
+            // Spec app (docs/PLATFORM.md Phase 3): pure data rendered by
+            // the fixed engine — no app code runs at all. This is the
+            // format that travels to devices where shipping generated JS
+            // isn't possible (iOS).
+            let parsedSpec;
+            try {
+                parsedSpec = JSON.parse(entry.spec);
+            } catch (e) {
+                logError(`app.spec.json is not valid JSON: ${e.message}`);
+                view.remove();
+                return;
+            }
+            const specCheck = AppSpec.validate(parsedSpec);
+            if (!specCheck.ok) {
+                logError(`invalid app.spec.json: ${specCheck.errors.join('; ')}`);
+                view.remove();
+                return;
+            }
+            app = {
+                _spec: parsedSpec,
+                render() {
+                    const container = document.getElementById(`${manifest.id}-view`);
+                    if (!container) return;
+                    SpecRenderer.render(this._spec, container, {
+                        storage: surface.storage,
+                        rerender: () => this.render()
+                    });
+                }
+            };
+        } else {
+            // Code app: evaluate app.js. It must call Anjadhe.registerApp(app)
+            // at the top level; _pending carries the manifest context across
+            // the call.
+            Anjadhe._pending = { manifest, registered: false, app: null };
+            let ctx;
+            try {
+                new Function('anjadhe', entry.js).call(window, surface);
+            } finally {
+                ctx = Anjadhe._pending;
+                Anjadhe._pending = null;
+            }
+            if (!ctx.registered || !ctx.app) {
+                view.remove();
+                throw new Error('app.js did not call Anjadhe.registerApp()');
+            }
+            app = ctx.app;
+        }
+        // Kept for compatibility with method-style code (`this.anjadhe`).
+        app.anjadhe = surface;
+
+        // Route lifecycle throws into .errors.log — the builder docs tell
+        // coding agents to check that file after every change, which is
+        // what makes the edit→reload→fix loop self-correcting. Also keeps
+        // a throwing render() from bubbling out of openApp. A failed
+        // render shows an error card instead of a blank view, so the user
+        // knows the app is broken rather than empty.
+        for (const method of ['init', 'render']) {
+            const orig = app[method];
+            if (typeof orig !== 'function') continue;
+            app[method] = function (...args) {
+                try {
+                    return orig.apply(this, args);
+                } catch (e) {
+                    logError(`${method}(): ${e.message}`);
+                    if (method === 'render') {
+                        const v = document.getElementById(`${manifest.id}-view`);
+                        if (v) {
+                            v.innerHTML = `<div class="user-app-error">
+                                <p><strong>${UIUtils.escapeHtml(manifest.name)}</strong> hit an error while loading.</p>
+                                <p class="user-app-error-detail">${UIUtils.escapeHtml(e.message)}</p>
+                                <p>Ask your coding agent to check <code>.errors.log</code> in the app folder and fix it.</p>
+                            </div>`;
+                        }
+                    }
+                }
+            };
+        }
+
+        this.register(manifest.id, app);
+        this._userAppsByDir[entry.dir] = manifest.id;
+        this._addUserAppTile(manifest);
+
+        // Eager init so assistant tools register at startup rather than on
+        // first open — otherwise the assistant can't see an app's data until
+        // the user has visited it this session. openApp calls init() again;
+        // apps guard with their own _initialized flag (see
+        // examples/user-apps/plant-tracker).
+        if (typeof app.init === 'function') app.init();
+    },
+
+    _addUserAppTile(manifest) {
+        const group = document.getElementById('dash-user-apps-group');
+        const row = document.getElementById('dash-user-apps-row');
+        if (!group || !row) return;
+        const tile = document.createElement('button');
+        tile.type = 'button';
+        tile.className = 'dash-app-tile';
+        tile.dataset.app = manifest.id;
+        const icon = document.createElement('span');
+        icon.className = 'dash-app-tile-icon';
+        icon.innerHTML = manifest.icon;
+        const label = document.createElement('span');
+        label.className = 'dash-app-tile-label';
+        label.textContent = manifest.name;
+        tile.append(icon, label);
+        row.appendChild(tile);
+        group.style.display = '';
+        // Hooked here rather than at the callers so an app installed
+        // mid-session appears in the rail without a reload, exactly as one
+        // loaded at boot does.
+        if (typeof SideNav !== 'undefined') SideNav.render();
+    },
+
+    /**
+     * Navigate to an app
+     * @param {string} appName - Name of app to open
+     * @param {boolean} updateHash - Whether to update the URL hash (default: true)
+     */
+    // ── In-app link opening (iOS-style "back to where you came from") ──
+    // Open a URL in the Browse app in a NEW tab, with a slim return strip
+    // at the top of the browser that runs `ret.onBack` — like tapping a
+    // link on iOS and getting the "‹ Back to App" chip. The strip clears
+    // when tapped or when the user navigates to any non-Browse app.
+    // ret: { label: 'Back to Feed', onBack: () => …, readerMode: true } —
+    // optional; readerMode auto-opens Browse's reader once the page loads
+    // (article links from News/Discover land in reading view by default).
+    _browseReturn: null,
+
+    openInBrowse(url, ret) {
+        if (!url) return;
+        if (typeof BrowseApp === 'undefined') {
+            window.electronAuth?.openExternal?.(url);
+            return;
+        }
+        this._browseReturn = ret || null;
+        this.openApp('browse');
+        // Defer so the Browse view is active before we drive it.
+        setTimeout(() => {
+            try {
+                if (BrowseApp._createTab) {
+                    const tab = BrowseApp._createTab({ url, activate: true });
+                    if (tab && ret && ret.readerMode) tab.autoReader = true;
+                } else BrowseApp._submitUrl?.(url);
+            } catch (e) { console.warn('[openInBrowse] failed:', e?.message); }
+            this._paintBrowseReturn();
+        }, 50);
+    },
+
+    _paintBrowseReturn() {
+        const strip = document.getElementById('browse-return-strip');
+        if (!strip) return;
+        const ret = this._browseReturn;
+        if (!ret) { strip.hidden = true; return; }
+        strip.textContent = '‹ ' + (ret.label || 'Back');
+        strip.hidden = false;
+        strip.onclick = () => {
+            strip.hidden = true;
+            const r = this._browseReturn;
+            this._browseReturn = null;
+            try { if (r && r.onBack) r.onBack(); else this.showDashboard(); } catch {}
+        };
+    },
+
+    openApp(appName, updateHash = true) {
+        // The standalone Tasks page was absorbed by the Actions hub (Tasks
+        // tab); 'focus' was the Plan tab's app id before it became the Goals
+        // page (2026-07-31). Old callers and hashes land on the new doors.
+        if (appName === 'schedule') return this.openApp('actions', updateHash);
+        if (appName === 'focus') return this.openApp('goals', updateHash);
+
+        // Reading a feed post? Navigating away closes it — the overlay only
+        // covers home's content area, so it would otherwise linger over the
+        // incoming app.
+        if (typeof PromptFeed !== 'undefined' && PromptFeed.closePost) PromptFeed.closePost();
+
+        // A pending "back to where you came from" return (openInBrowse) only
+        // survives while the user stays in Browse — navigating anywhere else
+        // means they've moved on, so drop the strip.
+        if (appName !== 'browse' && this._browseReturn) {
+            this._browseReturn = null;
+            const strip = document.getElementById('browse-return-strip');
+            if (strip) strip.hidden = true;
+        }
+
+        const app = this.apps[appName];
+        if (!app) {
+            console.error(`App ${appName} not found`);
+            return;
+        }
+
+        // The docked AI panel is anchored to the page it was opened over, so
+        // dismiss it whenever the user navigates elsewhere. (Expand-to-full-view
+        // already closes the panel itself before calling openApp('agent'), so
+        // this is a no-op there.)
+        if (typeof AgentUI !== 'undefined' && AgentUI.isOpen) AgentUI.close();
+
+        // Refuse to open gated apps whose feature flag is off — stops a
+        // stale URL hash from landing the user on a view that isn't ready to
+        // ship.
+        if (typeof FEATURES !== 'undefined' && FEATURES.isGated(appName) && !FEATURES.isEnabled(appName)) {
+            this.showDashboard();
+            return;
+        }
+
+        // Locked apps: if this app is in the user's sensitive set and the
+        // group isn't currently unlocked, show the unlock overlay instead of
+        // the app. On success we re-enter openApp for the pending app. The
+        // current view stays put behind the overlay; Cancel returns home.
+        if (this.isAppLocked(appName) && !this.sensitiveUnlocked) {
+            this._pendingLocked = { appName, updateHash };
+            this.showAppLockOverlay(appName);
+            return;
+        }
+
+        // Hide all views
+        if (appName !== this.currentApp) this._notifyAppHidden();
+        document.querySelectorAll('.view').forEach(view => {
+            view.classList.remove('active');
+        });
+        // The first-run setup wizard reveals #setup-view with an inline
+        // display style, which bypasses the .active class — the loop above
+        // can't hide it. Clear it so it can't bleed through behind an app
+        // the user navigated to before finishing setup.
+        const setupView = document.getElementById('setup-view');
+        if (setupView) setupView.style.display = 'none';
+
+        // Show app view
+        const appView = document.getElementById(`${appName}-view`);
+        if (appView) {
+            appView.classList.add('active');
+            // Navigation history for the titlebar Back button. Push where we
+            // came from ('home' when the dashboard was showing) unless this
+            // navigation IS a back step (goBack sets _navBack so retracing
+            // never re-records) or a same-app re-open (init/render refresh,
+            // not a move). Going home clears the stack — home is the root.
+            const from = this.currentApp || 'home';
+            if (!this._navBack && from !== appName) {
+                this._navStack.push(from);
+                if (this._navStack.length > 12) this._navStack.shift();
+            }
+            // Track where we came from. `null` means the dashboard (home),
+            // which apps can use to decide entry behavior (e.g. the AI
+            // Assistant starts a fresh chat when opened from home).
+            this.previousApp = this.currentApp;
+            this.currentApp = appName;
+            this.updateAppPicker(appName);
+            this.updateSidebarActive(appName);
+            // "We're in a sub-app" CSS hook.
+            document.body.classList.add('in-sub-app');
+
+            // Opening the assistant full view? Re-warm the local model now so
+            // it's resident by the time the user types — startup prewarm may
+            // have expired during a long session. No-ops when already loaded.
+            if (appName === 'agent' && typeof AgentService !== 'undefined'
+                && typeof AgentService.warmOnIntent === 'function') {
+                AgentService.warmOnIntent();
+                if (typeof AgentUI !== 'undefined' && AgentUI.startReadinessWatch) {
+                    AgentUI.startReadinessWatch();
+                }
+            }
+
+            // Scroll to top when opening an app
+            window.scrollTo(0, 0);
+
+            // Update URL hash. The assignment fires a hashchange only when
+            // the value actually changes — queue the echo exactly then.
+            if (updateHash) {
+                if (window.location.hash.slice(1) !== appName) this._queueRouteEcho(appName);
+                window.location.hash = appName;
+            }
+
+            // Initialize app if it has an init method
+            if (app.init && typeof app.init === 'function') {
+                app.init();
+            }
+
+            // Render app
+            if (app.render && typeof app.render === 'function') {
+                app.render();
+            }
+
+            this.recordAppUse(appName);
+
+            if (typeof AnalyticsManager !== 'undefined') {
+                AnalyticsManager.record('app.opened', { app: appName });
+            }
+        }
+    },
+
+    /* ----------------------------------------------------------------
+     * App usage — what ⌘K offers first (js/components/command-palette.js).
+     *
+     * FREQUENCY, not recency, since 2026-07-30. Recency answers "where was
+     * I?", which you already know; frequency answers "where do I go?",
+     * which is what a launcher is for. Recency also churned — one detour
+     * into Settings pushed a daily app off the list — so the first row
+     * under ⌘K kept moving, and a list that moves cannot be used by muscle
+     * memory. Last-opened survives as the tiebreaker between apps you use
+     * equally often.
+     *
+     * localStorage, not StorageManager, and deliberately so: this is
+     * usage-pattern data that belongs to one Mac, and StorageManager syncs
+     * everything not explicitly listed in main.js SYNC_EXCLUDE_KEYS. A key
+     * that must never sync is safer somewhere that *cannot* sync than
+     * somewhere that requires remembering to exclude it. (Same reasoning as
+     * the theme.) Favourites are the opposite — a deliberate curation, so
+     * those do sync.
+     * ---------------------------------------------------------------- */
+    _APP_USAGE_KEY: 'app-usage',
+    _LEGACY_RECENT_APPS_KEY: 'recent-apps',
+    _FREQUENT_APPS_MAX: 6,
+
+    /** `{ [app]: { count, last } }` — raw, unsorted, never null. */
+    getAppUsage() {
+        try {
+            const raw = JSON.parse(localStorage.getItem(this._APP_USAGE_KEY) || 'null');
+            if (raw && typeof raw === 'object' && !Array.isArray(raw)) return raw;
+        } catch { /* corrupt or absent — fall through to the migration */ }
+
+        // One-time lift from the old recents list, so the first launch after
+        // updating is not a blank ⌘K. Position stands in for both count and
+        // recency: most recent gets the highest seed.
+        const out = {};
+        try {
+            const legacy = JSON.parse(localStorage.getItem(this._LEGACY_RECENT_APPS_KEY) || '[]');
+            if (Array.isArray(legacy)) {
+                legacy.filter(a => typeof a === 'string').forEach((app, i) => {
+                    out[app] = { count: Math.max(1, legacy.length - i), last: legacy.length - i };
+                });
+            }
+        } catch { /* nothing to migrate */ }
+        return out;
+    },
+
+    /**
+     * Most-used first, last-opened breaking ties. Ids only — callers that
+     * need labels and icons resolve them against the app registry.
+     */
+    getFrequentApps(limit = this._FREQUENT_APPS_MAX) {
+        const usage = this.getAppUsage();
+        return Object.keys(usage)
+            .sort((a, b) =>
+                (usage[b]?.count || 0) - (usage[a]?.count || 0)
+                || (usage[b]?.last || 0) - (usage[a]?.last || 0)
+                || a.localeCompare(b))
+            .slice(0, limit);
+    },
+
+    recordAppUse(appName) {
+        if (!appName) return;
+        // Nothing is excluded. Home is not an app and never reaches this.
+        const usage = this.getAppUsage();
+        const prev = usage[appName] || { count: 0, last: 0 };
+        usage[appName] = { count: (prev.count || 0) + 1, last: Date.now() };
+        try {
+            localStorage.setItem(this._APP_USAGE_KEY, JSON.stringify(usage));
+            localStorage.removeItem(this._LEGACY_RECENT_APPS_KEY);
+        } catch { /* quota or private mode — the ordering is a nicety */ }
+    },
+
+    /* ----------------------------------------------------------------
+     * Favourite apps. User-curated shortcuts pinned to the top of the
+     * home page. Stored via StorageManager (so the picks follow the
+     * user across Macs — this is a deliberate choice, unlike old
+     * usage-derived "recents"). Order is the order they were added.
+     * ---------------------------------------------------------------- */
+    _FAVORITES_KEY: 'favorite-apps',
+
+    getFavoriteApps() {
+        const d = StorageManager.get(this._FAVORITES_KEY);
+        return Array.isArray(d?.apps) ? d.apps.slice() : [];
+    },
+
+    setFavoriteApps(arr) {
+        StorageManager.set(this._FAVORITES_KEY, { apps: Array.from(arr) });
+    },
+
+    isFavoriteApp(app) {
+        return this.getFavoriteApps().includes(app);
+    },
+
+    toggleFavoriteApp(app) {
+        const list = this.getFavoriteApps();
+        const i = list.indexOf(app);
+        if (i === -1) list.push(app);
+        else list.splice(i, 1);
+        this.setFavoriteApps(list);
+    },
+
+    renderFavoriteApps() {
+        const section = document.getElementById('dash-favorite-apps-group');
+        const row = document.getElementById('dash-favorite-apps-row');
+        if (!section || !row) return;
+
+        const favorites = this.getFavoriteApps();
+        const hiddenApps = this.getHiddenApps();
+        // Map to existing tile DOM so icons/labels/badges stay in sync with
+        // the canonical grid below. Skip apps whose tile doesn't exist
+        // (removed or gated-off), gated apps whose flag is currently off,
+        // and apps the user has hidden from their home page.
+        const tiles = [];
+        for (const appName of favorites) {
+            if (!appName) continue;
+            if (typeof FEATURES !== 'undefined' && FEATURES.isGated(appName) && !FEATURES.isEnabled(appName)) continue;
+            if (hiddenApps.has(appName)) continue;
+            // Find the canonical tile elsewhere in the apps section to copy.
+            const canonical = document.querySelector(
+                `.dash-apps-section .dash-app-tile[data-app="${appName}"]:not(#dash-favorite-apps-row .dash-app-tile)`
+            );
+            if (!canonical) continue;
+            tiles.push(canonical);
+        }
+
+        if (tiles.length === 0) {
+            section.style.display = 'none';
+            row.innerHTML = '';
+            return;
+        }
+
+        // Rebuild row. Clone the canonical tile so badges/feature flags
+        // come along; strip the id on the clone to avoid duplicates.
+        row.innerHTML = '';
+        for (const tile of tiles) {
+            const clone = tile.cloneNode(true);
+            clone.removeAttribute('id');
+            // Re-id any descendant with an id to prevent duplicate ids
+            // (e.g., #dash-email-badge). Drop the id; badge text gets
+            // re-synced by updateStats() on dashboard show.
+            clone.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
+            // Customize acts on the canonical tile. Once the sheet has been
+            // opened, the canonical tiles carry .tile-edit controls, and a
+            // deep clone brings them along — so a second open showed star
+            // and Hide buttons on the shortcut rows too, editing an app from
+            // two places at once.
+            clone.querySelectorAll('.tile-edit').forEach(el => el.remove());
+            row.appendChild(clone);
+        }
+
+        // Re-bind clicks — the generic delegation in setupAppTileNavigation
+        // runs once at startup, so clones added later need their own handler.
+        row.querySelectorAll('.dash-app-tile[data-app]').forEach(el => {
+            el.addEventListener('click', () => {
+                const appName = el.getAttribute('data-app');
+                if (appName) this.openApp(appName);
+            });
+        });
+
+        section.style.display = '';
+    },
+
+    /* ----------------------------------------------------------------
+     * Customize home apps. We ship many apps; this lets a user hide the
+     * ones they don't use. Stored via StorageManager (so the curated set
+     * follows them across Macs — unlike usage counts, which are a
+     * usage pattern and stay machine-local). Hiding an app keeps it out of
+     * ⌘K's empty-query list; it stays findable by name (GlobalSearch.apps).
+     * ---------------------------------------------------------------- */
+    _HIDDEN_APPS_KEY: 'hidden-apps',
+
+    getHiddenApps() {
+        const d = StorageManager.get(this._HIDDEN_APPS_KEY);
+        return new Set(Array.isArray(d?.apps) ? d.apps : []);
+    },
+
+    setHiddenApps(set) {
+        // Spread keeps one-shot migration stamps (see unhideAgentOnce) —
+        // a plain {apps} write would wipe them and re-run the migration.
+        const d = StorageManager.get(this._HIDDEN_APPS_KEY) || {};
+        StorageManager.set(this._HIDDEN_APPS_KEY, { ...d, apps: Array.from(set) });
+    },
+
+    /**
+     * One-shot (2026-08-08): the assistant moved to its own tier at the top
+     * of the nav/switcher, BY REQUEST — an install that hid the old "Do"
+     * tile would render the new tier invisible and the change would look
+     * like it never shipped. Unhide it once; the stamp (preserved by
+     * setHiddenApps) means a user who hides it again stays hidden.
+     */
+    unhideAgentOnce() {
+        const d = StorageManager.get(this._HIDDEN_APPS_KEY) || {};
+        if (d.agentUnhidden2026_08 || !Array.isArray(d.apps) || !d.apps.includes('agent')) {
+            if (!d.agentUnhidden2026_08 && Array.isArray(d.apps)) {
+                StorageManager.set(this._HIDDEN_APPS_KEY, { ...d, agentUnhidden2026_08: true });
+            }
+            return;
+        }
+        StorageManager.set(this._HIDDEN_APPS_KEY, {
+            ...d,
+            apps: d.apps.filter(a => a !== 'agent'),
+            agentUnhidden2026_08: true
+        });
+    },
+
+    /**
+     * One-shot (2026-08-21, by request): Wellness, Web Browser, AI
+     * Activity, Help and About leave the default launcher set — they are
+     * reference/occasional surfaces, and the More apps page is where they
+     * come back. The stamp (preserved by setHiddenApps) means a user who
+     * re-enables one stays enabled; hiding never disables (⌘K by name,
+     * record links and openApp all still work).
+     */
+    // Bundled packages append themselves via manifest `hiddenByDefault`
+    // (Wellness) before seedDefaultHiddenOnce runs.
+    DEFAULT_HIDDEN_APPS: ['browse', 'aiactivity', 'help', 'about'],
+
+    seedDefaultHiddenOnce() {
+        const d = StorageManager.get(this._HIDDEN_APPS_KEY) || {};
+        if (d.defaultHidden2026_08) return;
+        const apps = new Set(Array.isArray(d.apps) ? d.apps : []);
+        for (const id of this.DEFAULT_HIDDEN_APPS) apps.add(id);
+        StorageManager.set(this._HIDDEN_APPS_KEY, {
+            ...d,
+            apps: Array.from(apps),
+            defaultHidden2026_08: true
+        });
+    },
+
+    applyHiddenApps() {
+        const hidden = this.getHiddenApps();
+
+        // Static grid tiles only — never the Favourites row clones, which
+        // are rebuilt from these and filtered separately in renderFavoriteApps.
+        document.querySelectorAll('.dash-apps-section .dash-app-tile[data-app]').forEach(tile => {
+            if (tile.closest('#dash-favorite-apps-row')) return;
+            if (tile.closest('#dash-locked-apps-row')) return;
+            const app = tile.getAttribute('data-app');
+            // Don't fight feature gating: a flag-off tile is already hidden
+            // by FEATURES.applyToDocument and must stay that way.
+            const gatedOff = typeof FEATURES !== 'undefined'
+                && FEATURES.isGated(app) && !FEATURES.isEnabled(app);
+            if (gatedOff) return;
+            // A class, not inline display: nothing paints the registry now,
+            // but Settings › Customize home apps still reads these tiles and
+            // an inline style would win over any rule trying to show them.
+            tile.classList.toggle('is-app-hidden', hidden.has(app));
+            tile.style.display = '';
+        });
+
+        // Collapse a group whose every tile is now hidden so we don't
+        // leave an orphan section header (e.g. "Money") with nothing under it.
+        document.querySelectorAll('.dash-apps-section .dash-apps-group').forEach(group => {
+            if (group.id === 'dash-favorite-apps-group') return;
+            if (group.id === 'dash-locked-apps-group') return;
+            const tiles = Array.from(group.querySelectorAll('.dash-app-tile[data-app]'));
+            const anyVisible = tiles.some(t =>
+                t.style.display !== 'none' && t.getAttribute('aria-hidden') !== 'true');
+            group.style.display = anyVisible ? '' : 'none';
+        });
+
+        // The rail reads the same hidden set; repaint it here rather than at
+        // each of this method's callers.
+        if (typeof SideNav !== 'undefined') SideNav.render();
+    },
+
+    // Shared by the dashboard "Customize" button and the Settings row.
+    // origin controls where the breadcrumb "back" returns to.
+    openAppVisibilityModal(origin = 'dashboard') {
+        const view = document.getElementById('home-apps-view');
+        const list = document.getElementById('home-apps-list');
+        if (!view || !list) return;
+
+        this._notifyAppHidden();
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        view.classList.add('active');
+        window.scrollTo(0, 0);
+
+        // Own the route so a refresh comes back HERE (replaceState — no
+        // hashchange echo). Leaving restores the destination's own hash:
+        // showDashboard writes home's, the settings back-arm writes its.
+        if (window.location.hash.slice(1) !== 'more-apps') {
+            history.replaceState(null, '', '#more-apps');
+        }
+
+        const backToDashboard = () => this.showDashboard();
+        const backToSettings = () => {
+            view.classList.remove('active');
+            document.getElementById('settings-view').classList.add('active');
+            if (window.location.hash.slice(1) !== 'settings') {
+                history.replaceState(null, '', '#settings');
+            }
+            if (typeof SettingsApp !== 'undefined' && SettingsApp.render) SettingsApp.render();
+        };
+        const crumbs = origin === 'settings'
+            ? [{ label: 'Settings', action: backToSettings }, { label: 'More apps' }]
+            : [{ label: 'Home', action: backToDashboard }, { label: 'More apps' }];
+        Breadcrumb.render('home-apps-breadcrumb', crumbs);
+
+        // The More apps page (2026-08-21, replaced the row-list Customize
+        // page and its favourites editor — `favorite-apps` had no surface
+        // rendering it): one CARD per app — icon, name, one-line
+        // description from the registry's data-desc, and an enable switch.
+        // "Enabled" is launcher visibility: an off app keeps its data,
+        // stays reachable by name in ⌘K, and openApp/record links still
+        // work — the hiding-never-disables bargain, now with the card to
+        // say so.
+        const hidden = this.getHiddenApps();
+        const esc = (s) => (typeof UIUtils !== 'undefined' ? UIUtils.escapeHtml(s) : String(s));
+
+        // Packages (js/apps/bundled.json) can also be INSTALLED or not
+        // (2026-08-30): an uninstalled package is not loaded at all — no
+        // tools, widget, search or view, and Anjadhe.use() returns null to
+        // its dependents — while its data stays on disk. A package card
+        // carries an Uninstall action; uninstalled packages sit in their
+        // own section at the end with Install. Both apply on reload.
+        const pkgs = typeof BundledApps !== 'undefined' ? BundledApps : null;
+        const isPkg = (id) => !!(pkgs && pkgs.isPackage(id));
+
+        list.innerHTML = '';
+        document.querySelectorAll('.dash-apps-section .dash-apps-group').forEach(group => {
+            if (group.id === 'dash-favorite-apps-group') return;
+            const tiles = Array.from(group.querySelectorAll('.dash-app-tile[data-app]'))
+                .filter(t => {
+                    // A sub-app has no launcher entry to show or hide, so
+                    // offering a switch for it would promise a control
+                    // that governs nothing — unless it is a package, which
+                    // can still be uninstalled (Pomodoro, Bookmarks).
+                    if (t.dataset.subappOf && !isPkg(t.getAttribute('data-app'))) return false;
+                    const app = t.getAttribute('data-app');
+                    return !(typeof FEATURES !== 'undefined'
+                        && FEATURES.isGated(app) && !FEATURES.isEnabled(app));
+                });
+            if (tiles.length === 0) return;
+
+            const section = document.createElement('div');
+            section.className = 'more-apps-group';
+            const labelEl = group.querySelector('.dash-apps-group-label');
+            if (labelEl) {
+                const h = document.createElement('h4');
+                h.className = 'more-apps-group-label';
+                h.textContent = labelEl.textContent;
+                section.appendChild(h);
+            }
+            const grid = document.createElement('div');
+            grid.className = 'more-apps-grid';
+            tiles.forEach(t => {
+                const app = t.getAttribute('data-app');
+                // innerHTML, not textContent — tile icons are inline SVGs
+                // (user-app tiles may still be emoji; both are our own
+                // markup already living in the grid, so re-injecting is safe).
+                const icon = t.querySelector('.dash-app-tile-icon')?.innerHTML || '';
+                const label = t.querySelector('.dash-app-tile-label')?.textContent || app;
+                const desc = t.dataset.desc || '';
+                const sub = t.dataset.subappOf || '';
+                const on = sub ? true : !hidden.has(app);
+                const card = document.createElement('div');
+                card.className = `more-apps-card${on ? ' is-enabled' : ''}`;
+                card.dataset.app = app;
+                const status = sub
+                    ? `Part of ${esc(this.appLabel ? this.appLabel(sub) : sub)}`
+                    : (on ? 'Enabled' : 'Off');
+                card.innerHTML =
+                    `<div class="more-apps-card-head">` +
+                    `<span class="more-apps-card-icon">${icon}</span>` +
+                    `<span class="more-apps-card-title">${esc(label)}</span>` +
+                    (sub ? '' :
+                    `<label class="settings-switch" title="${on ? 'Enabled' : 'Off'}">` +
+                    `<input type="checkbox" class="more-apps-toggle" data-app="${esc(app)}"` +
+                    ` ${on ? 'checked' : ''} aria-label="Enable ${esc(label)}">` +
+                    `<span class="settings-switch-track"></span>` +
+                    `</label>`) +
+                    `</div>` +
+                    `<p class="more-apps-card-desc">${esc(desc)}</p>` +
+                    `<div class="more-apps-card-foot">` +
+                    `<span class="more-apps-card-status">${status}</span>` +
+                    (isPkg(app)
+                        ? `<button type="button" class="more-apps-card-action" data-uninstall="${esc(app)}">Uninstall</button>`
+                        : '') +
+                    `</div>`;
+                grid.appendChild(card);
+            });
+            section.appendChild(grid);
+            list.appendChild(section);
+        });
+
+        // Uninstalled packages: no tile, so they come from the catalog.
+        if (pkgs) {
+            const off = pkgs.uninstalledIds();
+            if (off.size) {
+                pkgs.catalog().then(cat => {
+                    const entries = Array.from(off).map(id => cat.get(id)).filter(Boolean);
+                    if (!entries.length || !view.classList.contains('active')) return;
+                    const section = document.createElement('div');
+                    section.className = 'more-apps-group';
+                    const h = document.createElement('h4');
+                    h.className = 'more-apps-group-label';
+                    h.textContent = 'Not installed';
+                    const grid = document.createElement('div');
+                    grid.className = 'more-apps-grid';
+                    entries.forEach(m => {
+                        const card = document.createElement('div');
+                        card.className = 'more-apps-card';
+                        card.dataset.app = m.id;
+                        card.innerHTML =
+                            `<div class="more-apps-card-head">` +
+                            `<span class="more-apps-card-icon">${m.icon || ''}</span>` +
+                            `<span class="more-apps-card-title">${esc(m.name)}</span>` +
+                            `</div>` +
+                            `<p class="more-apps-card-desc">${esc(m.description || '')}</p>` +
+                            `<div class="more-apps-card-foot">` +
+                            `<span class="more-apps-card-status">Not installed</span>` +
+                            `<button type="button" class="more-apps-card-action" data-install="${esc(m.id)}">Install</button>` +
+                            `</div>`;
+                        grid.appendChild(card);
+                    });
+                    section.append(h, grid);
+                    list.appendChild(section);
+                });
+            }
+        }
+
+        // Install / uninstall. The set is read at load, so the change lands
+        // on reload; requestReload asks first when work is in flight, and
+        // if the user stays the page re-renders to show the pending state.
+        const applyInstall = async (id, on) => {
+            if (!pkgs || !pkgs.setInstalled(id, on)) return;
+            await this.requestReload();
+            if (view.classList.contains('active')) this.openAppVisibilityModal(origin);
+        };
+        list.onclick = (e) => {
+            const btn = e.target.closest('.more-apps-card-action');
+            if (!btn) return;
+            if (btn.dataset.install) { applyInstall(btn.dataset.install, true); return; }
+            const id = btn.dataset.uninstall;
+            if (!id) return;
+            const label = this.appLabel ? this.appLabel(id) : id;
+            let ref = null;
+            ref = Modal.create({
+                title: `Uninstall ${esc(label)}?`,
+                content: `<p>${esc(label)} will be removed from Anjadhe: its page, home card, search results and assistant tools go away, and apps that work with it carry on without it.</p>` +
+                    `<p>Its data stays on this Mac. Installing it again from this page brings everything back.</p>`,
+                buttons: [
+                    { text: 'Cancel', className: 'secondary-btn', onClick: () => ref.close() },
+                    { text: 'Uninstall', className: 'danger-btn', onClick: () => { ref.close(); applyInstall(id, false); } }
+                ]
+            });
+        };
+
+        // Save on every toggle — no Save button. Assigned as a property
+        // (not addEventListener) so re-opening the page doesn't stack
+        // duplicate handlers; change events bubble to the list container.
+        list.onchange = (e) => {
+            if (!e.target.classList.contains('more-apps-toggle')) return;
+            const next = new Set();
+            list.querySelectorAll('.more-apps-toggle').forEach(cb => {
+                if (!cb.checked) next.add(cb.getAttribute('data-app'));
+            });
+            this.setHiddenApps(next);
+            this.applyHiddenApps();
+            this.renderFavoriteApps();
+            const card = e.target.closest('.more-apps-card');
+            if (card) {
+                const on = e.target.checked;
+                card.classList.toggle('is-enabled', on);
+                const status = card.querySelector('.more-apps-card-status');
+                if (status) status.textContent = on ? 'Enabled' : 'Off';
+            }
+        };
+    },
+
+    /**
+     * Show dashboard
+     * @param {boolean} updateHash - Whether to update the URL hash (default: true)
+     */
+    showDashboard(updateHash = true) {
+        // Dismiss the docked AI panel — it's anchored to the page it was
+        // opened over and shouldn't linger over the dashboard.
+        if (typeof AgentUI !== 'undefined' && AgentUI.isOpen) AgentUI.close();
+        // Hide all views
+        this._notifyAppHidden();
+        document.querySelectorAll('.view').forEach(view => {
+            view.classList.remove('active');
+        });
+        // #setup-view is shown via an inline display style (bypassing the
+        // .active class), so clear it here too — otherwise the first-run
+        // wizard bleeds through behind the dashboard.
+        const setupView = document.getElementById('setup-view');
+        if (setupView) setupView.style.display = 'none';
+
+        // Show dashboard
+        const dashboard = document.getElementById('dashboard-view');
+        if (dashboard) {
+            dashboard.classList.add('active');
+            this.currentApp = null;
+            // Home is the root of navigation — arriving here (wordmark, back
+            // button, deep-link fallback) resets the Back history.
+            this._navStack = [];
+            this.updateAppPicker(null);
+            this.updateSidebarActive('home');
+            document.body.classList.remove('in-sub-app');
+
+            window.scrollTo(0, 0);
+            document.querySelector('#dashboard-view .dash-main')?.scrollTo(0, 0);
+            this.renderDashHeader();
+            // Widgets are what the apps are holding for the user. Async and
+            // unawaited — the rest of home must not wait on a price cache or
+            // a SQLite count. Cards that resolve to nothing never appear.
+            if (typeof Widgets !== 'undefined') {
+                Widgets.render(document.getElementById('dash-widgets'));
+            }
+            // Feed is the home stage — refresh it on every return so new
+            // scheduled-run posts and profile changes show without Cmd+R.
+            if (typeof PromptFeed !== 'undefined') PromptFeed.render();
+            this.updateStats();
+            this.applyHiddenApps();
+            this.renderFavoriteApps();
+            this.renderLockedApps();
+
+            // Paint the assistant readiness dot in the home chat box (and keep
+            // it live while the model is loading). Read-only — no warm here; the
+            // warm fires when the user actually focuses the chat box.
+            if (typeof AgentUI !== 'undefined' && AgentUI.startReadinessWatch) {
+                AgentUI.startReadinessWatch();
+            }
+            if (updateHash) {
+                if (window.location.hash.slice(1) !== '') this._queueRouteEcho('');
+                window.location.hash = '';
+            }
+        }
+    },
+
+    /**
+     * Setup navigation
+     */
+    setupNavigation() {
+        // Cmd/Ctrl-click opens the target app in a new window instead of
+        // switching the current window's view. Falls through to same-window
+        // navigation if the multi-window IPC is unavailable (older preload).
+        const openOrNewWindow = (appName, e) => {
+            const newWindow = e && (e.metaKey || e.ctrlKey);
+            if (newWindow && window.electronWindow?.openNew) {
+                window.electronWindow.openNew(appName);
+                return;
+            }
+            this.openApp(appName);
+        };
+
+        // Launcher tiles on the dashboard — replaces the old global
+        // sidebar. Each tile has data-app pointing at the target view.
+        // User-app tiles are excluded: they're recreated on hot reload, so
+        // their row uses delegated wiring instead (_wireUserAppsRow).
+        document.querySelectorAll('.dash-app-tile[data-app]').forEach(el => {
+            if (el.closest('#dash-user-apps-row')) return;
+            el.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const appName = el.dataset.app;
+                if (appName) openOrNewWindow(appName, e);
+            });
+        });
+
+        // (Titlebar Home button retired — the global nav's Feed item is
+        // the way home.)
+
+        // Per-app settings gears (.app-settings-btn in app headers): open
+        // Settings on the category that configures that app, or the root
+        // for apps without a dedicated category. One delegated listener —
+        // the buttons are static header markup across many views.
+        document.addEventListener('click', (e) => {
+            const btn = e.target.closest('.app-settings-btn');
+            if (!btn) return;
+            this.openAppSettings(btn.dataset.settingsFor);
+        });
+
+        // Dashboard "Ask Anjadhe" input — route to Agent with a new conversation.
+        // Always start fresh so a dashboard question doesn't hijack an ongoing
+        // thread the user had open in the Agent view. Reuses the Agent's own
+        // sendMessage path (streaming, tool calls, persistence) rather than
+        // trying to duplicate it here.
+        const dashAgentInput = document.getElementById('dash-agent-input');
+        const dashAgentSend = document.getElementById('dash-agent-send-btn');
+        const submitDashAgent = () => {
+            const text = dashAgentInput?.value?.trim() || '';
+            // Attachment-only sends are fine — same rule as the chat composer.
+            const hasAttachments = typeof AgentUI !== 'undefined' && AgentUI.pendingAttachments?.length > 0;
+            if (!text && !hasAttachments) return;
+            dashAgentInput.value = '';
+            if (typeof AgentUI !== 'undefined') AgentUI._autoGrowComposer?.(dashAgentInput);
+            if (typeof AgentService !== 'undefined') AgentService.openFreshConversation();
+            this.openApp('agent');
+            // Defer until Agent view has rendered its input. AppManager.openApp
+            // calls render() synchronously, but some fields (e.g. the textarea
+            // autosize) wire up on next tick — requestAnimationFrame is the
+            // least surprising moment to populate + fire.
+            requestAnimationFrame(() => {
+                // Use AgentUI.getInput() — the full-app view uses
+                // #agent-app-input, the floating panel uses #agent-input, and
+                // getInput() picks the right one based on AgentUI.mode (which
+                // renderAppView sets to 'app' moments before this fires).
+                const agentInput = (typeof AgentUI !== 'undefined') ? AgentUI.getInput() : null;
+                if (agentInput && typeof AgentUI !== 'undefined') {
+                    agentInput.value = text;
+                    AgentUI.sendMessage();
+                }
+            });
+        };
+        dashAgentSend?.addEventListener('click', submitDashAgent);
+        dashAgentInput?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                submitDashAgent();
+            }
+        });
+        // Focusing the home chat box is intent to chat — warm the model so it's
+        // resident by the time the user sends, and reflect its state in the dot.
+        dashAgentInput?.addEventListener('focus', () => {
+            if (typeof AgentService !== 'undefined') AgentService.warmOnIntent?.();
+            if (typeof AgentUI !== 'undefined') AgentUI.startReadinessWatch?.();
+        });
+        // Quick-start pills under the composer (day-stable; render once —
+        // the set deliberately never reshuffles mid-session).
+        if (typeof AgentUI !== 'undefined') AgentUI.renderDashSuggestions?.();
+
+        // Customize is an in-place mode of the All apps sheet now (see
+        // setupAppsSheet), not a separate page. The Settings row still opens
+        // the standalone sub-view via openAppVisibilityModal('settings').
+
+        // Theme toggle in titlebar
+        const themeBtn = document.getElementById('theme-toggle-btn');
+        if (themeBtn) {
+            themeBtn.addEventListener('click', () => this.toggleTheme());
+        }
+
+        // AI Activity in the titlebar: click opens the page; while any AI
+        // work runs the icon pulses with a working dot (fed by the same
+        // AIActivity store the page renders from).
+        const aiBtn = document.getElementById('titlebar-ai-activity-btn');
+        if (aiBtn) {
+            aiBtn.addEventListener('click', () => this.openApp('aiactivity'));
+            if (typeof AIActivity !== 'undefined') {
+                const paint = () => {
+                    const busy = AIActivity.active.size > 0;
+                    aiBtn.classList.toggle('is-busy', busy);
+                    aiBtn.title = busy
+                        ? 'AI is working — click to see what'
+                        : 'AI Activity';
+                };
+                AIActivity.subscribe(paint);
+                paint();
+            }
+        }
+
+        this.setupDashboardTabs();
+
+        // Lock screen unlock button
+        const unlockBtn = document.getElementById('lock-screen-unlock-btn');
+        if (unlockBtn) {
+            unlockBtn.addEventListener('click', () => this.promptUnlock());
+        }
+
+        // App picker
+        this.setupAppPicker();
+
+    },
+
+    /**
+     * Inject an "expand" icon into a Modal's header, left of the close button.
+     * Clicking it runs `onExpand` (which should close the modal and open the
+     * corresponding full-page editor).
+     */
+    _addModalExpand(modal, onExpand) {
+        const header = modal.element.querySelector('.modal-header');
+        if (!header) return;
+        const closeBtn = header.querySelector('.modal-close');
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'modal-expand';
+        btn.title = 'Open full editor';
+        btn.setAttribute('aria-label', 'Open full editor');
+        btn.innerHTML = '&#10138;'; // ➚ expand to full view
+        btn.onclick = onExpand;
+        if (closeBtn) header.insertBefore(btn, closeBtn);
+        else header.appendChild(btn);
+    },
+
+    /**
+     * Where should a globally captured action link? Only when the user is
+     * LOOKING at a goal/area right now — and even then it's surfaced as a
+     * visible, dismissible chip in the modal, never linked invisibly.
+     */
+    _captureContext() {
+        try {
+            if (this.currentApp === 'goals' && GoalsPage.selected
+                && GoalsPage.selected.type === 'goal') {
+                const sel = GoalsPage.selected;
+                const meta = LinkManager.getItemMeta('goals', sel.id);
+                if (meta) return { app: 'goals', itemId: sel.id, label: meta.title };
+            }
+        } catch { /* context is a nicety — capture must never fail over it */ }
+        return null;
+    },
+
+    /**
+     * Global quick capture: add an action from anywhere (File → New
+     * Action, Cmd+Shift+N). Full natural-language parse with live
+     * chips ("call dentist tomorrow 3pm"), an explicit context chip when a
+     * goal/area is on screen, and a View toast that jumps to Actions.
+     */
+    quickCreateTask() {
+        if (typeof ScheduleApp === 'undefined' || typeof Modal === 'undefined') return;
+
+        let ctx = this._captureContext();
+
+        const form = document.createElement('div');
+        form.className = 'quick-capture';
+        form.innerHTML = `
+            <input type="text" class="quick-capture-title" placeholder="What needs doing? e.g., Call dentist tomorrow 3pm" autocomplete="off" />
+            <div class="quick-capture-preview schedule-quick-add-preview" hidden></div>
+            ${ctx ? `<div class="quick-capture-context">&#8594; <span class="quick-capture-context-label"></span><button type="button" class="quick-capture-context-remove" title="Don't link" aria-label="Don't link">&times;</button></div>` : ''}
+            <div class="quick-capture-hint">Lands in Today unless you say when · Enter to save · &#8984;&#8679;N</div>
+        `;
+        const titleEl = form.querySelector('.quick-capture-title');
+        const previewEl = form.querySelector('.quick-capture-preview');
+        if (ctx) {
+            // textContent (not innerHTML) — goal titles are user data.
+            form.querySelector('.quick-capture-context-label').textContent = ctx.label;
+            form.querySelector('.quick-capture-context-remove').onclick = (e) => {
+                ctx = null;
+                e.target.closest('.quick-capture-context').remove();
+            };
+        }
+
+        const modal = Modal.create({
+            title: 'New action',
+            className: 'quick-capture-modal',
+            content: form,
+            buttons: [
+                { text: 'Cancel', className: 'secondary-btn', onClick: () => modal.close() },
+                { text: 'Add action', className: 'primary-btn', onClick: () => save() }
+            ]
+        });
+
+        const save = () => {
+            const raw = titleEl.value.trim();
+            if (!raw) return;
+            const id = ScheduleApp.quickAddDetached(raw, { silent: true });
+            if (!id) return; // quickAddTask already toasted why (e.g. no name)
+            if (ctx) LinkManager.addLink(ctx.app, ctx.itemId, 'schedule', id);
+            const item = ScheduleApp.scheduleItems.find(i => i.id === id);
+            const isToday = item && item.scheduledDate === ScheduleApp.getLocalToday();
+            modal.close();
+            UIUtils.showToast(`Action added${isToday ? ' to Today' : ''}`, 'success', 4000, {
+                actionLabel: 'View',
+                onAction: () => this.openApp('actions')
+            });
+            // Refresh whichever list the user is looking at.
+            if (this.currentApp === 'actions' && typeof ActionsApp !== 'undefined') ActionsApp.render();
+            else if (this.currentApp === 'schedule') ScheduleApp.render();
+        };
+        // Expand: carry the PARSED title into the full task editor.
+        const expand = () => {
+            const parsed = ScheduleQuickParse.parse(titleEl.value.trim(), ScheduleApp.getLocalToday());
+            modal.close();
+            // updateHash:false — see quickCreateNote; openEditor sets the
+            // detail hash itself via replaceState (no hashchange fired).
+            this.openApp('schedule', false);
+            ScheduleApp.openEditor(null, { title: parsed.title.trim() });
+        };
+        this._addModalExpand(modal, expand);
+        titleEl.addEventListener('input', () => {
+            const raw = titleEl.value.trim();
+            if (!raw) { previewEl.hidden = true; previewEl.innerHTML = ''; return; }
+            const parsed = ScheduleQuickParse.parse(raw, ScheduleApp.getLocalToday());
+            if (!parsed.hasParse) { previewEl.hidden = true; previewEl.innerHTML = ''; return; }
+            const chips = parsed.chips.map(c =>
+                `<span class="schedule-parse-chip">${UIUtils.escapeHtml(c.label)}</span>`).join('');
+            const title = parsed.title.trim()
+                ? `<span class="schedule-parse-preview-title">&#8594; <strong>${UIUtils.escapeHtml(parsed.title.trim())}</strong></span>`
+                : `<span class="schedule-parse-preview-title">Add a task name</span>`;
+            previewEl.innerHTML = chips + title;
+            previewEl.hidden = false;
+        });
+        titleEl.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); save(); }
+        });
+        requestAnimationFrame(() => titleEl.focus());
+    },
+
+    appIcons: {
+        actions: '☑', notes: '📝', goals: '🎯', journal: '📔',
+        schedule: '🕐', bookmarks: '🔖', portfolio: '📊',
+        agent: '✨', settings: '⚙', help: '?'
+    },
+
+    setupAppPicker() {
+        const pickerBtn = document.getElementById('app-picker-btn');
+        const dropdown = document.getElementById('app-picker-dropdown');
+        if (!pickerBtn || !dropdown) return;
+
+        pickerBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            dropdown.classList.toggle('open');
+            // Highlight current app
+            dropdown.querySelectorAll('.app-picker-item').forEach(item => {
+                item.classList.toggle('active', item.dataset.app === this.currentApp);
+            });
+        });
+
+        dropdown.querySelectorAll('.app-picker-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.stopPropagation();
+                dropdown.classList.remove('open');
+                const appName = item.dataset.app;
+                if (appName === 'home') {
+                    this.showDashboard();
+                } else {
+                    this.openApp(appName);
+                }
+            });
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', () => {
+            dropdown.classList.remove('open');
+        });
+    },
+
+    updateAppPicker(appName) {
+        const picker = document.getElementById('app-picker');
+        const icon = document.getElementById('app-picker-icon');
+        if (!picker || !icon) return;
+
+        icon.textContent = appName ? (this.appIcons[appName] || '') : '🏠';
+        picker.style.display = '';
+    },
+
+    /**
+     * Which Settings category configures each app. Apps without an entry
+     * land on the Settings root — every gear still goes somewhere sane.
+     */
+    _settingsCategoryForApp: {
+        agent: 'ai',
+        calendar: 'accounts',
+    },
+
+    openAppSettings(appName) {
+        // Email has ONE unified settings surface — the in-app Email Settings
+        // page (accounts + insights + bundles). Both email gears land there.
+        if (appName === 'email' && typeof EmailApp !== 'undefined') {
+            this.openApp('email');
+            setTimeout(() => EmailApp.showPrioritySettings(), 0);
+            return;
+        }
+        this.openApp('settings');
+        // openApp renders Settings synchronously; category switch on next
+        // tick so it lands after any root render.
+        setTimeout(() => {
+            if (typeof SettingsApp === 'undefined') return;
+            const cat = this._settingsCategoryForApp[appName];
+            if (cat) SettingsApp.openCategory(cat);
+            else SettingsApp.showRoot?.();
+        }, 0);
+    },
+
+    /**
+     * The titlebar's sense of where you are. It still carries no location
+     * label — every app states its own name in its page heading, and saying
+     * it twice is the duplication we keep removing — but it does now carry
+     * a way back: since 2026-08-05 the left slot names where you came FROM
+     * ("← Assistant"), because a lot of navigation is a jump (a record link
+     * in a chat, a door between Inbox and Email AI) and landing somewhere
+     * used to mean losing the way back. With no history it reads Home, as
+     * it always did; at home it renders nothing.
+     *
+     * The old name and its dozen call sites (openApp, showDashboard) stay;
+     * renaming them buys nothing.
+     */
+    updateSidebarActive(appName) {
+        const atHome = appName === 'home' || !appName;
+        // The global left rail. This method is the one place that already
+        // knows where we are, and every openApp/showDashboard passes
+        // through it — so the rail cannot drift from the view on screen.
+        if (typeof SideNav !== 'undefined') SideNav.setActive(appName);
+        document.getElementById('titlebar-home')
+            ?.classList.toggle('is-home', atHome);
+        const backBtn = document.getElementById('titlebar-home-btn');
+        if (!backBtn) return;
+        backBtn.hidden = atHome;
+        if (atHome) return;
+        const target = this._navStack[this._navStack.length - 1] || 'home';
+        const toHome = target === 'home';
+        const label = toHome ? 'Home' : this.appLabel(target);
+        const homeIcon = backBtn.querySelector('.titlebar-back-home-icon');
+        const arrowIcon = backBtn.querySelector('.titlebar-back-arrow-icon');
+        // toggleAttribute, not .hidden — these are SVG elements, and `hidden`
+        // is an HTMLElement property SVGElement doesn't have, so assigning it
+        // was a silent no-op and the house icon showed for every target.
+        if (homeIcon) homeIcon.toggleAttribute('hidden', !toHome);
+        if (arrowIcon) arrowIcon.toggleAttribute('hidden', toHome);
+        const span = backBtn.querySelector('span');
+        if (span) span.textContent = label;
+        backBtn.title = toHome ? 'Home' : `Back to ${label}`;
+    },
+
+    /**
+     * Step back to where the user came from. Pops the navigation stack;
+     * 'home' (or an empty stack) goes to the dashboard. _navBack keeps the
+     * retraced step from being pushed again, so back never ping-pongs.
+     */
+    goBack() {
+        const target = this._navStack.pop();
+        if (!target || target === 'home') { this.showDashboard(); return; }
+        this._navBack = true;
+        try { this.openApp(target); } finally { this._navBack = false; }
+    },
+
+    /**
+     * Display name for an app id. Breadcrumb's label map first (it carries
+     * the product names — 'fyi' is "Email AI"), then the registry tile
+     * (covers user apps and anything Breadcrumb doesn't list), then the id
+     * capitalized.
+     */
+    appLabel(appName) {
+        if (typeof Breadcrumb !== 'undefined' && Breadcrumb.appLabels[appName]) {
+            return Breadcrumb.appLabels[appName];
+        }
+        const tile = document.querySelector(
+            `.dash-app-tile[data-app="${appName}"] .dash-app-tile-label`);
+        const label = tile?.textContent?.trim();
+        if (label) return label;
+        return appName.charAt(0).toUpperCase() + appName.slice(1);
+    },
+
+    /**
+     * Wire the dashboard tab bar (Apps / Feed). Persists the
+     * current tab in localStorage so reopening home keeps the user's
+     * choice. Defaults to "apps" — that's the launcher use case the
+     * tile grid was designed for. (A stored legacy tab name, e.g. the
+     * removed "widgets", falls back to "apps".)
+     */
+    setupDashboardTabs() {
+        // No Apps/Feed tabs anymore: the left nav owns app launching and
+        // the feed is the permanent home stage. (Name kept for the caller.)
+        const clearBtn = document.getElementById('prompt-feed-clear');
+        if (clearBtn && typeof PromptFeed !== 'undefined') {
+            clearBtn.addEventListener('click', () => PromptFeed.clearAll());
+        }
+        // Titlebar. The wordmark is the way home from anywhere; at home it
+        // returns the stream to the top, which is the only thing left for
+        // "home" to mean there. The left slot is the Back button while you
+        // are inside an app (updateSidebarActive hides it at home): it
+        // retraces the navigation stack, and with no history it goes home —
+        // the wordmark is a logo first, and a logo is not where everyone
+        // looks for a way back. Search opens ⌘K, which is also the app
+        // launcher now that the Apps sheet is gone.
+        document.getElementById('titlebar-home')?.addEventListener('click', () => {
+            if (this.currentApp) { this.showDashboard(); return; }
+            if (typeof PromptFeed !== 'undefined' && PromptFeed.closePost) PromptFeed.closePost();
+            document.querySelector('#dashboard-view .dash-main')
+                ?.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+        document.getElementById('titlebar-home-btn')?.addEventListener('click', () => this.goBack());
+        document.getElementById('titlebar-search')?.addEventListener('click', () => CommandPalette?.show());
+    },
+
+    /**
+     * Theme. localStorage 'theme' holds the PREFERENCE — 'light', 'dark', or
+     * 'system' (follow macOS, added 2026-07-30). data-theme on <html> always
+     * holds the RESOLVED light/dark value, so every [data-theme="dark"] CSS
+     * override keeps working untouched. Machine-local on purpose: two Macs can
+     * reasonably want different themes.
+     */
+    getThemePref() {
+        const pref = localStorage.getItem('theme');
+        return (pref === 'dark' || pref === 'system') ? pref : 'light';
+    },
+
+    setThemePref(pref) {
+        if (!['light', 'dark', 'system'].includes(pref)) pref = 'light';
+        localStorage.setItem('theme', pref);
+        this._applyThemePref();
+    },
+
+    _applyThemePref() {
+        const pref = this.getThemePref();
+        const resolved = pref === 'system'
+            ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+            : pref;
+        document.documentElement.setAttribute('data-theme', resolved);
+    },
+
+    setupTheme() {
+        this._applyThemePref();
+        // In System mode, track macOS appearance changes live (sunset, or a
+        // manual flip in System Settings).
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+            if (this.getThemePref() === 'system') this._applyThemePref();
+        });
+    },
+
+    /**
+     * Toggle dark/light theme (titlebar button + menu). A toggle is a demand
+     * for the other look RIGHT NOW, so it always lands on an explicit
+     * preference — leaving System mode if that's where the user was.
+     */
+    toggleTheme() {
+        const current = document.documentElement.getAttribute('data-theme');
+        this.setThemePref(current === 'light' ? 'dark' : 'light');
+    },
+
+    /**
+     * Setup menu bar action listeners
+     */
+    setupMenuActions() {
+        window.electronMenu.onMenuAction((action) => {
+            switch (action) {
+                case 'settings':
+                    this.showSettings();
+                    break;
+                case 'help':
+                    this.showHelp();
+                    break;
+                case 'feedback':
+                    this.showFeedback();
+                    break;
+                case 'toggle-theme':
+                    this.toggleTheme();
+                    break;
+                case 'new-action':
+                    this.quickCreateTask();
+                    break;
+                case 'search':
+                    CommandPalette?.show();
+                    break;
+                case 'reload':
+                    // View › Reload and Cmd+R come here instead of doing a
+                    // native reload, so the renderer can say what a reload
+                    // would throw away. Force Reload (Cmd+Shift+R) still
+                    // bypasses this entirely — the escape hatch stays.
+                    this.requestReload();
+                    break;
+            }
+        });
+    },
+
+    /**
+     * Reload, unless it would destroy work.
+     *
+     * Cmd+R is a normal thing to press in this app: it is how a sync merge
+     * happens (main.js merges on did-finish-load), and there was no other way
+     * to ask for one. But every model call the app makes runs in this
+     * renderer, so the habitual gesture also killed whatever the assistant,
+     * a task run was in the middle of.
+     *
+     * Friction goes exactly where the cost is: with nothing at stake this
+     * reloads instantly, unchanged. With work in flight it names the work and
+     * offers the thing the user probably wanted anyway.
+     */
+    /**
+     * What closing this window right now would cost, as copy for the native
+     * confirm — or null when nothing is at stake. Reads the same registry as
+     * requestReload so the two dialogs can never disagree.
+     */
+    _unloadGuard() {
+        const have = typeof BackgroundWork !== 'undefined';
+        const losable = have ? BackgroundWork.losable() : [];
+        const pausable = have ? BackgroundWork.pausable() : [];
+        if (!losable.length && !pausable.length) {
+            // BackgroundWork lists the memory rebuild too; this is the fallback
+            // for a window where the registry never loaded.
+            if (typeof AgentService !== 'undefined' && AgentService._foregroundMemoryOp) {
+                return { title: 'Building memory summary', message: 'Your memory summary is still being built.',
+                    detail: 'Leaving now stops it — what\'s already saved is kept, and the rest will be handled next time. Leave anyway?' };
+            }
+            return null;
+        }
+        const list = (items) => items.map(w => '  • ' + w.label).join('\n');
+        const parts = [];
+        if (losable.length) parts.push('Closing now would stop:\n' + list(losable));
+        if (pausable.length) parts.push('Closing now would pause:\n' + list(pausable) + '\nPaused work starts again by itself next time.');
+        return {
+            title: 'Something is still running',
+            message: losable.length ? 'The AI is still working.' : 'Work is still running.',
+            detail: parts.join('\n\n') + '\n\nLeave anyway?'
+        };
+    },
+
+    async requestReload() {
+        const have = typeof BackgroundWork !== 'undefined';
+        const losable = have ? BackgroundWork.losable() : [];
+        // Work that survives the reload but that the user asked to hear about
+        // anyway — a Re-analyze run. It gets its own sentence: telling someone
+        // a reload will "stop" something that in fact continues is how the
+        // dialog earns a reflex click.
+        const pausable = have ? BackgroundWork.pausable() : [];
+        if (!losable.length && !pausable.length) { window.location.reload(); return; }
+
+        // Offer the sync alternative only when it is real: sync on, and no
+        // other window is the one doing the work.
+        let syncOn = false;
+        try { syncOn = (await window.electronSync?.getStatus?.())?.enabled === true; } catch { /* offer nothing */ }
+
+        const section = (message, items) => items.length
+            ? `<p class="confirm-message">${message}</p>
+               <ul class="reload-work-list">${items.map(w => `<li>${this.escapeHtml(w.label)}</li>`).join('')}</ul>`
+            : '';
+        const content = `
+            ${section('Reloading now would stop:', losable)}
+            ${section('Reloading now would pause:', pausable)}
+            ${pausable.length ? '<p class="settings-hint">Paused work starts again by itself once the app comes back.</p>' : ''}
+            ${syncOn ? '<p class="settings-hint">Refreshing is also how Anjadhe picks up changes from your other Macs. You can do just that without stopping anything.</p>' : ''}`;
+
+        const buttons = [
+            {
+                text: 'Reload anyway',
+                className: 'secondary-btn',
+                onClick: () => { modal.close(); this._unloadConfirmed = true; window.location.reload(); }
+            }
+        ];
+        if (syncOn) {
+            buttons.push({
+                text: 'Check for changes',
+                className: 'secondary-btn',
+                onClick: () => { modal.close(); this.syncNow({ reloadIfMerged: false }); }
+            });
+        }
+        buttons.push({
+            text: 'Keep working',
+            className: 'primary-btn',
+            onClick: () => modal.close()
+        });
+
+        const modal = Modal.create({ title: 'Something is still running', className: 'confirm-dialog reload-dialog', content, buttons });
+    },
+
+    /**
+     * Pull in whatever the other Macs have written — the thing Cmd+R was
+     * being used for. The merge itself happens in the main process and writes
+     * straight to the database, so a merge that actually changed something
+     * needs the page to re-read it; a merge that found nothing (the common
+     * case) costs no reload at all, which is the whole point.
+     */
+    async syncNow(opts = {}) {
+        const { reloadIfMerged = true } = opts;
+        if (!window.electronSync?.forceMerge) return null;
+        let result;
+        try {
+            result = await window.electronSync.forceMerge();
+        } catch (e) {
+            UIUtils.showToast('Could not check for changes: ' + (e?.message || e), 'error');
+            return null;
+        }
+        if (result?.disabled) {
+            UIUtils.showToast('Sync is off. Turn it on in Settings to sync between your Macs.', 'info');
+            return result;
+        }
+        if (result?.locked) {
+            UIUtils.showToast('Sync is locked on this Mac. Enter your sync passphrase in Settings.', 'info');
+            return result;
+        }
+        const merged = result?.merged || 0;
+        if (!merged) {
+            UIUtils.showToast('Up to date. Nothing new from your other Macs.', 'success');
+            return result;
+        }
+        const what = `${merged} change${merged === 1 ? '' : 's'}`;
+        if (reloadIfMerged) {
+            UIUtils.showToast(`Merged ${what}. Refreshing.`, 'success');
+            setTimeout(() => window.location.reload(), 700);
+        } else {
+            // Reached from the reload dialog, where the user just chose NOT
+            // to interrupt their work. The data is in the database; say
+            // plainly that the screen is still showing the old copy.
+            UIUtils.showToast(`Merged ${what}. They will appear the next time you refresh.`, 'success');
+        }
+        return result;
+    },
+
+    setupSyncIndicator() {
+        if (!window.electronSync) return;
+        window.electronSync.onMergeResult((result) => {
+            if (!result || result.merged === 0) return;
+            this.flashTitlebarStatus(`Synced ${result.merged} change${result.merged !== 1 ? 's' : ''}`);
+        });
+        this.promptSyncUnlockIfLocked();
+    },
+
+    // H6: a Mac whose sync key is passphrase-protected but not yet unlocked
+    // here comes up LOCKED — main pauses sync + backups until the passphrase
+    // is entered. Prompt once on startup so the user can resume; on success
+    // reload so the just-merged data shows.
+    async promptSyncUnlockIfLocked() {
+        try {
+            const st = await window.electronSync.encryptionStatus?.();
+            if (!st || !st.locked || typeof SettingsApp === 'undefined') return;
+            const ok = await SettingsApp._syncEncPrompt('unlock');
+            if (ok) setTimeout(() => window.location.reload(), 600);
+        } catch { /* non-fatal — the Settings panel can still unlock */ }
+    },
+
+    /**
+     * Briefly show a status message in the titlebar, reusing the sync
+     * indicator slot. Used by background passes (sync merge, memory
+     * consolidation) so the user sees that silent work happened.
+     */
+    flashTitlebarStatus(text) {
+        const el = document.getElementById('sync-indicator');
+        const textEl = document.getElementById('sync-indicator-text');
+        if (!el || !textEl) return;
+
+        textEl.textContent = text;
+        el.style.display = '';
+        el.classList.remove('fade-out');
+
+        // Auto-hide after 8 seconds
+        clearTimeout(this._syncIndicatorTimer);
+        this._syncIndicatorTimer = setTimeout(() => {
+            el.classList.add('fade-out');
+            setTimeout(() => { el.style.display = 'none'; }, 600);
+        }, 8000);
+    },
+
+    /**
+     * Show settings (opens settings app view)
+     */
+    showSettings() {
+        this.openApp('settings');
+    },
+
+    /**
+     * Show help (opens help app view)
+     */
+    showHelp() {
+        this.openApp('help');
+    },
+
+    /**
+     * Straight to Settings › Send Feedback (menu bar's "Send Feedback…").
+     * The deferred openCategory is the same dance every ⌘K settings hit
+     * does: let the settings view render before drilling into the page.
+     */
+    showFeedback() {
+        this.openApp('settings');
+        setTimeout(() => SettingsApp.openCategory?.('feedback'), 0);
+    },
+
+    /**
+     * Show restore backup picker modal (used by SettingsApp)
+     */
+    async showRestoreBackupPicker() {
+        try {
+            const backups = await window.electronBackup.listBackups();
+            if (backups.length === 0) {
+                UIUtils.showToast('No backups found', 'warning');
+                return;
+            }
+
+            const backupListHtml = backups.map((b, i) => {
+                const date = new Date(b.modified);
+                const sizeMB = (b.size / (1024 * 1024)).toFixed(2);
+                const typeLabel = b.type === 'manual' ? 'Manual' : 'Auto';
+                const typeBadgeColor = b.type === 'manual' ? 'var(--color-text)' : 'var(--color-text-tertiary)';
+                return `
+                    <div class="backup-item" data-index="${i}" style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm); cursor: pointer; transition: background 0.15s;">
+                        <div style="flex: 1;">
+                            <div style="font-size: var(--text-sm); color: var(--color-text);">
+                                ${date.toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
+                                <span style="color: var(--color-text-secondary); margin-left: 0.25rem;">${date.toLocaleTimeString()}</span>
+                            </div>
+                            <div style="font-size: var(--text-xs); color: var(--color-text-tertiary); margin-top: 0.25rem;">
+                                ${sizeMB} MB
+                            </div>
+                        </div>
+                        <span style="font-size: var(--text-xs); padding: 0.15rem 0.5rem; border-radius: var(--radius-sm); background: ${typeBadgeColor}; color: var(--color-bg);">
+                            ${typeLabel}
+                        </span>
+                    </div>`;
+            }).join('');
+
+            const pickerModal = Modal.create({
+                title: 'Restore from Backup',
+                className: 'modal-wide',
+                content: `
+                    <p style="color: var(--color-text-secondary); font-size: var(--text-sm); margin-bottom: 0.75rem;">
+                        Select a backup to restore. This will replace all current data.
+                    </p>
+                    <div id="backup-list" style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 300px; overflow-y: auto;">
+                        ${backupListHtml}
+                    </div>
+                `,
+                buttons: [{
+                    text: 'Cancel',
+                    className: 'secondary-btn',
+                    onClick: () => pickerModal.close()
+                }]
+            });
+
+            const items = document.querySelectorAll('.backup-item');
+            items.forEach(item => {
+                item.addEventListener('mouseenter', () => item.style.background = 'var(--color-surface-hover)');
+                item.addEventListener('mouseleave', () => item.style.background = '');
+                item.addEventListener('click', async () => {
+                    const idx = parseInt(item.dataset.index);
+                    const chosen = backups[idx];
+                    const chosenDate = new Date(chosen.modified).toLocaleString();
+                    pickerModal.close();
+
+                    const confirmed = await UIUtils.confirm(
+                        'Confirm Restore',
+                        `Restore from ${chosen.type === 'manual' ? 'manual' : 'auto'} backup dated ${chosenDate}?\n\nThis will replace all current data. The app will reload after restore.`
+                    );
+                    if (!confirmed) return;
+
+                    const result = await window.electronBackup.restore(chosen.path);
+                    if (result.success) {
+                        UIUtils.showToast('Restored from backup. Reloading...', 'success');
+                        setTimeout(() => window.location.reload(), 1500);
+                    } else {
+                        UIUtils.showToast('Restore failed: ' + result.error, 'error');
+                    }
+                });
+            });
+        } catch (err) {
+            UIUtils.showToast('Restore failed: ' + err.message, 'error');
+        }
+    },
+
+    /**
+     * Change storage location
+     */
+    async changeStorageLocation() {
+        try {
+            // Open folder selection dialog
+            const folderPath = await window.electronDialog.selectFolder();
+
+            if (!folderPath) {
+                return; // User cancelled
+            }
+
+            // Check if path is writable
+            const pathCheck = await window.electronDialog.checkPath(folderPath);
+            if (!pathCheck.writable) {
+                UIUtils.showToast('Selected folder is not writable', 'error');
+                return;
+            }
+
+            // Check if data already exists at this location
+            const existingData = await window.electronStore.checkDataAtPath(folderPath);
+
+            if (existingData.exists && existingData.hasData) {
+                // Ask user what to do
+                const useExisting = await UIUtils.confirm(
+                    'Data Found',
+                    'Data already exists at this location. Would you like to use the existing data? Click "Confirm" to use existing data, or "Cancel" to migrate your current data (will overwrite).',
+                    '📁'
+                );
+
+                if (useExisting) {
+                    // Use existing data - don't migrate
+                    const result = await window.electronStore.setCustomStoragePath(folderPath, false);
+                    if (result.success) {
+                        UIUtils.showToast('Storage location changed. Using existing data.', 'success');
+                        setTimeout(() => window.location.reload(), 1500);
+                    }
+                    return;
+                }
+            }
+
+            // Migrate data to new location
+            const confirmed = await UIUtils.confirm(
+                'Change Storage Location',
+                `Your data will be moved to:\n${folderPath}\n\nThe app will reload after the change.`,
+                '📁'
+            );
+
+            if (confirmed) {
+                const result = await window.electronStore.setCustomStoragePath(folderPath, true);
+
+                if (result.success) {
+                    UIUtils.showToast('Storage location changed successfully!', 'success');
+                    setTimeout(() => window.location.reload(), 1500);
+                } else {
+                    UIUtils.showToast('Failed to change storage location', 'error');
+                }
+            }
+        } catch (error) {
+            console.error('Error changing storage location:', error);
+            UIUtils.showToast('Error changing storage location', 'error');
+        }
+    },
+
+    /**
+     * Reset storage location to default (Electron only)
+     */
+    async resetStorageLocation() {
+        const confirmed = await UIUtils.confirm(
+            'Reset Storage Location',
+            'This will move your data back to the default location. The app will reload after the change.',
+            '↩️'
+        );
+
+        if (confirmed) {
+            try {
+                const result = await window.electronStore.setCustomStoragePath(null, true);
+
+                if (result.success) {
+                    UIUtils.showToast('Storage location reset to default', 'success');
+                    setTimeout(() => window.location.reload(), 1500);
+                } else {
+                    UIUtils.showToast('Failed to reset storage location', 'error');
+                }
+            } catch (error) {
+                console.error('Error resetting storage location:', error);
+                UIUtils.showToast('Error resetting storage location', 'error');
+            }
+        }
+    },
+
+    /**
+     * Update dashboard stats
+     */
+    // --- Dashboard rendering ---
+
+    renderDashHeader() {
+        const now = new Date();
+        const hour = now.getHours();
+        let greeting = 'Good morning';
+        if (hour >= 12 && hour < 17) greeting = 'Good afternoon';
+        else if (hour >= 17) greeting = 'Good evening';
+
+        const greetingEl = document.getElementById('dash-greeting');
+        if (greetingEl) greetingEl.textContent = greeting;
+
+        const dateEl = document.getElementById('dash-date-line');
+        if (dateEl) {
+            const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            const months = ['January', 'February', 'March', 'April', 'May', 'June',
+                           'July', 'August', 'September', 'October', 'November', 'December'];
+            dateEl.textContent = `${days[now.getDay()]}, ${months[now.getMonth()]} ${now.getDate()}`;
+        }
+
+    },
+
+    updateStats() {
+        // All panels updated here live on the dashboard. When the user is on
+        // an app view they're invisible, so recomputing them is wasted work
+        // that slows every page refresh and every in-app save. showDashboard()
+        // resets currentApp to null and re-calls updateStats() when the user
+        // navigates home, so panels are always fresh when actually viewed.
+        if (this.currentApp !== null) return;
+
+        this.updateJournalNudge();
+        this.updateFirstRunCard();
+        this.renderAnnouncements();
+        this.updateDashBadges();
+        this.updateWelcome();
+    },
+
+
+    updateWelcome() {
+        // No-op. We used to redirect a data-empty home dashboard to the
+        // About page, but the empty-data first experience is now owned by
+        // the post-onboarding Assistant landing and the Setup Assistant
+        // checklist — yanking the user to About on every empty-state
+        // dashboard render fought that flow. Kept as a stub so existing
+        // callers (updateStats → updateWelcome) stay valid.
+    },
+
+    async renderAnnouncements() {
+        const container = document.getElementById('dash-announcements');
+        if (!container) return;
+
+        let announcements = [];
+        try {
+            const cfg = await window.electronConfig.get();
+            announcements = Array.isArray(cfg?.announcements) ? cfg.announcements : [];
+        } catch {}
+
+        const dismissed = new Set((StorageManager.get('dismissed-announcements')?.ids) || []);
+        const visible = announcements.filter(a => a && a.id && !dismissed.has(a.id));
+
+        if (visible.length === 0) {
+            container.style.display = 'none';
+            container.innerHTML = '';
+            return;
+        }
+
+        container.style.display = '';
+        container.innerHTML = '';
+
+        for (const a of visible) {
+            const card = document.createElement('div');
+            card.className = 'dash-announcement';
+
+            const body = document.createElement('div');
+            body.className = 'dash-announcement-body';
+
+            if (a.title) {
+                const titleEl = document.createElement('div');
+                titleEl.className = 'dash-announcement-title';
+                titleEl.textContent = a.title;
+                body.appendChild(titleEl);
+            }
+
+            if (a.body) {
+                const textEl = document.createElement('div');
+                textEl.className = 'dash-announcement-text';
+                textEl.textContent = a.body;
+                body.appendChild(textEl);
+            }
+
+            if (a.link && a.link.url && a.link.label) {
+                const linkEl = document.createElement('button');
+                linkEl.className = 'dash-announcement-link';
+                linkEl.textContent = a.link.label;
+                linkEl.onclick = () => {
+                    if (window.electronAuth && window.electronAuth.openExternal) {
+                        window.electronAuth.openExternal(a.link.url);
+                    }
+                };
+                body.appendChild(linkEl);
+            }
+
+            const close = document.createElement('button');
+            close.className = 'dash-announcement-close';
+            close.title = 'Dismiss';
+            close.setAttribute('aria-label', 'Dismiss announcement');
+            close.innerHTML = '&times;';
+            close.onclick = () => this.dismissAnnouncement(a.id);
+
+            card.appendChild(body);
+            card.appendChild(close);
+            container.appendChild(card);
+        }
+    },
+
+    dismissAnnouncement(id) {
+        const current = StorageManager.get('dismissed-announcements') || {};
+        const ids = Array.isArray(current.ids) ? current.ids.slice() : [];
+        if (!ids.includes(id)) ids.push(id);
+        StorageManager.set('dismissed-announcements', { ids });
+        this.renderAnnouncements();
+    },
+
+    updateJournalNudge() {
+        const nudge = document.getElementById('dash-journal-nudge');
+        if (!nudge) return;
+        // Journal is a package (js/apps/journal/): with it uninstalled the
+        // nudge would point at a door that no longer exists.
+        if (!this.apps.journal) { nudge.style.display = 'none'; return; }
+
+        const data = StorageManager.get('journal');
+        const entries = data?.entries || [];
+
+        let anchor = entries.reduce((max, e) => {
+            const d = e.date || e.createdAt;
+            return d > max ? d : max;
+        }, '');
+
+        // No entries yet: anchor from first-seen so a clean install
+        // doesn't immediately claim "you haven't journaled in a while".
+        if (!anchor) {
+            let firstSeen = StorageManager.get('journal-nudge-first-seen');
+            if (!firstSeen) {
+                firstSeen = new Date().toISOString();
+                StorageManager.set('journal-nudge-first-seen', firstSeen);
+            }
+            anchor = firstSeen;
+        }
+
+        const diffDays = (new Date() - new Date(anchor)) / (1000 * 60 * 60 * 24);
+
+        if (diffDays > 2) {
+            nudge.style.display = '';
+            nudge.querySelector('.dash-journal-nudge-btn').onclick = () => AppManager.openApp('journal');
+        } else {
+            nudge.style.display = 'none';
+        }
+    },
+
+    // Dashboard's resumable entry into the guided Setup Assistant. The
+    // SetupAssistant module owns state/steps; here we just host its
+    // compact strip in the existing card slot, or hide it once setup is
+    // complete or dismissed. Per-device (localStorage), consistent with
+    // the connect-per-Mac reality.
+    updateFirstRunCard() {
+        const card = document.getElementById('dash-firstrun');
+        if (!card) return;
+        if (typeof SetupAssistant === 'undefined' || !SetupAssistant.shouldShow()) {
+            card.innerHTML = '';
+            card.style.display = 'none';
+            return;
+        }
+        card.style.display = '';
+        SetupAssistant.renderCompact(card);
+    },
+
+    async updateDashBadges() {
+        // Unread INBOX mail. It used to prefer the unread-INSIGHTS count,
+        // because the Email app opened on its Insights page and the badge had
+        // to agree with what you landed on. That page is gone (2026-08-02):
+        // insights are read in Actions › FYI, so a badge here promising them
+        // would point at the wrong app. A tile's badge says what is waiting
+        // BEHIND IT.
+        const emailBadge = document.getElementById('dash-email-badge');
+        if (!emailBadge) return;
+
+        if (typeof EmailApp === 'undefined') {
+            emailBadge.textContent = '';
+            return;
+        }
+
+        const accountEmails = EmailApp.getAccounts().map(a => a.email);
+        if (accountEmails.length === 0) {
+            emailBadge.textContent = '';
+            return;
+        }
+
+        // Unread inbox via a direct SELECT COUNT(*) (no full reload).
+        if (!window.electronEmailDb?.countUnreadInbox) {
+            emailBadge.textContent = '';
+            return;
+        }
+        try {
+            const unread = await window.electronEmailDb.countUnreadInbox(accountEmails);
+            emailBadge.textContent = unread > 0 ? unread : '';
+        } catch {
+            emailBadge.textContent = '';
+        }
+    },
+
+    /**
+     * Setup authentication (Touch ID)
+     */
+    async setupAuth() {
+        if (!window.electronAuth) return;
+
+        try {
+            this.authAvailable = await window.electronAuth.canPromptTouchID();
+            this.authEnabled = await window.electronAuth.getAuthEnabled();
+            this.autoLockTimeout = await window.electronAuth.getAutoLockTimeout();
+        } catch (e) {
+            this.authAvailable = false;
+            this.authEnabled = false;
+        }
+
+        // Listen for lock events from main process (Cmd+L, screen lock)
+        window.electronAuth.onLockScreen(() => {
+            if (this.authEnabled) this.lock();
+        });
+
+        // Only prompt Touch ID when Anjadhe is actually in front. Auto-lock can
+        // fire while the user is in another app (Anjadhe sees no activity), and
+        // a proactive promptTouchID there would pop the system dialog over the
+        // app they're using. Instead we lock quietly and prompt when the window
+        // regains focus. Guarded so a cancel→refocus doesn't loop.
+        window.addEventListener('focus', () => {
+            if (this.isLocked && this.authEnabled && this.authAvailable) {
+                this._autoPromptUnlock();
+            }
+        });
+
+        // If auth is enabled, lock on launch (window is focused → prompt is OK)
+        if (this.authEnabled && this.authAvailable) {
+            this.lock();
+            this._autoPromptUnlock();
+        }
+
+        // Start activity tracking if auth is enabled
+        if (this.authEnabled) {
+            this.startActivityTracking();
+        }
+    },
+
+    /**
+     * Lock the app
+     */
+    lock() {
+        if (this.isLocked) return;
+        this.isLocked = true;
+        // Allow exactly one auto-prompt for this lock (fired on focus); further
+        // attempts go through the on-screen "Unlock with Touch ID" button.
+        this._autoPrompted = false;
+
+        const lockScreen = document.getElementById('lock-screen');
+        if (lockScreen) {
+            lockScreen.style.display = 'flex';
+        }
+        // Always show the "Unlock with Touch ID" button as the unlock affordance.
+        // The macOS system prompt also auto-appears on launch/focus; while it's
+        // on screen promptUnlock() hides this button so only the system prompt
+        // shows, and reveals it again if that prompt is cancelled. Crucially,
+        // when locking via Cmd+L the window stays focused (no focus event, so no
+        // auto-prompt) — the button is then the user's way to start unlocking.
+        const unlockBtn = document.getElementById('lock-screen-unlock-btn');
+        if (unlockBtn) unlockBtn.style.display = '';
+
+        this.stopActivityTracking();
+    },
+
+    /**
+     * Auto-prompt Touch ID at most once per lock (used by launch + window
+     * focus). The manual unlock button calls promptUnlock() directly to retry.
+     */
+    _autoPromptUnlock() {
+        if (this._autoPrompted) return;
+        this._autoPrompted = true;
+        this.promptUnlock();
+    },
+
+    /**
+     * Prompt Touch ID and unlock on success. Guarded against overlapping
+     * prompts so a refocus while a prompt is already open can't stack dialogs.
+     * Our in-app button stays hidden while the system prompt is up and is
+     * revealed only as a retry if it's cancelled.
+     */
+    async promptUnlock() {
+        if (!this.authAvailable || this._unlockInFlight) return;
+        this._unlockInFlight = true;
+        const unlockBtn = document.getElementById('lock-screen-unlock-btn');
+        if (unlockBtn) unlockBtn.style.display = 'none';
+        let ok = false;
+        try {
+            const result = await window.electronAuth.promptTouchID();
+            ok = !!(result && result.success);
+        } catch (e) {
+            // User cancelled or Touch ID failed
+        } finally {
+            this._unlockInFlight = false;
+        }
+        if (ok) {
+            this.unlock();
+        } else if (this.isLocked && unlockBtn) {
+            unlockBtn.style.display = '';   // reveal retry button
+        }
+    },
+
+    /**
+     * Unlock the app
+     */
+    unlock() {
+        this.isLocked = false;
+
+        const lockScreen = document.getElementById('lock-screen');
+        if (lockScreen) {
+            lockScreen.style.display = 'none';
+        }
+
+        this.lastActivityTime = Date.now();
+        if (this.authEnabled) {
+            this.startActivityTracking();
+        }
+    },
+
+    /**
+     * Reset the inactivity timer
+     */
+    resetActivityTimer() {
+        this.lastActivityTime = Date.now();
+    },
+
+    /**
+     * Start tracking user activity for auto-lock
+     */
+    startActivityTracking() {
+        this.stopActivityTracking();
+
+        this._activityHandler = () => this.resetActivityTimer();
+        const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+        events.forEach(evt => document.addEventListener(evt, this._activityHandler, { passive: true }));
+
+        // Check inactivity every 30 seconds
+        this.activityCheckInterval = setInterval(() => {
+            if (this.isLocked || !this.authEnabled) return;
+
+            const idleMs = Date.now() - this.lastActivityTime;
+            const timeoutMs = this.autoLockTimeout * 60 * 1000;
+
+            if (idleMs >= timeoutMs) {
+                // Lock quietly — do NOT prompt Touch ID here. The user may be
+                // working in another app; the prompt fires when they return to
+                // Anjadhe (window focus) or click the unlock button.
+                this.lock();
+            }
+        }, 30000);
+    },
+
+    /**
+     * Stop tracking user activity
+     */
+    stopActivityTracking() {
+        if (this._activityHandler) {
+            const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+            events.forEach(evt => document.removeEventListener(evt, this._activityHandler));
+            this._activityHandler = null;
+        }
+        if (this.activityCheckInterval) {
+            clearInterval(this.activityCheckInterval);
+            this.activityCheckInterval = null;
+        }
+    },
+
+    /* ================================================================
+     * App Lock — per-app "sensitive apps" gate.
+     *
+     * A user picks a set of apps (e.g. Notes, Journal, Portfolio) to lock.
+     * Entering any of them shows an unlock overlay. The auth mechanism is
+     * per-device:
+     *   - Touch ID present  → Touch ID only (its system prompt also offers the
+     *                         Mac login password). No app passcode is used.
+     *   - No Touch ID       → an app passcode, with security-question recovery
+     *                         for a forgotten passcode.
+     * One successful auth unlocks the whole group for the session and re-locks
+     * after idle.
+     *
+     * Config is the synced `app-lock` StorageManager key so the chosen app set
+     * follows the user across Macs:
+     *   { apps: [...], passcode: {salt,hash,iterations}|null,
+     *     security: [{question,salt,hash,iterations}], timeoutMin }
+     * Passcode + security answers are stored only as salted PBKDF2-SHA256
+     * hashes. Touch ID availability is per-device (not synced), so each Mac
+     * uses whichever mechanism it can.
+     * ================================================================ */
+    _LOCK_KEY: 'app-lock',
+    // Apps that can never be locked — locking Settings would strand the user
+    // (no way back in to turn it off).
+    _UNLOCKABLE: ['settings', 'help', 'about'],
+
+    getLockConfig() {
+        const d = StorageManager.get(this._LOCK_KEY) || {};
+        return {
+            apps: Array.isArray(d.apps) ? d.apps.slice() : [],
+            passcode: d.passcode || null,
+            // Security-question recovery for the passcode (non-Touch-ID devices):
+            // [{ question, salt, hash, iterations }] — answers stored only as hashes.
+            security: Array.isArray(d.security) ? d.security.slice() : [],
+            timeoutMin: typeof d.timeoutMin === 'number' ? d.timeoutMin : 5
+        };
+    },
+
+    setLockConfig(partial) {
+        const next = { ...this.getLockConfig(), ...partial };
+        StorageManager.set(this._LOCK_KEY, next);
+        return next;
+    },
+
+    // Which auth mechanism this device uses: Touch ID when the hardware is
+    // present (its system prompt also offers the Mac login password), otherwise
+    // the app passcode. Touch ID devices never set an app passcode.
+    lockMechanism() {
+        return this.authAvailable ? 'touchid' : 'passcode';
+    },
+
+    // The feature is "on" when at least one app is chosen AND this device has a
+    // usable auth mechanism: Touch ID is always usable; otherwise a passcode
+    // must be set.
+    isLockEnabled() {
+        const cfg = this.getLockConfig();
+        if (cfg.apps.length === 0) return false;
+        return this.authAvailable ? true : !!cfg.passcode;
+    },
+
+    isAppLocked(appName) {
+        if (!appName) return false;
+        return this.isLockEnabled() && this.getLockConfig().apps.includes(appName);
+    },
+
+    getLockedApps() {
+        return this.isLockEnabled() ? this.getLockConfig().apps.slice() : [];
+    },
+
+    canLockApp(appName) {
+        return !!appName && !this._UNLOCKABLE.includes(appName);
+    },
+
+    // ---- Passcode hashing (Web Crypto PBKDF2) ----
+    _hexFromBytes(bytes) {
+        return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+    },
+    _bytesFromHex(hex) {
+        return Uint8Array.from(hex.match(/.{1,2}/g).map(b => parseInt(b, 16)));
+    },
+    async _deriveHash(passcode, saltHex, iterations) {
+        const enc = new TextEncoder();
+        const keyMaterial = await crypto.subtle.importKey(
+            'raw', enc.encode(passcode), 'PBKDF2', false, ['deriveBits']);
+        const bits = await crypto.subtle.deriveBits(
+            { name: 'PBKDF2', salt: this._bytesFromHex(saltHex), iterations, hash: 'SHA-256' },
+            keyMaterial, 256);
+        return this._hexFromBytes(new Uint8Array(bits));
+    },
+    async setPasscode(passcode) {
+        const saltHex = this._hexFromBytes(crypto.getRandomValues(new Uint8Array(16)));
+        const iterations = 150000;
+        const hash = await this._deriveHash(passcode, saltHex, iterations);
+        this.setLockConfig({ passcode: { salt: saltHex, hash, iterations } });
+    },
+    async verifyPasscode(passcode) {
+        const cfg = this.getLockConfig();
+        if (!cfg.passcode) return false;
+        const hash = await this._deriveHash(
+            passcode, cfg.passcode.salt, cfg.passcode.iterations || 150000);
+        return hash === cfg.passcode.hash;
+    },
+
+    // ---- Security-question recovery (passcode devices only) ----
+    // Answers are normalized (trimmed, lower-cased, whitespace-collapsed) so
+    // casual capitalization/spacing differences don't lock the user out.
+    _normalizeAnswer(a) {
+        return String(a || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    },
+    async setSecurityQuestions(qa) {
+        const out = [];
+        for (const item of qa) {
+            const saltHex = this._hexFromBytes(crypto.getRandomValues(new Uint8Array(16)));
+            const iterations = 150000;
+            const hash = await this._deriveHash(this._normalizeAnswer(item.answer), saltHex, iterations);
+            out.push({ question: item.question, salt: saltHex, hash, iterations });
+        }
+        this.setLockConfig({ security: out });
+    },
+    getSecurityQuestions() {
+        return this.getLockConfig().security.map(s => s.question);
+    },
+    hasSecurityQuestions() {
+        return this.getLockConfig().security.length > 0;
+    },
+    // All answers must match for recovery to succeed.
+    async verifySecurityAnswers(answers) {
+        const sec = this.getLockConfig().security;
+        if (!sec.length || answers.length !== sec.length) return false;
+        for (let i = 0; i < sec.length; i++) {
+            const h = await this._deriveHash(
+                this._normalizeAnswer(answers[i]), sec[i].salt, sec[i].iterations || 150000);
+            if (h !== sec[i].hash) return false;
+        }
+        return true;
+    },
+
+    clearLock() {
+        // Removing the passcode + recovery questions disables the feature on
+        // passcode devices; keep the app list so re-enabling restores the picks.
+        this.setLockConfig({ passcode: null, security: [] });
+        this.sensitiveUnlocked = false;
+        this.stopSensitiveIdleWatch();
+    },
+
+    appLabel(appName) {
+        const el = document.querySelector(
+            `.dash-apps-section .dash-app-tile[data-app="${appName}"] .dash-app-tile-label`);
+        return el ? el.textContent.trim() : appName;
+    },
+
+    // ---- Unlock overlay ----
+    setupAppLock() {
+        const overlay = document.getElementById('applock-overlay');
+        if (!overlay || overlay._wired) return;
+        overlay._wired = true;
+
+        const form = document.getElementById('applock-form');
+        if (form) form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            this._submitPasscode();
+        });
+        const touchBtn = document.getElementById('applock-touchid-btn');
+        if (touchBtn) touchBtn.addEventListener('click', () => this._tryTouchUnlock());
+        const cancelBtn = document.getElementById('applock-cancel-btn');
+        if (cancelBtn) cancelBtn.addEventListener('click', () => this._cancelUnlock());
+        const forgotBtn = document.getElementById('applock-forgot-btn');
+        if (forgotBtn) forgotBtn.addEventListener('click', () => this._forgotPasscode());
+    },
+
+    showAppLockOverlay(appName) {
+        this.setupAppLock();
+        const overlay = document.getElementById('applock-overlay');
+        if (!overlay) return;
+
+        const sub = document.getElementById('applock-subtitle');
+        if (sub) sub.textContent = `${this.appLabel(appName)} is locked`;
+
+        const err = document.getElementById('applock-error');
+        if (err) { err.style.display = 'none'; err.textContent = ''; }
+        const pass = document.getElementById('applock-passcode');
+        if (pass) pass.value = '';
+
+        // Touch ID devices: Touch ID only (its prompt offers the Mac password as
+        // a fallback). Passcode devices: passcode field + "Forgot passcode?".
+        const useTouch = this.authAvailable;
+        // Our own "Unlock with Touch ID" button starts hidden — while the macOS
+        // system prompt is up, only that should show (no redundant in-app
+        // button). It's revealed as a retry only if the system prompt is
+        // cancelled. On passcode devices it stays hidden entirely.
+        const touchBtn = document.getElementById('applock-touchid-btn');
+        if (touchBtn) touchBtn.style.display = 'none';
+        const form = document.getElementById('applock-form');
+        if (form) form.style.display = useTouch ? 'none' : '';
+        const forgotBtn = document.getElementById('applock-forgot-btn');
+        if (forgotBtn) forgotBtn.style.display = (!useTouch && this.hasSecurityQuestions()) ? '' : 'none';
+
+        overlay.style.display = 'flex';
+        if (useTouch) {
+            this._tryTouchUnlock();
+        } else {
+            setTimeout(() => pass && pass.focus(), 50);
+        }
+    },
+
+    _tryTouchUnlock() {
+        if (!window.electronAuth || !this.authAvailable) return;
+        // Hide our button while the system prompt is on screen.
+        const touchBtn = document.getElementById('applock-touchid-btn');
+        if (touchBtn) touchBtn.style.display = 'none';
+        window.electronAuth.promptTouchID()
+            .then(r => {
+                if (r && r.success) this._onUnlockSuccess();
+                else this._revealTouchRetry();
+            })
+            .catch(() => this._revealTouchRetry());
+    },
+
+    // Cancelled/failed Touch ID — surface our own button so the user can retry
+    // (which re-opens the system prompt).
+    _revealTouchRetry() {
+        const overlay = document.getElementById('applock-overlay');
+        if (!overlay || overlay.style.display === 'none') return;
+        const touchBtn = document.getElementById('applock-touchid-btn');
+        if (touchBtn && this.authAvailable) {
+            touchBtn.textContent = 'Unlock with Touch ID';
+            touchBtn.style.display = '';
+        }
+    },
+
+    async _submitPasscode() {
+        const pass = document.getElementById('applock-passcode');
+        const err = document.getElementById('applock-error');
+        const ok = await this.verifyPasscode(pass ? pass.value : '');
+        if (ok) { this._onUnlockSuccess(); return; }
+        if (err) { err.textContent = 'Incorrect passcode'; err.style.display = ''; }
+        if (pass) { pass.value = ''; pass.focus(); }
+    },
+
+    _onUnlockSuccess() {
+        this.sensitiveUnlocked = true;
+        this.startSensitiveIdleWatch();
+        const overlay = document.getElementById('applock-overlay');
+        if (overlay) overlay.style.display = 'none';
+        const pend = this._pendingLocked;
+        this._pendingLocked = null;
+        this.renderLockedApps();
+        if (pend) this.openApp(pend.appName, pend.updateHash);
+    },
+
+    _cancelUnlock() {
+        const overlay = document.getElementById('applock-overlay');
+        if (overlay) overlay.style.display = 'none';
+        this._pendingLocked = null;
+        this.showDashboard();
+    },
+
+    // "Forgot passcode?" — leave the locked app, go to Settings (always
+    // reachable), and open the security-question recovery flow there.
+    _forgotPasscode() {
+        const overlay = document.getElementById('applock-overlay');
+        if (overlay) overlay.style.display = 'none';
+        this._pendingLocked = null;
+        this.openApp('settings');
+        if (typeof SettingsApp !== 'undefined' && SettingsApp.openAppLockRecovery) {
+            setTimeout(() => SettingsApp.openAppLockRecovery(), 120);
+        }
+    },
+
+    // ---- Idle re-lock ----
+    startSensitiveIdleWatch() {
+        this.stopSensitiveIdleWatch();
+        const timeoutMs = Math.max(1, this.getLockConfig().timeoutMin || 5) * 60 * 1000;
+        this._sensitiveLastActivity = Date.now();
+        this._sensitiveActivityHandler = () => { this._sensitiveLastActivity = Date.now(); };
+        const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+        events.forEach(e => document.addEventListener(e, this._sensitiveActivityHandler, { passive: true }));
+        this._sensitiveInterval = setInterval(() => {
+            if (!this.sensitiveUnlocked) return;
+            if (Date.now() - this._sensitiveLastActivity >= timeoutMs) this.lockSensitiveNow();
+        }, 30000);
+    },
+
+    stopSensitiveIdleWatch() {
+        if (this._sensitiveActivityHandler) {
+            const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+            events.forEach(e => document.removeEventListener(e, this._sensitiveActivityHandler));
+            this._sensitiveActivityHandler = null;
+        }
+        if (this._sensitiveInterval) { clearInterval(this._sensitiveInterval); this._sensitiveInterval = null; }
+    },
+
+    // Re-lock the group immediately. If the user is currently inside a locked
+    // app, bounce them home so the content isn't left on screen.
+    lockSensitiveNow() {
+        this.sensitiveUnlocked = false;
+        this.stopSensitiveIdleWatch();
+        if (this.currentApp && this.isAppLocked(this.currentApp)) {
+            this.showDashboard();
+        } else {
+            this.renderLockedApps();
+        }
+    },
+
+    // ---- Locked-app badges ----
+    // Locked apps aren't a separate dashboard section anymore; each locked
+    // app's own grid tile just carries a lock badge in place (a padlock when
+    // locked, an open padlock while the sensitive group is unlocked). This
+    // paints those badges and toggles the "Lock now" control in the tabs row.
+    renderLockedApps() {
+        const section = document.querySelector('.dash-apps-section');
+
+        // Clear any prior lock state so removed/unlocked apps drop their badge.
+        document.querySelectorAll('.dash-apps-section .dash-app-tile--locked').forEach(t => {
+            t.classList.remove('dash-app-tile--locked');
+            t.querySelector('.dash-app-tile-lockbadge')?.remove();
+        });
+
+        if (section) {
+            const hidden = this.getHiddenApps();
+            const glyph = this.sensitiveUnlocked ? '&#128275;' : '&#128274;';
+            for (const appName of this.getLockedApps()) {
+                if (!appName) continue;
+                if (typeof FEATURES !== 'undefined' && FEATURES.isGated(appName) && !FEATURES.isEnabled(appName)) continue;
+                if (hidden.has(appName)) continue;
+                // Badge every live tile for this app — its canonical grid tile
+                // and any Favourites clone — so the lock reads consistently.
+                section.querySelectorAll(`.dash-app-tile[data-app="${CSS.escape(appName)}"]`).forEach(tile => {
+                    if (tile.querySelector('.dash-app-tile-lockbadge')) return;
+                    tile.classList.add('dash-app-tile--locked');
+                    const badge = document.createElement('span');
+                    badge.className = 'dash-app-tile-lockbadge';
+                    badge.innerHTML = glyph;
+                    tile.appendChild(badge);
+                });
+            }
+        }
+
+        // "Lock now" is a Settings › App Lock button now (it appears there
+        // only while the group is unlocked). It used to sit in the All apps
+        // sheet footer, which no longer exists.
+
+        // The rail badges locked rows too, and unlocking is what clears
+        // them — repaint from here so the two states can't disagree.
+        if (typeof SideNav !== 'undefined') SideNav.render();
+    },
+
+    /**
+     * Escape HTML to prevent XSS. Escapes quotes too, so the result is safe in
+     * both text and attribute (title="…", href="…") contexts.
+     */
+    escapeHtml(text) {
+        return String(text ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    },
+
+    /**
+     * Setup schedule notifications (runs globally on app start)
+     */
+    setupScheduleNotifications() {
+        if (!('Notification' in window)) return;
+
+        if (Notification.permission === 'default') {
+            Notification.requestPermission();
+        }
+
+        const notifiedToday = {};
+
+        const checkAndNotify = () => {
+            // Telegram / iMessage forwarding is a second delivery lane: a
+            // denied macOS permission must not silence reminders headed for
+            // the phone.
+            if (Notification.permission !== 'granted'
+                && !(typeof Notify !== 'undefined' && Notify.forwardActive())) return;
+
+            const now = new Date();
+            const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            const currentHH = now.getHours().toString().padStart(2, '0');
+            const currentMM = now.getMinutes().toString().padStart(2, '0');
+            const currentTime = `${currentHH}:${currentMM}`;
+
+            // Reset notified set if it's a new day
+            if (!notifiedToday[today]) {
+                for (const key in notifiedToday) delete notifiedToday[key];
+                notifiedToday[today] = new Set();
+            }
+
+            const notifiedSet = notifiedToday[today];
+            const data = StorageManager.get('schedule');
+            const items = data?.scheduleItems || [];
+            const dayOfWeek = now.getDay();
+
+            // Convert current time to total minutes for comparison
+            const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
+            const formatTime12 = (h, m) => {
+                const p = h >= 12 ? 'PM' : 'AM';
+                const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+                return `${h12}:${m.toString().padStart(2, '0')} ${p}`;
+            };
+
+            for (const item of items) {
+                // Abandoned = resolved, like completed: no reminders. A
+                // one-time task is resolved by any abandoned mark; recurring
+                // tasks only for the abandoned day's occurrence.
+                const oneTimeAbandoned = (!item.repeat || item.repeat === 'none')
+                    && !!item.history && Object.values(item.history).includes('abandoned');
+
+                // --- Multi-day advance reminders (for items with reminderDaysBefore) ---
+                if (item.reminderDaysBefore?.length && item.scheduledDate && item.lastCompletedDate !== today && !oneTimeAbandoned) {
+                    const dueDate = new Date(item.scheduledDate + 'T00:00:00');
+                    const todayDate = new Date(today + 'T00:00:00');
+                    const daysUntilDue = Math.round((dueDate - todayDate) / (1000 * 60 * 60 * 24));
+
+                    // Check if today matches any of the reminder days
+                    if (item.reminderDaysBefore.includes(daysUntilDue)) {
+                        // Fire advance reminder at 9:00 AM
+                        const reminderKey = `${item.id}_advance_${daysUntilDue}`;
+                        if (currentTime === '09:00' && !notifiedSet.has(reminderKey)) {
+                            notifiedSet.add(reminderKey);
+                            const prefix = item.source === 'email' ? `[Email] ` : '';
+                            let body;
+                            if (daysUntilDue === 0) {
+                                body = `Due today!`;
+                            } else if (daysUntilDue === 1) {
+                                body = `Due tomorrow (${item.scheduledDate})`;
+                            } else {
+                                body = `Due in ${daysUntilDue} days (${item.scheduledDate})`;
+                            }
+                            if (item.sourceEmailFrom) {
+                                body += ` — from ${item.sourceEmailFrom}`;
+                            }
+                            Notify.show(`${prefix}${item.title}`, body, { kind: 'reminder' });
+                        }
+                    }
+                }
+
+                // --- Standard same-day notifications ---
+                // Check if item is for today
+                let isForToday = true;
+                switch (item.repeat) {
+                    case 'daily': break;
+                    case 'weekdays': isForToday = dayOfWeek >= 1 && dayOfWeek <= 5; break;
+                    case 'weekly': isForToday = item.dayOfWeek === dayOfWeek; break;
+                    case 'custom': isForToday = (item.repeatDays || []).includes(dayOfWeek); break;
+                    default: {
+                        if (item.lastCompletedDate && item.lastCompletedDate !== today) {
+                            isForToday = false;
+                        } else {
+                            const itemDate = item.scheduledDate || (item.createdAt ? item.createdAt.slice(0, 10) : today);
+                            isForToday = itemDate === today;
+                        }
+                        break;
+                    }
+                }
+                if (!isForToday) continue;
+
+                // Check if already completed or abandoned today
+                if (item.lastCompletedDate === today) continue;
+                if (oneTimeAbandoned) continue;
+                if (item.history && item.history[today] === 'abandoned') continue;
+
+                // Untimed tasks have no clock time — they get advance-day
+                // reminders (handled above) but no time-of-day notification.
+                if (!item.startTime) continue;
+
+                const [sh, sm] = item.startTime.split(':').map(Number);
+                const startMinutes = sh * 60 + sm;
+                const notifyBefore = item.notifyBefore || 0; // minutes before
+                const notifyAt = startMinutes - notifyBefore;
+
+                // Notification for the early reminder
+                if (notifyBefore > 0 && nowMinutes === notifyAt && !notifiedSet.has(item.id + '_early')) {
+                    notifiedSet.add(item.id + '_early');
+
+                    let body = `Starting in ${notifyBefore} min at ${formatTime12(sh, sm)}`;
+                    if (item.endTime) {
+                        const [eh, em] = item.endTime.split(':').map(Number);
+                        body += ` - ${formatTime12(eh, em)}`;
+                    }
+
+                    Notify.show(item.title, body, { kind: 'reminder' });
+                }
+
+                // Notification at the exact start time
+                if (item.startTime === currentTime && !notifiedSet.has(item.id)) {
+                    notifiedSet.add(item.id);
+
+                    let body = formatTime12(sh, sm);
+                    if (item.endTime) {
+                        const [eh, em] = item.endTime.split(':').map(Number);
+                        body += ` - ${formatTime12(eh, em)}`;
+                    }
+
+                    Notify.show(item.title, body, { kind: 'reminder' });
+                }
+            }
+        };
+
+        // Check every 30 seconds
+        setInterval(checkAndNotify, 30000);
+        checkAndNotify();
+    },
+
+};
