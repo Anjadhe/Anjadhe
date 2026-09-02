@@ -1,0 +1,36 @@
+{
+  "manifestVersion": 1,
+  "id": "reader",
+  "name": "Reader",
+  "version": "1.0.0",
+  "description": "Read and ask about documents in your library; Writing Voices learns authors' styles from them.",
+  "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z\"/><path d=\"M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z\"/></svg>",
+  "group": "Capture",
+  "keywords": [
+    "reader",
+    "library",
+    "documents",
+    "voices"
+  ],
+  "styles": [
+    "library.css"
+  ],
+  "view": "view.html",
+  "scripts": [
+    "doc-reader.js",
+    "voice-store.js",
+    "voice-service.js",
+    "library-app.js",
+    "reader-app.js",
+    "library-tools.js"
+  ],
+  "extraApps": [
+    {
+      "id": "library",
+      "name": "Writing Voices",
+      "description": "Learns your writing voice from sources you pick — notes, journal, sent emails, documents — and other voices from theirs.",
+      "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M10 11c0 4.5-2.5 6.5-6 7 0 0 3-2 3-7V7a2 2 0 0 1 2-2h1a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2z\"/><path d=\"M20 11c0 4.5-2.5 6.5-6 7 0 0 3-2 3-7V7a2 2 0 0 1 2-2h1a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2z\"/></svg>",
+      "group": "Web & builders"
+    }
+  ]
+}
