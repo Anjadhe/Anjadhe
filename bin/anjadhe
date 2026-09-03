@@ -1,0 +1,686 @@
+#!/usr/bin/env node
+/**
+ * `anjadhe` — terminal client for the running Anjadhe app (C7.3).
+ *
+ * A thin pipe to the app's loopback CLI server: the running app is the
+ * brain (same model, permissions, memory, logs). Enable Terminal access in
+ * Anjadhe: Settings → AI Assistant → Terminal access, then:
+ *
+ *   anjadhe                      interactive session (like this, but yours)
+ *   anjadhe ask  "…"             one question, streamed, exit
+ *   anjadhe task "…" [--yes]     plan → approve → run → report
+ *   anjadhe models               list the app's models
+ *   anjadhe model <n|name>       switch this terminal's model (--default: app-wide)
+ *   anjadhe clear                clear context (start a fresh conversation)
+ *   anjadhe undo                 undo the last turn/task's reversible writes
+ *   anjadhe unlock               enter the sync passphrase (locked Mac / SSH)
+ *   anjadhe ping                 is the app listening?
+ *
+ * In a session: type messages for chat turns; /task <goal> runs task mode
+ * (--yes anywhere in it auto-approves the plan); /model lists or switches
+ * models; /clear starts a fresh Terminal conversation; /undo reverses the
+ * last activity's recorded writes (C8.4 write ledger); /exit quits. All
+ * turns share one "Terminal" conversation in the app, so context carries
+ * across turns and sessions. Permission asks arrive inline — y (once) /
+ * s (session) / a (always) / n (no). Answers render markdown as terminal
+ * type (piped output stays raw), and a turn that changed things lists them
+ * in a Changed: footer.
+ */
+
+'use strict';
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const http = require('http');
+const readline = require('readline');
+
+const CONFIG_PATH = process.env.ANJADHE_CLI_CONFIG || path.join(os.homedir(), '.anjadhe_cli.json');
+const STEP_MARK = { pending: '·', active: '›', done: '✓', failed: '✗', skipped: '–' };
+
+// ── markdown → terminal (assistant answers only) ────────────────────────
+//
+// The model answers in markdown; raw ** and # on a TTY read as noise, and
+// the terminal's hard wrap splits words at the window edge. This renders
+// line-by-line as the stream arrives: inline styles via ANSI (bold/italic,
+// dim for `code`), headings bold+underline, • bullets with hanging indent,
+// word-wrap to ≤100 columns. While a line is still streaming, its tail is
+// echoed dim and rewritten in place once the newline lands. Piped output
+// (and NO_COLOR) stays the raw text — scripts get markdown, eyes get type.
+
+const A = { b: '\x1b[1m', d: '\x1b[2m', i: '\x1b[3m', u: '\x1b[4m', nb: '\x1b[22m', ni: '\x1b[23m', nu: '\x1b[24m' };
+const stripMd = (s) => s.replace(/\*\*([^*]+)\*\*/g, '$1').replace(/`([^`]+)`/g, '$1');
+const visLen = (s) => s.replace(/\x1b\[[0-9;]*m/g, '').length;
+
+function mdInline(s) {
+    return s
+        .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, `${A.u}$1${A.nu} ${A.d}($2)${A.nb}`)
+        .replace(/\*\*([^*]+)\*\*/g, `${A.b}$1${A.nb}`)
+        .replace(/`([^`]+)`/g, `${A.d}$1${A.nb}`)
+        .replace(/(^|[^*\w])\*([^*\s][^*]*)\*(?!\*)/g, `$1${A.i}$2${A.ni}`);
+}
+
+function wrapTo(text, width, hang) {
+    const lines = [];
+    let cur = '';
+    for (const w of text.split(' ')) {
+        if (cur && visLen(cur) + 1 + visLen(w) > width) { lines.push(cur); cur = w; }
+        else cur = cur ? cur + ' ' + w : w;
+    }
+    if (cur) lines.push(cur);
+    return lines.map((l, i) => (i ? hang : '') + l).join('\n');
+}
+
+function makeRenderer() {
+    const styled = !!process.stdout.isTTY && !process.env.NO_COLOR;
+    if (!styled) {
+        // Piped: raw markdown through, just guarantee the trailing newline.
+        let last = '\n';
+        return {
+            write: (t) => { if (t) { last = t[t.length - 1]; process.stdout.write(t); } },
+            flush: () => { if (last !== '\n') { process.stdout.write('\n'); last = '\n'; } }
+        };
+    }
+
+    const width = Math.min(process.stdout.columns || 80, 100) - 1;
+    let buf = '';           // current incomplete source line
+    let echoed = false;     // a dim partial of buf is on screen
+    let inFence = false;
+    let lastBlank = true;   // collapse runs of blank lines (starts true: eat leading blanks)
+
+    const clearEcho = () => { if (echoed) { process.stdout.write('\r\x1b[K'); echoed = false; } };
+
+    const renderLine = (raw) => {
+        clearEcho();
+        if (/^\s*```/.test(raw)) {                    // fence: keep the marker, dimmed
+            inFence = !inFence;
+            process.stdout.write(`${A.d}${raw.trim()}${A.nb}\n`);
+            lastBlank = false;
+            return;
+        }
+        if (inFence) { process.stdout.write('  ' + raw + '\n'); lastBlank = false; return; }
+        const line = raw.replace(/\s+$/, '');
+        if (!line) { if (!lastBlank) process.stdout.write('\n'); lastBlank = true; return; }
+        lastBlank = false;
+        let m;
+        if ((m = line.match(/^#{1,6}\s+(.*)$/))) {
+            process.stdout.write(`${A.b}${A.u}${stripMd(m[1])}${A.nu}${A.nb}\n`);
+        } else if (/^\s*([-*_])\1{2,}\s*$/.test(line)) {
+            process.stdout.write(`${A.d}${'─'.repeat(Math.min(width, 40))}${A.nb}\n`);
+        } else if ((m = line.match(/^(\s*)[-*+]\s+(.*)$/))) {
+            const hang = m[1] + '  ';
+            process.stdout.write(m[1] + '• ' + wrapTo(mdInline(m[2]), width - hang.length, hang) + '\n');
+        } else if ((m = line.match(/^(\s*)(\d+[.)])\s+(.*)$/))) {
+            const hang = ' '.repeat(m[1].length + m[2].length + 1);
+            process.stdout.write(`${m[1]}${m[2]} ` + wrapTo(mdInline(m[3]), width - hang.length, hang) + '\n');
+        } else if ((m = line.match(/^>\s?(.*)$/))) {
+            process.stdout.write(`${A.d}│${A.nb} ` + wrapTo(mdInline(m[1]), width - 2, `${A.d}│${A.nb} `) + '\n');
+        } else {
+            process.stdout.write(wrapTo(mdInline(line), width, '') + '\n');
+        }
+    };
+
+    const echoPartial = () => {
+        clearEcho();
+        if (!buf.trim()) return;
+        const room = (process.stdout.columns || 80) - 2;
+        const tail = buf.length > room ? '…' + buf.slice(buf.length - room + 1) : buf;
+        process.stdout.write(`${A.d}${tail}${A.nb}`);
+        echoed = true;
+    };
+
+    return {
+        write(t) {
+            buf += t;
+            let nl;
+            while ((nl = buf.indexOf('\n')) !== -1) {
+                const line = buf.slice(0, nl);
+                buf = buf.slice(nl + 1);
+                renderLine(line);
+            }
+            echoPartial();
+        },
+        flush() {
+            if (buf.trim()) { const t = buf; buf = ''; renderLine(t); }
+            else clearEcho();
+            buf = '';
+        }
+    };
+}
+
+/** The `done` event's write-ledger footer: what this turn/task changed. */
+function printChanges(ev, undoHint) {
+    const recs = Array.isArray(ev.records) ? ev.records : [];
+    if (recs.length) {
+        console.log('\nChanged:');
+        for (const r of recs) {
+            const noun = r.path ? (r.kind || 'file') : r.app;
+            console.log(`  ${r.action || 'changed'} [${noun}] ${r.path || r.title || r.id}`);
+        }
+    }
+    if (ev.undoable && undoHint) {
+        console.log(`${recs.length ? '' : '\n'}(reversible — ${undoHint} restores what this changed)`);
+    }
+}
+
+function die(msg, code = 1) { console.error(msg); process.exit(code); }
+
+function config() {
+    try {
+        return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
+    } catch {
+        die('Terminal access is not enabled.\nIn Anjadhe: Settings → AI Assistant → Terminal access, then try again.');
+    }
+}
+
+function post(cfg, urlPath, body) {
+    const data = JSON.stringify(body);
+    const req = http.request({
+        host: '127.0.0.1', port: cfg.port, path: urlPath, method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data), Authorization: `Bearer ${cfg.token}` }
+    });
+    req.on('error', () => {});
+    req.end(data);
+}
+
+function ping(cfg) {
+    return new Promise((resolve, reject) => {
+        const req = http.request({
+            host: '127.0.0.1', port: cfg.port, path: '/v1/ping', method: 'GET',
+            headers: { Authorization: `Bearer ${cfg.token}` }
+        }, (res) => {
+            let d = '';
+            res.on('data', c => d += c);
+            res.on('end', () => {
+                if (res.statusCode !== 200) { reject(new Error(`Anjadhe answered ${res.statusCode}: ${d}`)); return; }
+                try { resolve(JSON.parse(d)); } catch { resolve({}); }
+            });
+        });
+        req.on('error', () => reject(new Error('Could not reach Anjadhe — is the app running (and Terminal access enabled in Settings)?')));
+        req.end();
+    });
+}
+
+/**
+ * Instant command (no model turn): POST /v1/command, resolve with the
+ * `done` event's structured data.
+ */
+function command(cfg, name, args) {
+    return new Promise((resolve, reject) => {
+        const body = JSON.stringify({ command: name, args: args || {} });
+        const req = http.request({
+            host: '127.0.0.1', port: cfg.port, path: '/v1/command', method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body), Authorization: `Bearer ${cfg.token}` }
+        }, (res) => {
+            let buf = '';
+            res.on('data', c => buf += c);
+            res.on('end', () => {
+                if (res.statusCode !== 200) {
+                    let msg = buf;
+                    try { msg = JSON.parse(buf).error || buf; } catch { /* raw */ }
+                    reject(new Error(`Anjadhe answered ${res.statusCode}: ${msg}`));
+                    return;
+                }
+                for (const line of buf.split('\n')) {
+                    if (!line.trim()) continue;
+                    try {
+                        const ev = JSON.parse(line);
+                        if (ev.type === 'done') { resolve(ev.data || {}); return; }
+                        if (ev.type === 'error') { reject(new Error(ev.error)); return; }
+                    } catch { /* partial */ }
+                }
+                reject(new Error('No answer from Anjadhe.'));
+            });
+        });
+        req.on('error', () => reject(new Error('Could not reach Anjadhe — is the app running (and Terminal access enabled in Settings)?')));
+        req.end(body);
+    });
+}
+
+const ENGINE_LABEL = { llamacpp: 'local', server: 'server', openai: 'openai', anthropic: 'anthropic' };
+
+const SYNC_STATE_LINE = {
+    passphrase: 'Sync key is unlocked on this Mac (passphrase-protected).',
+    plaintext: 'Sync key is the legacy unprotected kind — set a passphrase in Anjadhe: Settings → Storage & Backup.',
+    'local-only': 'Sync key is local to this Mac (not yet shared with other Macs).',
+    none: 'No sync key is available on this Mac.'
+};
+
+/**
+ * Read one line with the typed characters hidden (sync passphrase). Uses a
+ * throwaway readline whose output is muted after the prompt renders — fine
+ * here because it never runs while the session's readline is attached (the
+ * session mutes its own instead). Non-TTY input just reads the piped line.
+ */
+function askHidden(promptText) {
+    return new Promise((res) => {
+        const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+        rl.question(promptText, (a) => { rl.close(); process.stdout.write('\n'); res(a); });
+        if (process.stdout.isTTY) rl._writeToOutput = () => {};
+    });
+}
+
+/**
+ * Unlock the sync key from the terminal. askSecret(prompt) supplies the
+ * passphrase read (hidden in a TTY): the session passes its muted reader,
+ * one-shot mode passes askHidden.
+ */
+async function unlockSync(cfg, askSecret) {
+    const st = await command(cfg, 'sync.status');
+    if (!st.locked) {
+        console.log(SYNC_STATE_LINE[st.state] || `Sync is not locked on this Mac (state: ${st.state}).`);
+        return;
+    }
+    const pass = String(await askSecret('Sync passphrase: ') || '').trim();
+    if (!pass) { console.log('(cancelled)'); return; }
+    const r = await command(cfg, 'sync.unlock', { passphrase: pass });
+    console.log('Sync unlocked — this Mac is catching up on other Macs’ changes now.');
+    if (!r.cached) console.log('Note: the key could not be cached in the keychain (remote session?) — you’ll be asked again next launch.');
+}
+
+async function showModels(cfg) {
+    const data = await command(cfg, 'models');
+    const models = data.models || [];
+    if (!models.length) {
+        console.log('No models are set up yet. Add one in Anjadhe: Settings → AI Assistant → Models.');
+        return;
+    }
+    const nameW = Math.max(...models.map(m => m.model.length));
+    console.log('Models:');
+    models.forEach((m, i) => {
+        const marks = [];
+        if (m.isActive) marks.push('● this terminal');
+        if (m.isDefault) marks.push('app default');
+        console.log(`  ${String(i + 1).padStart(2)}. ${m.model.padEnd(nameW)}  ${(ENGINE_LABEL[m.engine] || m.engine).padEnd(9)} ${marks.join(' · ')}`);
+    });
+    console.log('\nSwitch with /model <number|name> (this terminal only) or /model <number|name> --default (app-wide).');
+    if (data.override) console.log('This terminal has its own model; /model default follows the app default again.');
+}
+
+async function setModel(cfg, ref, makeDefault) {
+    const r = await command(cfg, 'model.set', { ref, makeDefault });
+    const engine = ENGINE_LABEL[r.engine] || r.engine || '';
+    if (r.scope === 'cleared') console.log(r.model ? `This terminal follows the app default again: ${r.model} (${engine}).` : 'This terminal follows the app default again.');
+    else if (r.scope === 'default') console.log(`App-wide default is now ${r.model} (${engine}) — this terminal follows it.`);
+    else console.log(`This terminal now uses ${r.model} (${engine}). The app default is unchanged.`);
+}
+
+/**
+ * Undo the last reversible activity in the Terminal conversation (C8.4 from
+ * the terminal): preview what the write ledger holds, confirm, run. Same
+ * honest limits as the in-app affordance — app data and files only, your
+ * own later edits are kept, external actions stay done.
+ */
+async function undoLast(cfg, ask) {
+    const p = await command(cfg, 'undo.preview');
+    if (!p.found) { console.log(p.reason || 'Nothing to undo.'); return; }
+    const n = (c, w) => `${c} ${w}${c === 1 ? '' : 's'}`;
+    console.log(`Undo ${p.kind === 'task' ? 'task' : 'last turn'}: ${p.label}`);
+    const parts = [];
+    if (p.keys) parts.push(`the app data it changed (${n(p.keys, 'area')})`);
+    if (p.files) parts.push(n(p.files, 'file change'));
+    console.log(`This restores ${parts.join(' and ')}. Changes you made yourself since then are kept.`);
+    if (p.external) console.log(`${n(p.external, 'action')} outside Anjadhe (email, commands, other apps) cannot be taken back and will remain.`);
+    if (p.overflow) console.log('Some later changes were too large to record and cannot be restored.');
+    const a = String(await ask('Undo? [y/N]: ') || '').trim().toLowerCase();
+    if (a !== 'y' && a !== 'yes') { console.log('(kept)'); return; }
+    const r = await command(cfg, 'undo.run', { scopeIds: p.scopeIds });
+    const bits = [];
+    if (r.restoredKeys.length) bits.push(`restored ${r.restoredKeys.join(', ')}`);
+    if (r.restoredFiles.length) bits.push(`put back ${n(r.restoredFiles.length, 'file')}`);
+    if (r.conflictKeys.length) bits.push(`kept ${r.conflictKeys.join(', ')} (changed since)`);
+    if (r.failedFiles.length) bits.push(`${n(r.failedFiles.length, 'file')} could not be restored`);
+    if (r.external.length) bits.push(`${n(r.external.length, 'external action')} remain`);
+    if (r.errors && r.errors.length) bits.push(...r.errors);
+    console.log(bits.length ? `Undo: ${bits.join('; ')}` : 'Nothing needed undoing.');
+}
+
+/**
+ * One turn (ask or task): stream events to stdout until done.
+ * opts.ask(question) → Promise<answer> supplies the shared prompt for
+ * permission requests (the session's readline, or a throwaway one).
+ */
+function streamTurn(cfg, kind, message, opts) {
+    return new Promise((resolve, reject) => {
+        let streamed = false;
+        let lastTaskLine = '';
+        let settled = false;
+        const md = makeRenderer();
+        const finish = (fn, arg) => { stopSpinner(); if (!settled) { settled = true; fn(arg); } };
+
+        // "Thinking" spinner: a local model's prefill can be many seconds
+        // with no output — without this the CLI looks hung, and the burst of
+        // streamed text afterward reads as one shot. Runs only in a real
+        // terminal; cleared the instant any real output arrives.
+        const interactive = !!process.stdout.isTTY;
+        let spinner = null;
+        const startSpinner = () => {
+            if (!interactive || spinner) return;
+            const frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+            let i = 0; const t0 = Date.now();
+            spinner = setInterval(() => {
+                const s = Math.floor((Date.now() - t0) / 1000);
+                process.stdout.write(`\r${frames[i++ % frames.length]} thinking… ${s}s\x1b[K`);
+            }, 100);
+        };
+        function stopSpinner() {
+            if (spinner) { clearInterval(spinner); spinner = null; if (interactive) process.stdout.write('\r\x1b[K'); }
+        }
+
+        const handle = async (ev) => {
+            if (!ev || !ev.type) return;
+            if (ev.type === 'chunk') {
+                stopSpinner();
+                streamed = true;
+                md.write(ev.text);
+            } else if (ev.type === 'plan') {
+                stopSpinner();
+                console.log('Plan:');
+                ev.steps.forEach((s, i) => console.log(`  ${i + 1}. ${s}`));
+            } else if (ev.type === 'task_update') {
+                stopSpinner();
+                const line = ev.steps.map(s => STEP_MARK[s.status] || '·').join('') + `  ${ev.status}${ev.note ? ' — ' + ev.note : ''}`;
+                if (line !== lastTaskLine) { lastTaskLine = line; console.log(line); }
+            } else if (ev.type === 'permission_request') {
+                stopSpinner();
+                md.flush();   // settle any half-streamed line before the prompt takes the row
+                const what = ev.tool === 'run_plan' ? `Run the plan (${ev.args})` : `${ev.tool}${ev.args ? ' ' + ev.args : ''}`;
+                const ans = await opts.ask(`\n⚙ Anjadhe wants to: ${what}\n${ev.note ? ev.note + '\n' : ''}Allow? [y]es once / [s]ession / [a]lways / [n]o: `);
+                const a = String(ans || '').trim().toLowerCase();
+                const scope = (a === 's' || a === 'session') ? 'session' : (a === 'a' || a === 'always') ? 'always' : 'once';
+                const approved = ['y', 'yes', 's', 'session', 'a', 'always'].includes(a);
+                post(cfg, '/v1/answer', { askId: ev.askId, approved, scope });
+                if (!approved) console.log('(declined)');
+                else startSpinner();   // the agent resumes working
+
+            } else if (ev.type === 'done') {
+                if (!streamed && ev.content) md.write(ev.content);
+                md.flush();
+                printChanges(ev, opts.undoHint);
+                finish(resolve);
+            } else if (ev.type === 'error') {
+                finish(reject, new Error(ev.error));
+            }
+        };
+
+        const body = JSON.stringify({ message, yes: !!opts.yes });
+        const req = http.request({
+            host: '127.0.0.1', port: cfg.port, path: `/v1/${kind}`, method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body), Authorization: `Bearer ${cfg.token}` }
+        }, (res) => {
+            if (res.statusCode !== 200) {
+                let d = '';
+                res.on('data', c => d += c);
+                res.on('end', () => {
+                    let msg = d;
+                    try { msg = JSON.parse(d).error || d; } catch { /* raw */ }
+                    finish(reject, new Error(`Anjadhe answered ${res.statusCode}: ${msg}`));
+                });
+                return;
+            }
+            let buf = '';
+            res.on('data', (c) => {
+                buf += c;
+                let nl;
+                while ((nl = buf.indexOf('\n')) !== -1) {
+                    const line = buf.slice(0, nl).trim();
+                    buf = buf.slice(nl + 1);
+                    if (line) { try { handle(JSON.parse(line)); } catch { /* partial */ } }
+                }
+            });
+            res.on('end', () => finish(resolve));
+            res.on('error', (e) => finish(reject, e));
+        });
+        req.on('error', () => finish(reject, new Error('Could not reach Anjadhe — is the app running (and Terminal access enabled in Settings)?')));
+        req.end(body);
+        startSpinner();   // show feedback during the model's prefill/first-token wait
+    });
+}
+
+async function session(cfg) {
+    let info = {};
+    try { info = await ping(cfg); } catch (e) { die(e.message); }
+    // Start on a clean screen (the same wipe /clear does): the session is a
+    // UI, not an entry in the shell's scrolling log. Piped/non-TTY runs
+    // skip it — escape codes in captured output are noise.
+    if (process.stdout.isTTY) process.stdout.write('\x1b[2J\x1b[3J\x1b[H');
+    console.log(`Anjadhe${info.version ? ' ' + info.version : ''} — interactive session (context carries across turns).`);
+    console.log('Type a message · /help lists commands · /exit quits.');
+
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout, historySize: 200 });
+    // Persistent line queue: lines that arrive while a turn is streaming
+    // (piped input, or a fast typist) would otherwise fire 'line' with no
+    // listener and be silently dropped. Both the main prompt and mid-turn
+    // permission asks pull from the same queue.
+    let closed = false;
+    const queued = [];
+    const waiters = [];
+    rl.on('line', (l) => { const w = waiters.shift(); if (w) w(l); else queued.push(l); });
+    rl.on('close', () => { closed = true; while (waiters.length) waiters.shift()(undefined); });
+    rl.on('SIGINT', () => {
+        console.log('\n(bye — anything mid-flight keeps running in the app; the transcript is in the "Terminal" conversation)');
+        process.exit(0);
+    });
+    // In a real terminal, let readline OWN the prompt (setPrompt + prompt())
+    // so it renders the same '›' every turn — writing it manually left
+    // readline's own default '> ' to redraw over it in terminal mode (the
+    // inconsistent-prompt bug). A multi-line promptText (permission asks)
+    // prints its context lines above and makes only the final line the
+    // editable prompt, so readline's column tracking stays correct. When
+    // stdout is NOT a TTY (piped input, tests), rl.prompt() interferes with
+    // line delivery, so just write the prompt string — nobody's watching it
+    // render anyway.
+    const interactive = !!process.stdout.isTTY;
+    const ask = (promptText) => {
+        if (queued.length) return Promise.resolve(queued.shift());
+        if (closed) return Promise.resolve(undefined);
+        let p = promptText;
+        if (interactive) {
+            const nl = p.lastIndexOf('\n');
+            if (nl !== -1) { process.stdout.write(p.slice(0, nl + 1)); p = p.slice(nl + 1); }
+            rl.setPrompt(p);
+            rl.prompt();
+        } else {
+            process.stdout.write(p);
+        }
+        return new Promise(res => waiters.push(res));
+    };
+    // ask() with the typed characters hidden (sync passphrase): mute the
+    // session readline's echo for one line. A second readline instance
+    // would fight this one for stdin, so mute in place instead.
+    const askSecret = (promptText) => {
+        if (!interactive) return ask(promptText);
+        if (queued.length) return Promise.resolve(queued.shift());
+        if (closed) return Promise.resolve(undefined);
+        process.stdout.write(promptText);
+        const orig = rl._writeToOutput;
+        rl._writeToOutput = () => {};
+        rl.setPrompt('');
+        rl.prompt();
+        return new Promise(res => waiters.push((line) => {
+            rl._writeToOutput = orig;
+            process.stdout.write('\n');
+            res(line);
+        }));
+    };
+
+    // A locked sync key is easy to miss from a terminal (the banner is an
+    // in-app dialog) — in a real terminal, ask for the passphrase right
+    // away (Enter skips; /unlock retries later). Piped input only gets the
+    // notice: a blocking prompt there would eat the first piped line.
+    try {
+        const st = await command(cfg, 'sync.status');
+        if (st.locked && interactive) {
+            console.log('\n⚠ Sync is locked on this Mac — nothing syncs or backs up until the sync passphrase is entered.');
+            const pass = String(await askSecret('Sync passphrase (Enter to skip): ') || '').trim();
+            if (!pass) {
+                console.log('(skipped — /unlock any time)');
+            } else {
+                try {
+                    const r = await command(cfg, 'sync.unlock', { passphrase: pass });
+                    console.log('Sync unlocked — this Mac is catching up on other Macs’ changes now.');
+                    if (!r.cached) console.log('Note: the key could not be cached in the keychain (remote session?) — you’ll be asked again next launch.');
+                } catch (e) {
+                    console.error(`${e.message} /unlock to retry.`);
+                }
+            }
+        } else if (st.locked) {
+            console.log('\n⚠ Sync is locked on this Mac (passphrase-protected key, not yet entered here). /unlock to enter it — until then nothing syncs or backs up.');
+        }
+    } catch { /* status is best-effort */ }
+
+    for (;;) {
+        let line = await ask('\n› ');
+        if (line === undefined) break;
+        line = line.trim();
+        if (!line) continue;
+        if (line === '/exit' || line === '/quit') break;
+        if (line === '/help') {
+            console.log('Commands:');
+            console.log('  /task <goal> [--yes]        run task mode (plan → approve → run)');
+            console.log('  /model                      list models');
+            console.log('  /model <n|name>             use a model in this terminal (--default: app-wide)');
+            console.log('  /model default              follow the app default again');
+            console.log('  /clear                      clear context, start a fresh conversation');
+            console.log('  /undo                       undo the last turn/task\'s reversible writes');
+            console.log('  /unlock                     enter the sync passphrase (locked Mac)');
+            console.log('  /exit                       quit — anything else is a chat turn');
+            continue;
+        }
+        if (line === '/undo') {
+            try { await undoLast(cfg, ask); } catch (e) { console.error(e.message); }
+            continue;
+        }
+        if (line === '/model' || line === '/models') {
+            try { await showModels(cfg); } catch (e) { console.error(e.message); }
+            continue;
+        }
+        if (line.startsWith('/model ')) {
+            let ref = line.slice(7).trim();
+            const makeDefault = /\s--default\b/.test(' ' + ref);
+            ref = ref.replace(/--default/g, '').trim();
+            try { await setModel(cfg, ref, makeDefault); } catch (e) { console.error(e.message); }
+            continue;
+        }
+        if (line === '/unlock') {
+            try { await unlockSync(cfg, askSecret); } catch (e) { console.error(e.message); }
+            continue;
+        }
+        if (line === '/clear' || line === '/new') {
+            try {
+                const r = await command(cfg, 'clear');
+                // Fresh context, fresh screen: wipe the terminal (scrollback
+                // included) and reprint the banner, so the cleared
+                // conversation isn't still sitting on screen above the
+                // prompt. Piped/non-TTY runs keep plain line output.
+                if (interactive) {
+                    process.stdout.write('\x1b[2J\x1b[3J\x1b[H');
+                    console.log(`Anjadhe${info.version ? ' ' + info.version : ''} — interactive session (context carries across turns).`);
+                    console.log('Type a message · /help lists commands · /exit quits.');
+                }
+                console.log(r.cleared ? 'Context cleared — this is a fresh Terminal conversation (the old one stays readable in the app).' : 'The Terminal conversation is already fresh.');
+            } catch (e) { console.error(e.message); }
+            continue;
+        }
+        // A slash line is ALWAYS a command, never chat. "/unlock <pass>"
+        // used to fall through to a chat turn, sending the sync passphrase
+        // to the model and into the synced Terminal transcript. Only the
+        // command word is echoed back — never its arguments.
+        if (line.startsWith('/') && line !== '/task' && !line.startsWith('/task ')) {
+            const name = line.split(/\s+/)[0];
+            if (name === '/unlock') console.log('/unlock takes no argument — type just /unlock and enter the passphrase at the hidden prompt.');
+            else console.log(`Unknown command ${name} — /help lists commands. Nothing was sent to the assistant; to chat, write it without the leading slash.`);
+            continue;
+        }
+        let kind = 'ask', msg = line, yes = false;
+        if (line.startsWith('/task')) {
+            kind = 'task';
+            msg = line.slice(5).trim();
+            if (/\s--yes\b|^--yes\b/.test(msg)) { yes = true; msg = msg.replace(/--yes/g, '').trim(); }
+            if (!msg) { console.log('Give the task a goal: /task <goal>'); continue; }
+        }
+        try {
+            await streamTurn(cfg, kind, msg, { yes, ask, undoHint: '/undo' });
+        } catch (e) {
+            console.error(`\n${e.message}`);
+        }
+    }
+    rl.close();
+}
+
+const USAGE = `Usage:
+  anjadhe                    interactive session (context carries across turns)
+  anjadhe ask  "question"    one question, streamed, exit
+  anjadhe task "goal"        plan → approve → run → report (--yes auto-approves)
+  anjadhe models             list the app's models
+  anjadhe model <n|name>     switch this terminal's model (--default: app-wide)
+  anjadhe clear              clear context (start a fresh conversation)
+  anjadhe undo               undo the last turn/task's reversible writes
+  anjadhe unlock             enter the sync passphrase (locked Mac, e.g. over SSH)
+  anjadhe ping               is the app listening?
+  anjadhe help               this text
+
+In a session: /task, /model, /clear, /undo, /unlock, /help, /exit — anything else is a chat turn.`;
+
+async function main() {
+    const argv = process.argv.slice(2);
+    const cmd = argv[0];
+    if (cmd === 'help' || cmd === '--help' || cmd === '-h') { console.log(USAGE); return; }
+    const cfg = config();
+
+    if (!cmd) { await session(cfg); return; }
+    if (cmd === 'ping') {
+        try { const info = await ping(cfg); console.log(`Anjadhe${info.version ? ' ' + info.version : ''} is listening.`); }
+        catch (e) { die(e.message); }
+        return;
+    }
+    if (cmd === 'models') {
+        try { await showModels(cfg); } catch (e) { die(e.message); }
+        return;
+    }
+    if (cmd === 'model') {
+        const makeDefault = argv.includes('--default');
+        const ref = argv.slice(1).filter(a => a !== '--default').join(' ').trim();
+        try {
+            if (ref) await setModel(cfg, ref, makeDefault);
+            else await showModels(cfg);
+        } catch (e) { die(e.message); }
+        return;
+    }
+    if (cmd === 'clear') {
+        try {
+            const r = await command(cfg, 'clear');
+            console.log(r.cleared ? 'Context cleared — the next turn starts a fresh Terminal conversation.' : 'The Terminal conversation is already fresh.');
+        } catch (e) { die(e.message); }
+        return;
+    }
+    if (cmd === 'unlock') {
+        try { await unlockSync(cfg, askHidden); } catch (e) { die(e.message); }
+        return;
+    }
+    if (cmd === 'undo') {
+        const ask = (q) => new Promise((res) => {
+            const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+            rl.question(q, (a) => { rl.close(); res(a); });
+        });
+        try { await undoLast(cfg, ask); } catch (e) { die(e.message); }
+        return;
+    }
+    const yes = argv.includes('--yes');
+    const message = argv.slice(1).filter(a => a !== '--yes').join(' ').trim();
+    if ((cmd !== 'ask' && cmd !== 'task') || !message) {
+        die(USAGE);
+    }
+    // One-shot: a throwaway readline only if a permission ask arrives.
+    const ask = (q) => new Promise((res) => {
+        const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+        rl.question(q, (a) => { rl.close(); res(a); });
+    });
+    try {
+        await streamTurn(cfg, cmd, message, { yes, ask, undoHint: 'anjadhe undo' });
+        process.exit(0);
+    } catch (e) {
+        die(e.message);
+    }
+}
+
+main();
