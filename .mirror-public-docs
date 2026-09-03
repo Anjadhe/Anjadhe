@@ -1,0 +1,9 @@
+# Docs INTENTIONALLY published to the public repo, one path per line.
+# Everything under docs/ is private by default: the mirror FAILS if a doc
+# survives .mirror-exclude stripping without being listed here. This is the
+# opt-in half of the check added after internal docs shipped public in two
+# consecutive releases (TASK_ENGINE/USE_CASES at alpha.25,
+# ROUTINE_TRIGGERS/AI_ASSISTANT_DESIGN at alpha.26) — a new doc used to be
+# public by default and invisible to review.
+#
+# (No public docs today.)

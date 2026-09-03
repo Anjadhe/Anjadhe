@@ -1,0 +1,138 @@
+{
+  "name": "anjadhe",
+  "version": "0.1.0-alpha.64",
+  "description": "Anjadhe - Personal productivity apps for Notes, Journal, Projects, Focus",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "start:isolated": "ANJADHE_DATA_ROOT=/tmp/anjadhe-slate electron .",
+    "start:clean": "rm -rf /tmp/anjadhe-slate && ANJADHE_DATA_ROOT=/tmp/anjadhe-slate electron .",
+    "stop": "pkill -f 'anjadhe-app/node_modules/electron' || echo 'Anjadhe is not running'",
+    "restart": "npm run stop; sleep 1; npm start",
+    "test": "node scripts/spec-conformance.js && node scripts/spec-render-smoke.js && node scripts/native-bridge-test.js && node tests/cloud-privacy-test.js && node tests/content-files-test.js && node tests/telegram-bridge-test.js && node tests/imessage-bridge-test.js && node tests/license-store-test.js && node tests/pdfjs-shims-test.js",
+    "catalog:export": "node scripts/export-catalog.js",
+    "build": "electron-builder",
+    "build:mac": "electron-builder --mac",
+    "build:mac:dev": "CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac -c.mac.hardenedRuntime=false -c.mac.gatekeeperAssess=false",
+    "build:mac:publish": "electron-builder --mac --publish always",
+    "build:win": "electron-builder --win",
+    "build:linux": "electron-builder --linux",
+    "postinstall": "electron-rebuild -f -w better-sqlite3",
+    "agent-evals": "node tests/agent-evals/run.js",
+    "agent-evals:gate": "node tests/agent-evals/run.js --det-only --gate",
+    "test:vec": "ELECTRON_RUN_AS_NODE=1 electron tests/lib-vec-integration.js",
+    "build:ios-host": "node scripts/build-ios-host.js",
+    "build:icons": "node scripts/build-icons.js"
+  },
+  "author": "Anjadhe LLC",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "@electron/rebuild": "^4.0.3",
+    "electron": "^40.10.6",
+    "electron-builder": "^26.8.1",
+    "esbuild": "^0.28.0",
+    "playwright-core": "^1.62.1"
+  },
+  "build": {
+    "appId": "com.anjadhe.app",
+    "productName": "Anjadhe",
+    "copyright": "Copyright © 2026 Anjadhe LLC",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html",
+      "js/**/*",
+      "css/**/*",
+      "fonts/**/*",
+      "bin/**/*",
+      "llamacpp/**/*",
+      "native/apple-reminders/build/**",
+      ".env.production",
+      "remote-config.json",
+      "build/icon.png",
+      "!**/node_modules/@napi-rs/**"
+    ],
+    "extraResources": [],
+    "asar": true,
+    "asarUnpack": [
+      "native/apple-reminders/build/**",
+      "node_modules/better-sqlite3/**",
+      "node_modules/sqlite-vec/**",
+      "node_modules/sqlite-vec-darwin-arm64/**",
+      "node_modules/sqlite-vec-darwin-x64/**",
+      "node_modules/sqlite-vec-windows-x64/**",
+      "node_modules/sqlite-vec-linux-x64/**",
+      "node_modules/sqlite-vec-linux-arm64/**"
+    ],
+    "publish": {
+      "provider": "github",
+      "owner": "Anjadhe",
+      "repo": "Anjadhe",
+      "releaseType": "prerelease"
+    },
+    "mac": {
+      "icon": "build/icon.icns",
+      "category": "public.app-category.productivity",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "universal"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "universal"
+          ]
+        }
+      ],
+      "darkModeSupport": true,
+      "x64ArchFiles": "**/node_modules/sqlite-vec*/**",
+      "hardenedRuntime": true,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "notarize": true,
+      "extendInfo": {
+        "NSBluetoothAlwaysUsageDescription": "Anjadhe uses Bluetooth so the in-app browser can sign you in with security keys and passkeys (e.g. iPhone-as-passkey).",
+        "NSRemindersUsageDescription": "Anjadhe reads this Mac's reminders to import them into Tasks, only when you turn that on in Settings.",
+        "NSCalendarsUsageDescription": "Anjadhe reads this Mac's calendars to show their events in the Calendar, only when you turn that on in Settings."
+      }
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "linux": {
+      "target": "AppImage",
+      "category": "Utility"
+    },
+    "dmg": {
+      "title": "Anjadhe",
+      "backgroundColor": "#ffffff",
+      "artifactName": "${productName}.${ext}"
+    }
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.112.1",
+    "@mozilla/readability": "^0.6.0",
+    "@noble/ciphers": "^2.2.0",
+    "@noble/curves": "^2.2.0",
+    "@noble/hashes": "^2.2.0",
+    "better-sqlite3": "^12.6.2",
+    "chart.js": "^4.5.1",
+    "dompurify": "^3.3.2",
+    "dotenv": "^17.3.1",
+    "electron-store": "^8.2.0",
+    "electron-updater": "^6.8.3",
+    "jsdom": "^28.1.0",
+    "jsqr": "^1.4.0",
+    "pdfjs-dist": "^6.1.200",
+    "psl": "^1.15.0",
+    "qrcode": "^1.5.4",
+    "sqlite-vec": "^0.1.9",
+    "ws": "^8.21.3"
+  }
+}
