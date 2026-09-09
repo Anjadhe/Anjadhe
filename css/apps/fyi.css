@@ -1,0 +1,1073 @@
+/* ===================================
+   Email Insights — its own app: every email insight, grouped by type.
+   (The Actions hub's "FYI" tab until 2026-08-03, when it stopped excluding
+   the ones that had become tasks and moved out of the hub; id stays `fyi`.)
+   Three panes, the shape mail settled on: types | rows | the one you're
+   reading. The left nav classes come from actions.css — one visual system
+   across Tasks, Email Insights and Goals — and so does the divider
+   (.actions-nav-resizer, used twice here).
+
+   Rows are a reading surface, not cards: hairline separators, no borders,
+   no hover sweep. They report what the assistant found; the pane on the
+   right is where you read it.
+   =================================== */
+
+/* Full-bleed since 2026-08-04 (`app-view-full` on #fyi-view, the same
+   class the Inbox rides): this is mail's three-pane shape, and the two
+   pages are doors into each other, so switching between them must not
+   change how wide "email" is. Until then the view sat on the Tasks/Goals
+   reading frame (~1336px) — a leftover from its life as a hub tab, whose
+   centred tab strip once made widening impossible. Reading comfort is
+   guarded further in, not at the view: the detail keeps its 62ch measure
+   and the overview its own column cap below. */
+
+/* Each pane scrolls on its own, so picking an insight never moves the list
+   out from under the pointer, and a long detail cannot scroll the rows away.
+   Same sticky recipe as .actions-nav next door. */
+.fyi-list-pane,
+#fyi-view .fyi-reading {
+    align-self: flex-start;
+    position: sticky;
+    top: calc(38px + var(--space-md));
+    max-height: calc(100vh - 38px - var(--space-2xl));
+    overflow-y: auto;
+    /* The gutter is reserved in both panes so neither shifts sideways when
+       its content grows past a screenful. */
+    scrollbar-gutter: stable;
+}
+
+.fyi-list-pane {
+    /* Default width is RESPONSIVE (2026-08-21): the reading pane's content
+       caps at 62ch, so on a wide window a fixed 340px list left the extra
+       space pooling uselessly on the right. Until the user drags the
+       divider (which stores a px value in --fyi-list-width), the list
+       takes ~38% of the window, floored at the old 340px and capped so
+       the reading pane always keeps its full measure. */
+    flex: 0 0 var(--fyi-list-width, clamp(340px, 38vw, 700px));
+    width: var(--fyi-list-width, clamp(340px, 38vw, 700px));
+    min-width: 0;
+    padding-right: var(--space-sm);
+    /* The rows respond to the PANE, not the window: the divider is
+       draggable, so a wide monitor can still hold a 240px list. */
+    container-type: inline-size;
+    container-name: fyilist;
+}
+
+/* ── Reading pane preference ─────────────────────────────────────────────
+   The Inbox's control, carried over: `reader-off` (the stored preference)
+   gives the rows the full width; `is-reading` (an insight is open with the
+   pane off) swaps the whole area to the detail, whose back row is rendered
+   by _renderDetail. Scoped to the wide layout — under 960px the stacked
+   mode owns the geometry and the header toggle hides. Inert on the
+   overview and the empty state, which have no list/reading split. */
+@media (min-width: 961px) {
+    .fyi-layout.reader-off:not(.is-overview):not(.is-empty) > #fyi-list-resizer {
+        display: none;
+    }
+    .fyi-layout.reader-off:not(.is-overview):not(.is-empty):not(.is-reading) > .fyi-reading {
+        display: none;
+    }
+    .fyi-layout.reader-off:not(.is-overview):not(.is-empty) > .fyi-list-pane {
+        flex: 1 1 auto;
+        width: auto;
+    }
+    .fyi-layout.reader-off.is-reading > .fyi-list-pane {
+        display: none;
+    }
+}
+
+/* Same ghost-circle-goes-filled idiom as the Inbox header's view toggles. */
+.fyi-reader-toggle,
+.fyi-filter-unread {
+    border: none;
+    min-width: 32px;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    color: var(--color-text-tertiary);
+}
+
+.fyi-reader-toggle svg,
+.fyi-filter-unread svg {
+    width: 17px;
+    height: 17px;
+}
+
+.fyi-reader-toggle:hover,
+.fyi-filter-unread:hover {
+    background: var(--color-surface-hover);
+    color: var(--color-text);
+}
+
+.fyi-reader-toggle.is-active,
+.fyi-filter-unread.is-active {
+    background: var(--color-text);
+    color: var(--color-bg);
+}
+
+.fyi-reader-toggle.is-active:hover,
+.fyi-filter-unread.is-active:hover {
+    opacity: 0.85;
+}
+
+/* The reading pane does not exist in the stacked layout, so its toggle goes
+   with it; the unread filter stays useful at every width. */
+@media (max-width: 960px) {
+    .fyi-reader-toggle {
+        display: none;
+    }
+}
+
+/* Back out of the full-width detail (reading pane off, or an insight opened
+   from the overview). Rides the shared .back-btn chip — bare secondary text
+   above the title was tried first and read as a stray glyph rather than a
+   control; this only compacts the chip so it stays quieter than the title
+   under it. */
+.fyi-detail-back {
+    margin-bottom: var(--space-lg);
+    padding: 4px 12px;
+    font-size: var(--text-xs);
+    color: var(--color-text-secondary);
+}
+
+.fyi-detail-back:hover {
+    color: var(--color-text);
+}
+
+/* An empty folder in the nav — present (the nav never reshuffles) but in
+   the tertiary voice, so a scan still finds the folders with something in
+   them first. */
+#fyi-view .actions-nav-item.is-quiet {
+    color: var(--color-text-tertiary);
+}
+
+/* Nothing to show (no accounts, insights off, empty window): the message
+   gets the whole width instead of a nav and a list column standing empty
+   with dividers between them. */
+.fyi-layout.is-empty > #fyi-nav,
+.fyi-layout.is-empty > #fyi-list,
+.fyi-layout.is-empty > .actions-nav-resizer {
+    display: none;
+}
+
+/* Nothing selected. Quiet, because this is the state the page opens in. */
+.fyi-placeholder {
+    padding: var(--space-2xl) var(--space-md);
+    font-size: var(--text-sm);
+    font-style: italic;
+    color: var(--color-text-tertiary);
+    line-height: 1.6;
+}
+
+.fyi-placeholder p {
+    margin: 0;
+}
+
+.fyi-placeholder-note {
+    margin-top: var(--space-xs) !important;
+    font-style: normal;
+    font-size: var(--text-xs);
+}
+
+/* Group title + Unread/All toggle share one baseline. */
+.fyi-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-md);
+    padding-bottom: var(--space-sm);
+    border-bottom: 1px solid var(--color-border-light);
+    margin-bottom: var(--space-xs);
+}
+
+.fyi-title {
+    font-family: var(--font-serif);
+    font-size: var(--text-lg);
+    font-weight: 600;
+    color: var(--color-text);
+    margin: 0;
+}
+
+/* What belongs in this folder, under its name. Quiet: it is a definition,
+   read once and then known, not something to read past every time. */
+.fyi-blurb {
+    margin: var(--space-xs) 0 var(--space-sm);
+    font-size: var(--text-xs);
+    line-height: 1.5;
+    color: var(--color-text-tertiary);
+}
+
+/* ── Rows ─────────────────────────────────────────────────────────── */
+
+.fyi-list {
+    display: flex;
+    flex-direction: column;
+}
+
+/* [ when | summary + amount | unread dot ] — the same row anatomy as the
+   Tasks list next door (.actions-row-meta): a fixed right-aligned gutter
+   drawing a column rule against the title, so both tabs read as one quiet
+   table and every summary starts at the same x. */
+/* Kind icon — a quiet identifying mark beside the gutter (plane, bed,
+   fork; the folder icon otherwise). Tertiary like the date, one shade up
+   on unread rows so the mark reads with the row's own weight. Top margin
+   optically centers it on the summary's first line in the two-line row;
+   the overview row is single-line center-aligned and overrides it. */
+.fyi-row-icon {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    color: var(--color-text-tertiary);
+    margin-top: 2px;
+}
+
+.fyi-row.is-unread .fyi-row-icon,
+.fyi-ov-row.is-unread .fyi-row-icon {
+    color: var(--color-text-secondary);
+}
+
+.fyi-ov-row .fyi-row-icon {
+    margin-top: 0;
+}
+
+.fyi-row {
+    position: relative;
+    display: flex;
+    align-items: stretch;
+    gap: var(--space-sm);
+    width: 100%;
+    padding: var(--space-sm) var(--space-xs);
+    background: none;
+    border: none;
+    border-bottom: 1px solid var(--color-border-light);
+    font-family: inherit;
+    font-size: var(--text-sm);
+    text-align: left;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    transition: background var(--transition-fast);
+}
+
+.fyi-row:hover {
+    background: var(--color-surface-hover);
+}
+
+/* The row being read. A filled well plus a marker on the leading edge:
+   monochrome, so selection has to be stated by weight and position rather
+   than by a colour, and it has to survive next to the unread treatment
+   (which is already a bolder title and a dot). */
+.fyi-row.is-selected {
+    background: var(--color-surface);
+    box-shadow: inset 2px 0 0 var(--color-text);
+}
+
+.fyi-row.is-selected .fyi-row-text {
+    color: var(--color-text);
+}
+
+/* Top-aligned, not centred: on a two-line booking row the gutter must sit
+   against the SUMMARY, not float between the two lines. Identical position
+   on the one-line rows that are the majority. */
+.fyi-row-when {
+    display: flex;
+    justify-content: flex-end;
+    align-items: flex-start;
+    flex: 0 0 84px;
+    font-size: var(--text-xs);
+    color: var(--color-text-secondary);
+    text-align: right;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    border-right: 1px solid var(--color-border-light);
+    padding-right: var(--space-sm);
+}
+
+/* No date of its own, so the gutter falls back to when the mail arrived.
+   Italic-tertiary is the empty-state voice the Tasks list uses for
+   "anytime" — it has to read as a different KIND of date than "in 3
+   days", or an arrival date gets mistaken for an event date. */
+.fyi-row-when.is-arrival {
+    font-style: italic;
+    font-variant-numeric: normal;
+    color: var(--color-text-tertiary);
+}
+
+/* A column, because a booking earns a second line: the summary reads as
+   prose, the extracted facts (route, span, confirmation code) sit under it
+   as structure. Every other insight renders one line and looks unchanged. */
+.fyi-row-body {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.fyi-row-main {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-sm);
+    min-width: 0;
+}
+
+/* Route · span · confirmation code. Tabular figures so codes and dates in
+   consecutive rows line up rather than shimmering. */
+/* The second line of every row: sender, then a booking's facts when it has
+   any. A flex row rather than one concatenated string so each half
+   ellipsises on its own — a long sender name must not be able to eat a
+   flight's route and dates, which is exactly what "sender · route · dates"
+   in a single nowrap span would do in a 240px column. */
+.fyi-row-sub {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-xs);
+    min-width: 0;
+}
+
+/* Subtle, same voice as the date gutter: this identifies the row, it does
+   not compete with the summary above it. */
+.fyi-row-from {
+    flex: 0 1 auto;
+    min-width: 0;
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.fyi-row-detail {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    font-variant-numeric: tabular-nums;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* The folded layout's copy of the date. Hidden here — the gutter has it. */
+.fyi-row-when-inline {
+    display: none;
+    flex: 0 0 auto;
+    font-size: var(--text-xs);
+    color: var(--color-text-secondary);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.fyi-row-when-inline.is-arrival {
+    font-style: italic;
+    font-variant-numeric: normal;
+    color: var(--color-text-tertiary);
+}
+
+/* Separators only between parts that are both present — a leading "·" on a
+   row with no sender would read as a stray bullet. */
+.fyi-row-from + .fyi-row-detail::before,
+.fyi-row-from + .fyi-row-when-inline::before,
+.fyi-row-detail + .fyi-row-when-inline::before {
+    content: "·";
+    margin-right: var(--space-xs);
+}
+
+/* Folder tag on a search-result row (_rowHtml with tag) — the overview's
+   .fyi-ov-tag idea carried to the list: a cross-folder list names each
+   row's home. The extra separator rules keep the "only between parts that
+   are both present" contract now that a tag can sit mid-line. */
+.fyi-row-tag {
+    flex: 0 0 auto;
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    white-space: nowrap;
+}
+
+.fyi-row-from + .fyi-row-tag::before,
+.fyi-row-detail + .fyi-row-tag::before,
+.fyi-row-tag + .fyi-row-when-inline::before {
+    content: "·";
+    margin-right: var(--space-xs);
+}
+
+/* Header search box — the Inbox's idiom, sized to share a row with the
+   icon buttons; the input look itself is the app-wide input style. */
+.fyi-search-wrap {
+    flex: 0 1 220px;
+    min-width: 120px;
+}
+
+.fyi-search-wrap .search-input {
+    width: 100%;
+}
+
+/* Cancelled / Changed. Text, not colour — the palette is monochrome and a
+   cancelled booking is a fact, not an error. */
+.fyi-row-flag {
+    flex: 0 0 auto;
+    font-size: var(--text-xs);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--color-text-tertiary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: 0 4px;
+}
+
+/* A cancelled reservation stays listed — it happened, and its absence from
+   the list would be the surprise — but it stops competing with live rows. */
+.fyi-row.is-cancelled .fyi-row-text {
+    text-decoration: line-through;
+    text-decoration-thickness: 1px;
+    color: var(--color-text-tertiary);
+}
+
+.fyi-row.is-cancelled.is-unread .fyi-row-text {
+    font-weight: 400;
+}
+
+.fyi-row-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.fyi-row-meta {
+    flex: 0 0 auto;
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Unread is a MARK, not a filter (L2 in docs/LIFE_ORG.md) — read rows
+   render at full strength, unread ones carry a dot and a darker title.
+   Same treatment as the feed's series dot: a flex sibling, not an
+   ::after inside the text, so it can't be mistaken for punctuation. */
+.fyi-row.is-unread .fyi-row-text {
+    color: var(--color-text);
+    font-weight: 600;
+}
+
+.fyi-row-dot {
+    flex: 0 0 auto;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--color-text);
+    align-self: center;
+}
+
+/* Per-row hover action (Mark read / Mark unread) — the Inbox's
+   .email-row-actions carried here: a readable text pill that overlays the
+   row's right edge on hover, no reserved width, no layout shift. The
+   backing matches the row's hover well so whatever it covers disappears
+   cleanly instead of bleeding through. */
+.fyi-row-actions {
+    position: absolute;
+    right: var(--space-xs);
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    opacity: 0;
+    pointer-events: none;
+    background: var(--color-surface-hover);
+    padding-left: var(--space-sm);
+    transition: opacity var(--transition-fast);
+}
+
+.fyi-row:hover .fyi-row-actions,
+.fyi-ov-row:hover .fyi-row-actions {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* The selected row keeps its own (lighter) well even under :hover, so the
+   pill's backing has to match that one there. */
+.fyi-row.is-selected .fyi-row-actions {
+    background: var(--color-surface);
+}
+
+.fyi-row-read-btn {
+    font-family: inherit;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    cursor: pointer;
+    color: var(--color-text-secondary);
+    font-size: var(--text-xs);
+    line-height: 1;
+    padding: 6px 10px;
+    white-space: nowrap;
+    transition: all var(--transition-fast);
+}
+
+.fyi-row-read-btn:hover {
+    color: var(--color-text);
+    border-color: var(--color-border-hover);
+    box-shadow: var(--shadow-sm);
+}
+
+.fyi-empty {
+    padding: var(--space-lg) var(--space-xs);
+    font-size: var(--text-sm);
+    font-style: italic;
+    color: var(--color-text-tertiary);
+    max-width: 52ch;
+    line-height: 1.6;
+}
+
+/* The no-accounts gate renders the shared welcome page inside this
+   container — lift the quiet-empty voice for it. */
+.fyi-empty:has(.app-welcome) {
+    font-style: normal;
+    color: var(--color-text);
+    max-width: none;
+}
+
+/* The no-accounts gate's door to Settings › Connected Accounts — the
+   Inbox's .email-connect-prompt-btn in this page's voice. font-style
+   resets because .fyi-empty is italic. */
+.fyi-empty-cta {
+    display: inline-block;
+    margin-top: var(--space-lg);
+    padding: var(--space-sm) var(--space-xl);
+    background: var(--color-text);
+    color: var(--color-bg);
+    border: none;
+    border-radius: 999px;
+    font-size: var(--text-sm);
+    font-style: normal;
+    cursor: pointer;
+    transition: opacity var(--transition-fast);
+}
+
+.fyi-empty-cta:hover {
+    opacity: 0.8;
+}
+
+/* ── Detail (the reading pane) ────────────────────────────────────────
+   One insight, read where it was found. It reads like the task and goal
+   details next door: a title, then a quiet property list with a label
+   gutter. No back link and no breadcrumb — the list it came from is the
+   pane immediately to its left.
+   The action-item rows, feedback row and matter timeline are the shared
+   .insight-* components from email.css — same insight, same controls,
+   wherever it is read. */
+
+/* The measure is the detail's, not the pane's: dragging the divider wide
+   must not stretch prose to an unreadable line length. */
+.fyi-detail {
+    max-width: 62ch;
+    padding-bottom: var(--space-xl);
+}
+
+.fyi-detail-chips {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-sm);
+}
+
+/* Unread is a mark here too — a word, since the detail has room for one. */
+.fyi-detail-unread {
+    font-size: var(--text-xs);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--color-text-tertiary);
+}
+
+.fyi-detail-title {
+    font-family: var(--font-serif);
+    font-size: var(--text-xl);
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--color-text);
+    margin: 0 0 var(--space-sm);
+}
+
+.fyi-detail-lede {
+    font-size: var(--text-base);
+    line-height: 1.65;
+    color: var(--color-text-secondary);
+    margin: 0 0 var(--space-lg);
+}
+
+/* The extracted structure, laid out as properties rather than crushed into
+   the one comma line the list row has room for. */
+.fyi-props {
+    margin-bottom: var(--space-lg);
+    border-top: 1px solid var(--color-border-light);
+}
+
+.fyi-prop {
+    display: grid;
+    grid-template-columns: 108px 1fr;
+    align-items: start;
+    column-gap: var(--space-md);
+    padding: 9px 0;
+    border-bottom: 1px solid var(--color-border-light);
+}
+
+.fyi-prop-label {
+    font-size: var(--text-xs);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-text-tertiary);
+    padding-top: 2px;
+}
+
+.fyi-prop-value {
+    font-size: var(--text-sm);
+    line-height: 1.6;
+    color: var(--color-text);
+}
+
+.fyi-detail-section-label {
+    font-size: var(--text-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-secondary);
+    margin-bottom: var(--space-xs);
+}
+
+/* The action items an insight carries. The ROWS are the shared
+   .insight-action-row component (email.css); only their container is ours,
+   because the shared one was padded to sit inside a card. */
+.fyi-action-items {
+    margin-bottom: var(--space-lg);
+}
+
+.fyi-detail .insight-matter-timeline {
+    margin-bottom: var(--space-lg);
+}
+
+.fyi-detail-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-sm);
+    margin-top: var(--space-md);
+}
+
+.fyi-detail-btn {
+    font-family: inherit;
+    font-size: var(--text-xs);
+    padding: 4px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.fyi-detail-btn:hover {
+    color: var(--color-text);
+    border-color: var(--color-border-hover);
+}
+
+.fyi-detail-footer-group {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+/* Destructive only on approach — at rest it stays in the footer's quiet
+   voice, and the confirm dialog is the real guard. */
+.fyi-detail-btn.is-danger:hover {
+    color: #dc2626;
+    border-color: #dc2626;
+}
+
+/* The feedback row above (email.css) carries no bottom margin — it was
+   built to be a card's last row — so the ask pill needs its own breathing
+   room or the two rows touch. */
+.fyi-detail-ask {
+    margin-top: var(--space-md);
+}
+
+/* ── The message itself ───────────────────────────────────────────────
+   The email renders below the insight, read in place: the insight
+   organizes what was found, the source is right there to check it
+   against. Same sanitized-iframe treatment as the Inbox viewer
+   (EmailUI.renderEmailBodyInto), so the security posture is the Inbox's. */
+.fyi-detail-email {
+    margin-top: var(--space-xl);
+    padding-top: var(--space-md);
+    border-top: 1px solid var(--color-border-light);
+}
+
+.fyi-detail-email-body {
+    font-size: var(--text-sm);
+    line-height: 1.65;
+    color: var(--color-text-secondary);
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    overflow-x: auto;
+}
+
+.fyi-detail-email-body img {
+    max-width: 100%;
+    height: auto;
+}
+
+/* ── The fold ─────────────────────────────────────────────────────────
+   A narrow list can't afford an 84px date gutter and a column rule, so the
+   row becomes two lines: the summary (with its unread dot and amount) over
+   the date, flush left on the same axis as the summary — a date left
+   hanging in the middle of the row reads as a rendering fault.
+
+   Driven by the PANE, not the window: the divider is draggable, so a wide
+   monitor can still hold a 240px list and only the pane knows. The window
+   query below it covers the stacked layout, where the pane is the window.
+
+   This block MUST come after the .fyi-row rules above: same specificity, so
+   whichever is later wins. It sat before them until 2026-08-02, where only
+   `order` and `flex-wrap` (which the base rules don't set) survived — the
+   row folded, but the date kept its 84px right-aligned box and its column
+   rule, and the unread dot was pushed down in front of it. */
+@container fyilist (max-width: 380px) {
+    .fyi-row {
+        flex-wrap: wrap;
+        align-items: center;
+        row-gap: 2px;
+    }
+
+    /* TWO lines, not three: [ title | dot ] then [ sender · facts · date ].
+       The 84px date gutter cannot survive at this width — a third of a
+       ~240px row — so the date folds onto the metadata line rather than
+       taking a third line of its own, which is what it did for one commit
+       after the sender line arrived.
+
+       It folds by SWAPPING which copy of the date is displayed, not by
+       being re-ordered. Re-ordering was tried and does not work: the date
+       is a sibling of .fyi-row-body while the sender is a grandchild, so
+       putting them on one line needs `display: contents` plus a forced
+       line break between title and metadata — and flex wraps an
+       over-long item onto its own line BEFORE it shrinks one, so a long
+       sender pushed the date down again anyway. Two spans, one hidden,
+       is the version that holds at every width. */
+    .fyi-row-when {
+        display: none;
+    }
+
+    .fyi-row-when-inline {
+        display: inline;
+    }
+
+    /* Every child needs an explicit order here: without one the dot
+       defaults to 0 and wraps ABOVE the text, reading as a stray bullet.
+       Basis 0, not auto: with an auto basis the body's content width alone
+       overflows the line, so the dot wrapped down and sat in front of the
+       date instead of marking the title it belongs to. */
+    .fyi-row-body {
+        flex: 1 1 0;
+        order: 1;
+    }
+
+    .fyi-row-dot {
+        order: 2;
+    }
+
+    /* The Inbox's split-list call: at this width the pill would overlay
+       most of the row, so hover actions drop and the right-click menu
+       stays the way to mark without opening. */
+    .fyi-row-actions {
+        display: none;
+    }
+}
+
+
+/* ── Overview — the page's home, an attention-first BRIEFING ────────────
+   (2026-08-04; it was every folder with its newest rows over newspaper
+   columns, which read as a wall and repeated what the nav says.) Two
+   short groups — Coming up (dated, soonest first) and New since you last
+   looked (unread, capped) — in ONE reading column; everything read and
+   undated lives in the folders. The list pane and its divider make way:
+   the groups carry their own rows, so a second list beside them would
+   say everything twice. */
+.fyi-layout.is-overview > .fyi-list-pane,
+.fyi-layout.is-overview > #fyi-list-resizer {
+    display: none;
+}
+
+/* Full width (2026-08-31, by request — was a 720px reading measure).
+   These are ONE-LINE truncating rows, not paragraphs: width spent here is
+   summary text that would otherwise ellipsise, so the briefing takes the
+   whole content area. The detail keeps its 62ch measure — prose still
+   gets the reading column. */
+.fyi-overview {
+    max-width: none;
+}
+
+.fyi-ov-section {
+    margin-bottom: var(--space-xl);
+}
+
+/* Group titles are eyebrows, not headings — the rows are the content and
+   two loud titles over a short page would outweigh it. */
+.fyi-ov-eyebrow {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-sm);
+    font-family: var(--font-sans);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-text-tertiary);
+    border-bottom: 1px solid var(--color-border-light);
+    padding: 0 0 6px;
+    margin: 0;
+}
+
+.fyi-ov-count {
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    font-variant-numeric: tabular-nums;
+}
+
+/* One-line rows: the folder's own list holds the second line (booking
+   facts, blurbs); here the summary and who sent it are enough to decide
+   whether to go in. */
+.fyi-ov-row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    width: 100%;
+    background: none;
+    border: none;
+    border-bottom: 1px solid var(--color-border-light);
+    padding: 7px var(--space-xs);
+    cursor: pointer;
+    text-align: left;
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    transition: background var(--transition-fast);
+}
+
+/* Whole-row hover — the folder list's (and the Inbox's) treatment. The
+   old underline-on-the-title-only read as "just the text is clickable"
+   when the entire row has always been the door. */
+.fyi-ov-row:hover {
+    background: var(--color-surface-hover);
+}
+
+.fyi-ov-row.is-unread .fyi-ov-text {
+    color: var(--color-text);
+    font-weight: 600;
+}
+
+.fyi-ov-text {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.fyi-ov-from {
+    flex-shrink: 0;
+    max-width: 12em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+}
+
+/* Which folder the row lives in — the door's name, in the quietest voice
+   on the row, so a reader knows where it files without leaving the
+   briefing. */
+.fyi-ov-tag {
+    flex-shrink: 0;
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+}
+
+.fyi-ov-more {
+    background: none;
+    border: none;
+    padding: 7px 0 0;
+    cursor: pointer;
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+}
+
+.fyi-ov-more:hover {
+    color: var(--color-text);
+    text-decoration: underline;
+}
+
+/* Accounts at the bottom of the types nav — the Inbox sidebar's section,
+   carried over. One connected account renders as a quiet fact (all
+   connect/disconnect actions live in Settings); several render as
+   .actions-nav-item scope rows above this rule, needing no styles of
+   their own. */
+.fyi-account-static {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    padding: 5px var(--space-sm) 5px var(--space-md);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.fyi-accounts-manage {
+    display: block;
+    width: 100%;
+    background: none;
+    border: none;
+    text-align: left;
+    color: var(--color-text-tertiary);
+    cursor: pointer;
+    font-size: var(--text-xs);
+    padding: var(--space-xs) var(--space-sm) var(--space-xs) var(--space-md);
+    /* One line always — wrapping orphans the chevron on its own line. */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.fyi-accounts-manage:hover {
+    color: var(--color-text);
+}
+
+/* Narrow windows: three columns stop being three columns. The panes stack
+   — types, then rows, then what you're reading — which is the same reading
+   order, just vertical. The list keeps a bounded height and its own scroll
+   so the detail is never pushed off the bottom of a long group, and the
+   dividers go: there is nothing left to drag. */
+@media (max-width: 960px) {
+    #fyi-view .actions-nav-resizer {
+        display: none;
+    }
+
+    .fyi-layout {
+        flex-direction: column;
+        /* The layout aligns its panes to flex-start, which in a column means
+           "shrink to content width" — the reading pane came out 292px wide
+           inside an 790px window until this stretched it back. */
+        align-items: stretch;
+    }
+
+    /* The types become a chip strip across the top rather than a full-width
+       vertical list, which in a stacked layout would cost a third of the
+       window before the first row. Same treatment actions.css gives every
+       nav under 640px, pulled forward because this page has one more pane to
+       fit. */
+    #fyi-view .actions-nav {
+        position: static;
+        max-height: none;
+        width: 100%;
+        flex: none;
+        flex-direction: row;
+        align-items: center;
+        overflow-x: auto;
+        border-bottom: 1px solid var(--color-border-light);
+        padding: 0 0 var(--space-sm);
+        margin-bottom: var(--space-md);
+        gap: 2px;
+    }
+
+    #fyi-view .actions-nav-header {
+        display: none;
+    }
+
+    #fyi-view .actions-nav-section {
+        flex-direction: row;
+        margin-bottom: 0;
+        gap: 2px;
+    }
+
+    #fyi-view .actions-nav-item {
+        width: auto;
+        white-space: nowrap;
+    }
+
+    /* In the chip strip there is no "bottom of the nav": the single-account
+       fact and the Settings link don't earn strip space (account scope chips
+       are .actions-nav-item rows and survive as chips). */
+    #fyi-view .fyi-account-static,
+    #fyi-view .fyi-accounts-manage {
+        display: none;
+    }
+
+    .fyi-list-pane {
+        position: static;
+        /* align-self:flex-start is set outside the query and outranks the
+           container's align-items, so each pane has to be released here or
+           it shrinks to its content width. */
+        align-self: stretch;
+        flex: none;
+        width: 100%;
+        max-height: 42vh;
+        padding-right: 0;
+        border-bottom: 1px solid var(--color-border-light);
+        margin-bottom: var(--space-md);
+    }
+
+    #fyi-view .fyi-reading {
+        position: static;
+        align-self: stretch;
+        max-height: none;
+        overflow: visible;
+    }
+}
+
+/* Narrow windows: an 84px gutter plus a column rule costs more than it
+   gives, so the row becomes two lines — summary and its unread dot on the
+   first, the date beneath. Every child needs an explicit `order` here:
+   without one the dot defaults to 0 and wraps ABOVE the text, reading as
+   a stray bullet. */
+@media (max-width: 640px) {
+    .fyi-row {
+        flex-wrap: wrap;
+        align-items: center;
+        row-gap: 2px;
+    }
+
+    .fyi-row-body {
+        flex: 1 1 0;
+        order: 1;
+    }
+
+    .fyi-row-dot {
+        order: 2;
+    }
+
+    /* Same call as the narrow list pane: the pill would overlay the whole
+       row, so the right-click menu carries mark-read here. */
+    .fyi-row-actions {
+        display: none;
+    }
+
+    .fyi-row-when {
+        flex: 1 1 100%;
+        order: 3;
+        justify-content: flex-start;
+        text-align: left;
+        border-right: none;
+        padding-right: 0;
+    }
+
+    /* The 108px label gutter leaves too little for a value here; the label
+       goes above it instead. */
+    .fyi-prop {
+        grid-template-columns: 1fr;
+        row-gap: 2px;
+    }
+}

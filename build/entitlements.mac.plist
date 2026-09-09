@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+    <true/>
+    <key>com.apple.security.cs.allow-dyld-environment-variables</key>
+    <true/>
+    <key>com.apple.security.device.touchid</key>
+    <true/>
+    <key>com.apple.security.device.bluetooth</key>
+    <true/>
+    <!-- Apple Calendar / Reminders import (EventKit via the bundled helper,
+         which inherits these entitlements). Under the hardened runtime a
+         process without this key is refused Calendars/Reminders access
+         SILENTLY: no consent dialog, no row under Privacy & Security.
+         That was alpha.64/65 on macOS 26 (2026-09-08). -->
+    <key>com.apple.security.personal-information.calendars</key>
+    <true/>
+</dict>
+</plist>
