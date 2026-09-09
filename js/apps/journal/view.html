@@ -1,0 +1,158 @@
+<!-- Journal package view — appended to #app-views by BundledApps.load. -->
+        <div id="journal-view" class="view app-view">
+            <div class="app-header-bar">
+                <h2 class="app-view-title">
+                    <span id="journal-breadcrumb" class="app-breadcrumb">Journal</span>
+                </h2>
+                <div class="app-header-actions">
+                    <div class="journal-search-wrap">
+                        <input type="text" id="journal-search" class="search-input" placeholder="Search&hellip;" autocomplete="off" aria-label="Search entries">
+                    </div>
+                    <!-- Pane toggles — the Notes trio: sidebar, timeline, reading pane. -->
+                    <button id="journal-toggle-nav-btn" class="icon-btn" title="Hide filters" aria-label="Show or hide the filters sidebar" aria-pressed="false"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="9" y1="4" x2="9" y2="20"/><line x1="15" y1="4" x2="15" y2="20"/><rect x="4.6" y="5.6" width="2.8" height="12.8" rx="0.8" fill="currentColor" stroke="none"/></svg></button>
+                    <button id="journal-toggle-list-btn" class="icon-btn" title="Hide timeline" aria-label="Show or hide the entry timeline" aria-pressed="false"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="9" y1="4" x2="9" y2="20"/><line x1="15" y1="4" x2="15" y2="20"/><rect x="10.6" y="5.6" width="2.8" height="12.8" rx="0.8" fill="currentColor" stroke="none"/></svg></button>
+                    <button id="journal-reader-toggle" class="icon-btn" title="Hide reading pane" aria-label="Show or hide the reading pane" aria-pressed="false"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="9" y1="4" x2="9" y2="20"/><line x1="15" y1="4" x2="15" y2="20"/><rect x="16.6" y="5.6" width="2.8" height="12.8" rx="0.8" fill="currentColor" stroke="none"/></svg></button>
+                    <button class="icon-btn app-help-btn" data-help-for="journal" title="Journal help" aria-label="Journal help"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.3 9.3a2.7 2.7 0 0 1 5.4.6c0 1.8-2.7 2.1-2.7 3.6"/><line x1="12" y1="16.8" x2="12" y2="16.81"/></svg></button>
+                    <button id="add-journal-btn" class="primary-btn">+ New Entry</button>
+                </div>
+            </div>
+
+            <div class="journal-layout">
+                <div class="journal-sidebar">
+                    <div class="journal-sidebar-section">
+                        <div class="journal-sidebar-title">Filter</div>
+                        <div class="journal-filter-list" id="journal-filter-list">
+                            <div class="journal-filter-item active" data-filter="all">
+                                <span class="journal-filter-name">All Entries</span>
+                                <span class="journal-filter-count" id="journal-count-all">0</span>
+                            </div>
+                            <div class="journal-filter-item" data-filter="week">
+                                <span class="journal-filter-name">This Week</span>
+                                <span class="journal-filter-count" id="journal-count-week">0</span>
+                            </div>
+                            <div class="journal-filter-item" data-filter="month">
+                                <span class="journal-filter-name">This Month</span>
+                                <span class="journal-filter-count" id="journal-count-month">0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="journal-sidebar-section">
+                        <div class="journal-sidebar-title">Mood</div>
+                        <div class="journal-mood-filter-list" id="journal-mood-filter-list">
+                            <!-- Rendered by JS -->
+                        </div>
+                    </div>
+
+                    <div class="journal-sidebar-section">
+                        <div class="journal-sidebar-title">Tags</div>
+                        <div class="journal-tag-cloud" id="journal-tag-cloud">
+                            <!-- Rendered by JS -->
+                        </div>
+                    </div>
+
+                    <div class="journal-sidebar-section journal-stats-section">
+                        <div class="journal-sidebar-title">Stats</div>
+                        <div class="journal-stats" id="journal-stats">
+                            <!-- Rendered by JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <div id="journal-nav-resizer" class="journal-nav-resizer" role="separator"
+                     aria-orientation="vertical" aria-label="Resize sidebar"
+                     title="Drag to resize &mdash; double-click to reset"></div>
+
+                <!-- Middle column: the timeline. Search lives in the header
+                     bar, the same place every other app puts it. -->
+                <div class="journal-list-col">
+                    <div id="journal-container" class="journal-timeline">
+                        <!-- Journal entries will be rendered here -->
+                    </div>
+
+                    <div id="journal-empty" class="journal-empty-state">
+                        <h3>No journal entries yet</h3>
+                        <p>Start one with + New Entry</p>
+                    </div>
+                </div>
+
+                <div id="journal-list-resizer" class="journal-nav-resizer journal-list-resizer" role="separator"
+                     aria-orientation="vertical" aria-label="Resize entry list"
+                     title="Drag to resize &mdash; double-click to reset"></div>
+
+                <!-- Right pane: the always-editable entry. The
+                     #journal-editor-view host (declared below) is moved
+                     inside this pane at runtime by JournalApp.init(). -->
+                <div class="journal-entry-pane" id="journal-entry-pane">
+                    <!-- Way back from the full-width entry (reading pane off) —
+                         label filled in by JournalApp._syncReaderState. -->
+                    <button type="button" id="journal-reader-back" class="back-btn journal-reader-back">&#8592; All entries</button>
+                    <div id="journal-entry-empty" class="journal-entry-empty">
+                        <p class="journal-entry-empty-title">Select an entry</p>
+                        <p class="journal-entry-empty-hint">&hellip;or start today&rsquo;s with + New Entry.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- The always-editable journal entry host. Moved inside
+             #journal-entry-pane at runtime — the old separate viewer and
+             editor views are gone (2026-07-20). -->
+        <div id="journal-editor-view" class="journal-entry-host" hidden>
+            <div class="editor-header journal-editor-header-bar">
+                <div class="editor-actions">
+                    <button id="journal-focus-mode-btn" class="icon-btn journal-focus-btn" title="Maximize &mdash; distraction-free writing (F)" aria-label="Maximize the entry">&#9974;</button>
+                    <button id="journal-photo-btn" class="secondary-btn" title="Add photos (or paste / drag them in)">&#128247; Photo</button>
+                    <button id="journal-video-btn" class="secondary-btn" title="Add a video (mp4 or webm)">&#127909; Video</button>
+                    <button id="journal-editor-delete-btn" class="secondary-btn">Delete</button>
+                    <!-- Hidden pickers backing the two buttons above. -->
+                    <input type="file" id="journal-photo-input" accept="image/*" multiple hidden>
+                    <input type="file" id="journal-video-input" accept="video/mp4,video/webm" hidden>
+                </div>
+            </div>
+
+            <div class="journal-editor-main">
+                <!-- Quiet metadata strip — date · mood · word count · save dot.
+                     The native <input type="date"> ships with chrome (border,
+                     calendar dropdown, fixed metrics) that fights any minimal
+                     styling. We hide the input visually and put a button with
+                     a friendly date label in front; clicking the button opens
+                     the picker via showPicker(). -->
+                <div class="journal-meta-strip">
+                    <button type="button" id="journal-date-trigger" class="journal-meta-date-trigger" aria-label="Change date">
+                        <span id="journal-date-display"></span>
+                    </button>
+                    <input type="date" id="journal-date-input" class="journal-meta-date-hidden" aria-label="Date" required tabindex="-1">
+                    <span class="journal-meta-sep" aria-hidden="true">&middot;</span>
+                    <button type="button" id="journal-mood-trigger" class="journal-meta-mood" aria-haspopup="true" aria-expanded="false">
+                        <span id="journal-mood-icon" class="journal-mood-icon">&#9675;</span>
+                        <span id="journal-mood-label" class="journal-mood-label">Mood</span>
+                    </button>
+                    <span class="journal-meta-sep" aria-hidden="true">&middot;</span>
+                    <span id="journal-word-count" class="journal-meta-count">0 words</span>
+                    <span class="journal-meta-sep" aria-hidden="true">&middot;</span>
+                    <span id="journal-save-status" class="journal-save-indicator" data-state="saved" aria-live="polite">
+                        <span class="journal-save-icon" aria-hidden="true"></span>
+                        <span class="journal-save-label">Saved</span>
+                    </span>
+
+                    <!-- Tags inline with the metadata. Pushed to the right so
+                         they group as a separate cluster from status labels. -->
+                    <div id="journal-tags-container" class="journal-tags-strip">
+                        <button type="button" id="journal-tag-add-btn" class="journal-tag-add-btn">+ Add tag</button>
+                        <input type="text" id="journal-tag-input" class="journal-tag-input"
+                            placeholder="Type tag, press Enter" autocomplete="off" hidden>
+                    </div>
+                </div>
+
+                <!-- The writing surface. No permanent toolbar — formatting via
+                     selection toolbar, slash menu, and markdown shortcuts. -->
+                <div id="journal-content-input" class="journal-content-editor" contenteditable="true"
+                    data-placeholder="Start writing&hellip; or type / for blocks, # for headings"></div>
+            </div>
+
+            <!-- Mood picker popover (positioned by JS, hidden by default) -->
+            <div id="journal-mood-popover" class="journal-mood-popover" role="menu" hidden>
+                <!-- Mood options rendered here -->
+            </div>
+        </div>
