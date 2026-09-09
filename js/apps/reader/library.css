@@ -1,0 +1,523 @@
+/* Documents (docs/LIBRARY.md L1; the app was "Reader" until 2026-09-02)
+   — Minimal Book: reading surface, hairlines, no card chrome beyond what
+   the shared classes give. Two panes (the Tasks recipe: .actions-layout /
+   .actions-nav): the tag tree left, the document list right, and the
+   document reader in place. Engine/maintenance lives in Settings ›
+   Documents; the user's writing voice (L2) is Settings › Writing voice
+   (css/apps/settings.css). */
+
+/* A single reading column. The cap rides --view-content-max so the shared
+   .app-view rule centres the header bar and the content on ONE left edge
+   (core.css "header matches content") — a max-width on .library-main alone
+   left the header full-bleed over a narrow column. The `library-` class
+   prefix is storage: the Writing Voices app that shared these rules is
+   gone (2026-09-02), the names stayed. */
+#reader-view {
+    --view-content-max: 1000px;
+}
+/* The reader column keeps a reading measure inside the wider page. */
+#reader-view .library-reader { max-width: 720px; }
+
+/* The welcome (no documents at all) is one column: hide the nav + handle. */
+#reader-view .library-layout.is-empty > .library-nav,
+#reader-view .library-layout.is-empty > .actions-nav-resizer { display: none; }
+
+/* ── Tag tree (left pane) ─────────────────────────────────────────── */
+#reader-view .library-tag-item .actions-nav-label {
+    padding-left: calc(var(--depth, 0) * 14px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+/* A tag node: the row button plus its child-"+" (visible on hover, and
+   always for the selected row). Pending = created, nothing in it yet. */
+#reader-view .library-tag-node {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+#reader-view .library-tag-node > .library-tag-item { flex: 1 1 auto; min-width: 0; }
+#reader-view .library-tag-child {
+    flex: 0 0 auto;
+    width: 20px;
+    height: 20px;
+    border: none;
+    background: none;
+    border-radius: var(--radius-sm);
+    font: inherit;
+    line-height: 1;
+    color: var(--color-text-tertiary);
+    cursor: pointer;
+    visibility: hidden;
+}
+#reader-view .library-tag-node:hover .library-tag-child,
+#reader-view .library-tag-node > .is-active + .library-tag-child { visibility: visible; }
+#reader-view .library-tag-child:hover { background: var(--color-surface-hover); color: var(--color-text); }
+#reader-view .library-tag-node.is-pending .actions-nav-label { font-style: italic; }
+#reader-view .library-tag-node.is-pending .actions-nav-count { display: none; }
+#reader-view .library-nav-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+}
+#reader-view .library-nav-new {
+    border: none;
+    background: none;
+    padding: 0;
+    font: inherit;
+    font-size: var(--text-xs);
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--color-text-tertiary);
+    cursor: pointer;
+}
+#reader-view .library-nav-new:hover { color: var(--color-text); text-decoration: underline; }
+#reader-view .library-doc-row.is-dragging { opacity: 0.5; }
+#reader-view .library-tag-item.is-dropover {
+    outline: 2px dashed var(--color-border-hover);
+    outline-offset: -2px;
+    background: var(--color-surface);
+}
+#reader-view .library-nav-hint {
+    margin: var(--space-xs) var(--space-sm) 0;
+    font-size: var(--text-xs);
+    line-height: 1.5;
+    color: var(--color-text-tertiary);
+}
+
+/* ── List head ───────────────────────────────────────────────────── */
+#reader-view .library-list-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-md);
+    margin: var(--space-xs) 0 var(--space-sm);
+}
+#reader-view .library-list-title {
+    margin: 0;
+    font-family: var(--font-serif);
+    font-size: var(--text-lg);
+    font-weight: 600;
+}
+#reader-view .library-list-meta {
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    white-space: nowrap;
+}
+#reader-view .library-ask-label {
+    display: block;
+    margin-bottom: var(--space-sm);
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+}
+
+#reader-view .library-main {
+    padding: var(--space-md) 0 var(--space-2xl);
+}
+
+/* Import drop target — the whole column, shown only mid-drag. */
+#reader-view .library-main.is-dragover {
+    outline: 2px dashed var(--color-border-hover);
+    outline-offset: 8px;
+    border-radius: var(--radius-md);
+}
+
+#reader-view .library-intro {
+    color: var(--color-text-secondary);
+    font-size: var(--text-sm);
+    line-height: 1.55;
+    margin: 0 0 var(--space-lg);
+}
+
+#reader-view .library-search {
+    margin-bottom: var(--space-md);
+}
+
+/* Search-term highlight — a soft ink wash, not highlighter yellow (the
+   monochrome palette holds; the weight does the pointing). */
+#reader-view mark {
+    background: color-mix(in srgb, var(--color-text) 12%, transparent);
+    color: inherit;
+    font-weight: 600;
+    border-radius: 2px;
+    padding: 0 1px;
+}
+
+/* A button that reads as a link — quiet doors inside prose/meta lines. */
+#reader-view .library-linklike {
+    border: none;
+    background: none;
+    padding: 0;
+    font-size: inherit;
+    color: var(--color-text-secondary);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
+}
+#reader-view .library-linklike:hover { color: var(--color-text); }
+
+#reader-view .library-keyword-note,
+#reader-view .library-empty {
+    color: var(--color-text-tertiary);
+    font-style: italic;
+    font-size: var(--text-sm);
+    padding: var(--space-sm) 0;
+    margin: 0;
+}
+
+/* ── Search results: grouped by DOCUMENT ─────────────────────────────
+   The document is the unit the user acts on; the passages under it are
+   why it matched. Every row is a door into the reader. */
+
+#reader-view .library-result-doc {
+    margin-top: var(--space-lg);
+}
+
+#reader-view .library-result-dochead {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-sm);
+    width: 100%;
+    border: none;
+    background: none;
+    padding: 0 0 var(--space-xs);
+    border-bottom: 1px solid var(--color-border-light);
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+#reader-view .library-result-doctitle {
+    font-family: var(--font-serif);
+    font-size: var(--text-base);
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+#reader-view .library-result-collection {
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+}
+
+/* The "open" affordance shows at rest, quietly — the insight-action
+   lesson: an affordance only on hover reads as absent. */
+#reader-view .library-result-open {
+    margin-left: auto;
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    white-space: nowrap;
+}
+#reader-view .library-result-dochead:hover .library-result-doctitle { text-decoration: underline; }
+#reader-view .library-result-dochead:hover .library-result-open { color: var(--color-text); }
+
+#reader-view .library-result {
+    display: block;
+    width: 100%;
+    border: none;
+    background: none;
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+    padding: var(--space-sm) var(--space-xs);
+    border-bottom: 1px solid var(--color-border-light);
+    transition: background var(--transition-fast);
+}
+#reader-view .library-result:hover { background: var(--color-surface); }
+
+#reader-view .library-result-section {
+    display: block;
+    color: var(--color-text-tertiary);
+    font-size: var(--text-xs);
+    margin-bottom: 2px;
+}
+
+#reader-view .library-result-text {
+    margin: 0;
+    color: var(--color-text-secondary);
+    font-size: var(--text-sm);
+    line-height: 1.5;
+}
+
+/* ── Documents (home) ────────────────────────────────────────────── */
+
+#reader-view .library-collection { margin-top: var(--space-xl); }
+#reader-view .library-collection:first-child { margin-top: var(--space-sm); }
+#reader-view .library-collection-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-md);
+    margin-bottom: var(--space-xs);
+}
+#reader-view .library-collection-title {
+    font-size: var(--text-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    margin: 0;
+}
+#reader-view .library-collection-count {
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+}
+
+#reader-view .library-doc-row {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-sm);
+    width: 100%;
+    cursor: pointer;
+    padding: 0.45rem var(--space-xs);
+    border-bottom: 1px solid var(--color-border-light);
+    font-size: var(--text-sm);
+    color: var(--color-text);
+    border-radius: var(--radius-sm);
+    transition: background var(--transition-fast);
+}
+#reader-view .library-doc-row:hover { background: var(--color-surface); }
+
+/* The type tag: a fixed left gutter (the home widget's when-gutter idea). */
+#reader-view .library-doc-ext {
+    flex: 0 0 38px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    color: var(--color-text-tertiary);
+}
+
+#reader-view .library-doc-row .library-doc-title {
+    flex: 1 1 40%;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Tag chips on a row: the shared .task-tag chip, plus a quiet × and the
+   "+ tag" door that appears on hover (the chips themselves stay). */
+#reader-view .library-doc-tags {
+    display: inline-flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 4px;
+    flex: 1 1 30%;
+    min-width: 0;
+}
+#reader-view .library-tag-chip {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 2px;
+    cursor: pointer;
+}
+#reader-view .library-tag-chip:hover { color: var(--color-text); border-color: var(--color-border-hover); }
+#reader-view .library-tag-x {
+    border: none;
+    background: none;
+    padding: 0 0 0 2px;
+    font: inherit;
+    line-height: 1;
+    color: var(--color-text-tertiary);
+    cursor: pointer;
+    visibility: hidden;
+}
+#reader-view .library-tag-chip:hover .library-tag-x { visibility: visible; }
+#reader-view .library-tag-x:hover { color: #dc2626; }
+#reader-view .library-tag-add {
+    border: 1px dashed var(--color-border);
+    background: none;
+    border-radius: var(--radius-sm);
+    padding: 0 6px;
+    font-family: inherit;
+    font-size: var(--text-xs);
+    line-height: 1.5;
+    color: var(--color-text-tertiary);
+    cursor: pointer;
+    visibility: hidden;
+}
+#reader-view .library-doc-row:hover .library-tag-add,
+#reader-view .library-tag-add.is-visible { visibility: visible; }
+#reader-view .library-tag-add:hover { color: var(--color-text); border-color: var(--color-border-hover); }
+
+/* Search results: tags beside the document title. */
+#reader-view .library-result-tags {
+    display: inline-flex;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+/* The reader's tag strip, under the meta line. */
+#reader-view .library-reader-tags {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: calc(-1 * var(--space-xs)) 0 var(--space-md);
+}
+#reader-view .library-reader-tags-label {
+    font-size: var(--text-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+    color: var(--color-text-tertiary);
+    margin-right: 2px;
+}
+#reader-view .library-doc-row .library-doc-meta {
+    color: var(--color-text-tertiary);
+    font-size: var(--text-xs);
+    flex-shrink: 0;
+    max-width: 45%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+#reader-view .library-doc-row[data-status="error"] .library-doc-meta { color: #dc2626; }
+
+/* Remove appears on hover only — a destructive act stays quiet (the
+   exemplar-remove rule). A span, not a nested button. */
+#reader-view .library-doc-remove {
+    flex-shrink: 0;
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    visibility: hidden;
+}
+#reader-view .library-doc-row:hover .library-doc-remove { visibility: visible; }
+#reader-view .library-doc-remove:hover { color: #dc2626; text-decoration: underline; }
+
+#reader-view .library-reader-delete:hover { color: #dc2626; }
+
+#reader-view .library-status-line {
+    margin-top: var(--space-lg);
+    color: var(--color-text-tertiary);
+    font-size: var(--text-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+}
+
+/* ── Reader ──────────────────────────────────────────────────────────
+   The document read where it was found — serif title, quiet meta with
+   the doors to the original file, prose at a comfortable measure. */
+
+#reader-view .library-back {
+    margin-bottom: var(--space-lg);
+    padding: 4px 12px;
+    font-size: var(--text-xs);
+    color: var(--color-text-secondary);
+}
+#reader-view .library-back:hover { color: var(--color-text); }
+
+#reader-view .library-reader-title {
+    font-family: var(--font-serif);
+    font-size: var(--text-2xl);
+    font-weight: 600;
+    margin: 0 0 var(--space-xs);
+}
+
+#reader-view .library-reader-meta {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-md);
+    flex-wrap: wrap;
+    padding-bottom: var(--space-sm);
+    border-bottom: 1px solid var(--color-border-light);
+    margin-bottom: var(--space-md);
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+}
+
+#reader-view .library-reader-path {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+}
+
+#reader-view .library-reader-actions {
+    margin-left: auto;
+    display: inline-flex;
+    gap: var(--space-md);
+    white-space: nowrap;
+}
+
+#reader-view .library-reader-body {
+    font-size: var(--text-base);
+    line-height: 1.7;
+    color: var(--color-text);
+    max-width: 66ch;
+}
+#reader-view .library-reader-body p { margin: 0 0 1em; }
+
+#reader-view .library-reader-more { margin-top: var(--space-md); }
+
+/* The self voice's folder, tagged on its collection head. */
+#reader-view .reader-voice-tag {
+    margin-left: var(--space-xs);
+    font-family: var(--font-sans);
+    font-size: var(--text-xs);
+    font-weight: 500;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--color-text-tertiary);
+}
+
+/* ── Readable text (DocTidy) ─────────────────────────────────────────
+   The banner names the view (tidied by AI / extracted) and holds the
+   door to the other; the tidied body wears the shared .ai-prose
+   markdown typography; the extracted body reflows with page rules and
+   tabular runs in a quiet monospace block. */
+#reader-view .library-reader-ai {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px;
+    margin: 0 0 var(--space-md);
+    padding: var(--space-xs) var(--space-sm);
+    border: 1px solid var(--color-border-light);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
+    font-size: var(--text-xs);
+    color: var(--color-text-secondary);
+}
+#reader-view .library-reader-ai-note { color: var(--color-text-tertiary); }
+#reader-view .library-reader-ai-err { color: #dc2626; }
+#reader-view .library-reader-body--tidy { max-width: 70ch; }
+#reader-view .library-reader-body--tidy table {
+    border-collapse: collapse;
+    margin: 0 0 1em;
+    font-size: var(--text-sm);
+}
+#reader-view .library-reader-body--tidy th,
+#reader-view .library-reader-body--tidy td {
+    border: 1px solid var(--color-border-light);
+    padding: 4px 8px;
+    text-align: left;
+    vertical-align: top;
+}
+#reader-view .library-reader-body--tidy hr {
+    border: none;
+    border-top: 1px solid var(--color-border-light);
+    margin: var(--space-lg) 0;
+}
+#reader-view .library-page-mark {
+    margin: var(--space-lg) 0;
+    text-align: center;
+    font-size: var(--text-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-text-tertiary);
+}
+#reader-view .library-page-mark::before,
+#reader-view .library-page-mark::after { content: ' — '; }
+#reader-view .library-reader-table {
+    margin: 0 0 1em;
+    padding: var(--space-sm);
+    border: 1px solid var(--color-border-light);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: var(--text-xs);
+    line-height: 1.5;
+    white-space: pre;
+    overflow-x: auto;
+}
