@@ -1,0 +1,5 @@
+ACME BANK STATEMENT
+Opening balance: $1,000.00
+Coffee Shop -$4.50
+Grocery Mart -$82.13
+Closing balance: $913.37
