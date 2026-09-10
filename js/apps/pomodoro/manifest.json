@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "id": "pomodoro",
+  "name": "Pomodoro",
+  "version": "1.0.0",
+  "description": "Focus sessions on a task, with breaks. Reached from Tasks.",
+  "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"13\" r=\"8\"/><path d=\"M12 9v4l2.5 1.5\"/><path d=\"M9 3h6\"/><path d=\"M12 3v2\"/></svg>",
+  "group": "Do",
+  "subappOf": "actions",
+  "eager": true,
+  "uses": [
+    "schedule"
+  ],
+  "keywords": [
+    "pomodoro",
+    "focus timer"
+  ],
+  "styles": [
+    "pomodoro.css"
+  ],
+  "view": "view.html",
+  "scripts": [
+    "quotes-library.js",
+    "pomodoro-app.js"
+  ]
+}
