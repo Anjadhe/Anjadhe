@@ -1,0 +1,271 @@
+/* ========================================
+   Cross-App Linking — Picker & Linked Items
+   ======================================== */
+
+/* --- Link Picker Modal --- */
+
+/* Restyled 2026-08-03 to the Email AI row vocabulary. It used to be a stack
+   of bordered cards at 640px: every row carried its own box, the title was
+   `--text-base` on one nowrap line so real task names ("Join the live
+   introduction of HELOC for Conci…") truncated mid-word, and the meta was
+   pinned to the far right of a wide card, so the eye had to cross empty
+   space to pair a task with its time.
+
+   A picker is a READING surface — you scan it once and choose — so it gets
+   the same treatment as the FYI list: hairline separators instead of card
+   borders, a fixed metadata gutter so times line up in a column, and titles
+   allowed to wrap to a second line. */
+/* MUST be `dialog.modal.link-picker-modal`, not `.link-picker-modal`: the
+   shared `dialog.modal` rule in components.css carries max-width:500px at
+   specificity (0,1,1), so a lone class selector loses to it no matter where
+   it sits in the cascade — the earlier 860px here silently did nothing.
+   Same note components.css leaves at its .reload-dialog override. */
+dialog.modal.link-picker-modal {
+    max-width: min(900px, 92vw);
+    width: 100%;
+}
+
+.link-picker {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+}
+
+.link-picker-search {
+    /* Inherits from .search-input; just ensure it fills the modal */
+    margin-bottom: var(--space-xs);
+}
+
+.link-picker-list {
+    max-height: min(56vh, 520px);
+    overflow-y: auto;
+    /* Rows own their separators now, so no inter-row gap — a gap plus a
+       hairline reads as two different dividers. */
+    display: block;
+    border-top: 1px solid var(--color-border-light);
+}
+
+.link-picker-item {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-md);
+    width: 100%;
+    padding: var(--space-sm) var(--space-xs);
+    background: none;
+    border: none;
+    border-bottom: 1px solid var(--color-border-light);
+    border-radius: 0;
+    cursor: pointer;
+    font-family: var(--font-sans);
+    text-align: left;
+    transition: background var(--transition-fast);
+}
+
+.link-picker-item:hover {
+    background: var(--color-surface-hover);
+}
+
+/* Keyboard focus has to be visible now that these are focusable — the same
+   inset marker the FYI list uses for the row being read, so the two lists
+   state "this one" the same way. */
+.link-picker-item:focus-visible {
+    outline: none;
+    background: var(--color-surface);
+    box-shadow: inset 2px 0 0 var(--color-text);
+}
+
+.link-picker-item-title {
+    font-size: var(--text-sm);
+    font-weight: 500;
+    color: var(--color-text);
+    flex: 1;
+    min-width: 0;
+    /* Two lines, then ellipsis: a picker row must stay one glance tall, but
+       truncating a task at 40 characters hides the part that tells two
+       similar tasks apart. */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* A fixed gutter, not a right-flush float — times and repeat labels line up
+   in a column you can read down, the same reason the FYI list pins its
+   "when" to 84px. */
+.link-picker-item-meta {
+    flex: 0 0 auto;
+    max-width: 40%;
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    white-space: nowrap;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.link-picker-color-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.link-picker-empty {
+    padding: var(--space-lg);
+    text-align: center;
+    font-style: italic;
+    color: var(--color-text-tertiary);
+    font-size: var(--text-sm);
+}
+
+
+/* --- Linked Items Display --- */
+
+.linked-items-container {
+    margin-top: var(--space-xl);
+    margin-bottom: var(--space-xl);
+    padding-left: var(--space-xl);
+    padding-right: var(--space-xl);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xl);
+}
+
+.linked-items-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+    padding-bottom: var(--space-md);
+}
+
+.linked-items-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-sm);
+    padding-bottom: var(--space-xs);
+    border-bottom: 1px solid var(--color-border-light);
+}
+
+.linked-items-actions {
+    display: flex;
+    gap: var(--space-sm);
+}
+
+/* Same voice as .detail-section-header so linked sections read as part
+   of the detail-page anatomy wherever they render. */
+.linked-items-label {
+    text-transform: uppercase;
+    font-size: var(--text-sm);
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    margin: 0;
+    color: var(--color-text-secondary);
+}
+
+.linked-items-add-btn,
+.linked-items-create-btn {
+    /* Inherits from secondary-btn; only override size */
+    font-size: var(--text-xs);
+    padding: 4px var(--space-md);
+}
+
+.linked-items-empty {
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    font-style: italic;
+    padding: var(--space-xs) 0;
+}
+
+.linked-items-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+}
+
+.linked-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-xs) var(--space-sm);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    font-size: var(--text-sm);
+}
+
+.linked-item:hover {
+    background: var(--color-surface-hover);
+    border-color: var(--color-border-hover);
+}
+
+.linked-item-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.linked-item-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: var(--color-text-tertiary);
+}
+
+.linked-item-status-dot.pending {
+    background: var(--color-text-tertiary);
+}
+
+.linked-item-status-dot.completed {
+    background: #16a34a;
+}
+
+.linked-item-status-dot.overdue {
+    background: #dc2626;
+}
+
+.linked-item.linked-item-completed .linked-item-title {
+    text-decoration: line-through;
+    color: var(--color-text-tertiary);
+}
+
+.linked-item.linked-item-overdue .linked-item-meta {
+    color: #dc2626;
+}
+
+.linked-item-title {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--color-text);
+}
+
+.linked-item-meta {
+    font-size: var(--text-xs);
+    color: var(--color-text-secondary);
+    white-space: nowrap;
+}
+
+.linked-item-remove {
+    border: none;
+    background: none;
+    color: var(--color-text-tertiary);
+    cursor: pointer;
+    font-size: var(--text-sm);
+    padding: 0 2px;
+    line-height: 1;
+    opacity: 0;
+    transition: opacity var(--transition-fast), color var(--transition-fast);
+}
+
+.linked-item:hover .linked-item-remove {
+    opacity: 1;
+}
+
+.linked-item-remove:hover {
+    color: #dc2626;
+}

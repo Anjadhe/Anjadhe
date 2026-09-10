@@ -1,0 +1,121 @@
+<!-- Bookmarks views — appended to #app-views by BundledApps (manifest.json `view`): the list, the viewer and the editor. -->
+<div id="bookmarks-view" class="view app-view">
+    <div class="app-header-bar">
+        <h2 class="app-view-title">
+            <span id="bookmarks-breadcrumb" class="app-breadcrumb">Bookmarks</span>
+        </h2>
+        <div class="app-header-actions">
+            <button class="icon-btn app-help-btn" data-help-for="bookmarks" title="Bookmarks help" aria-label="Bookmarks help"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.3 9.3a2.7 2.7 0 0 1 5.4.6c0 1.8-2.7 2.1-2.7 3.6"/><line x1="12" y1="16.8" x2="12" y2="16.81"/></svg></button>
+            <button id="add-bookmark-btn" class="primary-btn">+ New Bookmark</button>
+        </div>
+    </div>
+
+    <div class="bookmarks-layout">
+        <aside class="bookmarks-sidebar">
+            <div class="bookmarks-sidebar-section">
+                <div class="bookmarks-sidebar-title">Groups</div>
+                <div id="bookmarks-group-list" class="bookmarks-filter-list">
+                    <!-- Group filters rendered here -->
+                </div>
+                <button id="create-bookmark-group-btn" class="bookmarks-add-group-btn">+ New Group</button>
+            </div>
+
+        </aside>
+
+        <div class="bookmarks-main">
+            <div class="bookmarks-main-toolbar">
+                <input type="text" id="bookmarks-search" class="search-input" placeholder="Search bookmarks...">
+                <select id="bookmarks-sort" class="sort-select">
+                    <option value="modified">Last Modified</option>
+                    <option value="created">Date Created</option>
+                    <option value="title">Title</option>
+                </select>
+                <div class="bookmarks-view-toggle" id="bookmarks-view-toggle">
+                    <button class="bookmarks-view-btn active" data-view="grid" title="Grid view">&#9638;</button>
+                    <button class="bookmarks-view-btn" data-view="list" title="List view">&#9776;</button>
+                </div>
+            </div>
+
+            <div id="bookmarks-container" class="bookmarks-grid">
+                <!-- Bookmarks rendered here -->
+            </div>
+
+            <div id="bookmarks-empty" class="bookmarks-empty-state">
+                <div class="bookmarks-empty-icon">&#128278;</div>
+                <h3>No bookmarks yet</h3>
+                <p>Click "New Bookmark" to save your first link</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bookmark Viewer View -->
+<div id="bookmark-viewer-view" class="view app-view">
+    <div class="editor-header">
+        <h2 class="app-view-title">
+            <span id="bookmark-viewer-breadcrumb" class="app-breadcrumb"></span>
+        </h2>
+        <div class="editor-actions">
+            <button id="bookmark-viewer-open-btn" class="secondary-btn">🔗 Open URL</button>
+            <button id="bookmark-viewer-delete-btn" class="secondary-btn">Delete</button>
+            <button id="bookmark-viewer-edit-btn" class="primary-btn">✏️ Edit</button>
+        </div>
+    </div>
+
+    <div class="bookmark-viewer-main">
+        <h1 id="bookmark-viewer-title" class="bookmark-viewer-title"></h1>
+        <div id="bookmark-viewer-url" class="bookmark-viewer-url"></div>
+        <div id="bookmark-viewer-description" class="bookmark-viewer-description"></div>
+        <div id="bookmark-viewer-notes-label" class="bookmark-viewer-notes-label">Notes</div>
+        <div id="bookmark-viewer-notes" class="bookmark-viewer-notes"></div>
+        <div id="bookmark-viewer-meta" class="bookmark-viewer-meta"></div>
+        <div id="bookmark-viewer-date" class="bookmark-viewer-date"></div>
+    </div>
+</div>
+
+<!-- Bookmark Editor View -->
+<div id="bookmark-editor-view" class="view app-view">
+    <div class="editor-header">
+        <h2 class="app-view-title">
+            <span id="bookmark-editor-breadcrumb" class="app-breadcrumb"></span>
+        </h2>
+        <div class="editor-actions">
+            <button id="bookmark-editor-delete-btn" class="secondary-btn">Delete</button>
+            <button id="bookmark-editor-save-btn" class="primary-btn">Save</button>
+        </div>
+    </div>
+
+    <div class="bookmark-editor-layout">
+        <aside class="editor-sidebar">
+            <h3 class="sidebar-title">Group</h3>
+            <div id="bookmark-group-list" class="editor-theme-list">
+                <!-- Groups rendered as radio buttons by JS -->
+            </div>
+            <button id="bookmark-editor-new-group-btn" class="bookmarks-add-group-btn">+ New Group</button>
+        </aside>
+
+        <div class="bookmark-editor-main">
+            <div class="form-group">
+                <input type="text" id="bookmark-title-input" class="bookmark-title-input" placeholder="Bookmark title...">
+            </div>
+            <div class="form-group">
+                <label class="form-label">URL</label>
+                <input type="url" id="bookmark-url-input" placeholder="https://...">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Description</label>
+                <input type="text" id="bookmark-description-input" placeholder="Brief description...">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Tags</label>
+                <div id="bookmark-editor-tags" class="bookmark-tags-container">
+                    <input type="text" id="bookmark-tag-input" class="bookmark-tag-input" placeholder="Add tag (Enter)...">
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Notes</label>
+                <textarea id="bookmark-notes-input" rows="4" placeholder="Additional notes..."></textarea>
+            </div>
+        </div>
+    </div>
+</div>
