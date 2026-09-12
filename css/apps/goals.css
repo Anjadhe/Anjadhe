@@ -1,0 +1,981 @@
+/* ===================================
+   Goals ("Projects") — one pane: the home table, a project sheet, or the
+   embedded task editor. Monochrome except the semantic palette (a passed
+   target red, completed green, a quiet log amber).
+   =================================== */
+
+/* The one pane (the rail went 2026-09-10). */
+.goals-workspace { display: block; min-width: 0; }
+
+/* No per-goal dots, badges, or colors anywhere on this page — a goal is
+   completed or it is not; progress is the n/m task count and the weekly
+   AI review. */
+
+/* ---- Detail pane ---- */
+.goals-detail-pane { padding-bottom: var(--space-2xl); }
+
+.goals-detail-empty {
+    display: flex; align-items: center; justify-content: center;
+    height: 100%;
+    color: var(--color-text-tertiary);
+    font-style: italic;
+    padding: var(--space-2xl);
+}
+
+/* Pane content shares the full detail pages' 1000px cap; the embedded
+   goal editor is relaxed from its standalone 760px to match, and loses
+   the page-height minimum. */
+.goals-detail-pane .goal-editor-main { max-width: 1000px; min-height: 0; }
+
+/* ---- Overviews (all goals / one group) ---- */
+.goals-overview { max-width: 1000px; margin: 0 auto; padding: var(--space-md) var(--space-lg); }
+.goals-overview .goals-detail-title { margin: var(--space-xs) 0 0; }
+
+.goals-overview-sub {
+    color: var(--color-text-tertiary);
+    font-size: var(--text-sm);
+    margin: var(--space-xs) 0 var(--space-xl);
+}
+
+/* Attention-first briefing above the cards (the Email AI Overview idiom):
+   a reading surface — hairline rows, when-gutter, no card chrome. Rows are
+   doors to their goal; red only where a date is genuinely past (semantic
+   palette). Renders nothing when there is nothing to say. */
+.goals-attn {
+    margin-bottom: var(--space-xl);
+}
+
+.goals-attn-head {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-text-tertiary);
+    margin-bottom: var(--space-xs);
+}
+
+.goals-attn-head + .goals-attn-row {
+    border-top: 1px solid var(--color-border-light);
+}
+
+.goals-attn-row + .goals-attn-head {
+    margin-top: var(--space-md);
+}
+
+.goals-attn-row {
+    display: grid;
+    grid-template-columns: 80px 1fr auto;
+    align-items: baseline;
+    column-gap: var(--space-md);
+    width: 100%;
+    padding: 6px 0;
+    border: none;
+    border-bottom: 1px solid var(--color-border-light);
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+    font-size: var(--text-sm);
+    color: var(--color-text);
+}
+
+.goals-attn-row:hover .goals-attn-title {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    text-decoration-color: var(--color-border-hover);
+}
+
+.goals-attn-when {
+    color: var(--color-text-secondary);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.goals-attn-title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.goals-attn-note {
+    color: var(--color-text-tertiary);
+    font-size: var(--text-xs);
+    white-space: nowrap;
+}
+
+.goals-attn-when.is-over,
+.goals-attn-note.is-over {
+    color: var(--color-red);
+}
+
+.goals-head { display: flex; align-items: center; gap: var(--space-sm); }
+
+.goals-detail-title {
+    min-width: 0;
+    font-family: var(--font-serif);
+    font-size: var(--text-2xl);
+    font-weight: 400;
+    line-height: 1.2;
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.goals-detail-eyebrow {
+    display: flex; align-items: center; gap: 8px;
+    font-size: var(--text-xs);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-text-tertiary);
+    margin-bottom: var(--space-sm);
+    min-width: 0;
+}
+
+/* Blank slate — the page opens as a conversation. */
+.goals-blank { padding-top: var(--space-2xl); }
+.goals-blank-lede {
+    color: var(--color-text-secondary);
+    font-size: var(--text-base);
+    line-height: 1.6;
+    max-width: 560px;
+    margin: var(--space-md) 0 var(--space-lg);
+}
+
+/* Page-level prompt pills + the quiet manual door beside them. */
+.goals-ask-row { margin-top: var(--space-xl); align-items: center; }
+.goals-manual-add { font-size: var(--text-sm); }
+
+.goals-empty-line {
+    padding: var(--space-md) var(--space-lg);
+    color: var(--color-text-tertiary);
+    font-size: var(--text-sm);
+    font-style: italic;
+}
+
+/* Draft chip — a goal the interview hasn't finished. */
+.goals-draft-chip {
+    flex: none;
+    font-size: var(--text-xs);
+    padding: 1px 8px;
+    border: 1px dashed var(--color-border-hover);
+    border-radius: 999px;
+    color: var(--color-text-tertiary);
+    white-space: nowrap;
+}
+
+/* ===================================
+   Goal detail (the inline editor)
+   =================================== */
+
+.goal-editor-main {
+    display: flex;
+    flex-direction: column;
+    max-width: 760px;
+    margin: 0 auto;
+    padding: var(--space-xl);
+}
+
+/* Embedded detail breadcrumbs — the same design as the full-page
+   breadcrumb. Reuses the shared .breadcrumb-* classes (core.css); this
+   container supplies the type context those get from .app-view-title on
+   full pages (serif at --text-lg, light weight). */
+.goals-detail-crumbs {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    min-width: 0;
+    font-family: var(--font-serif);
+    font-size: var(--text-lg);
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    margin-bottom: var(--space-md);
+}
+.goals-detail-crumbs .breadcrumb-link {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+    flex: 0 1 auto;
+}
+.goals-detail-crumbs .breadcrumb-current,
+.goals-detail-crumbs .breadcrumb-separator { flex: none; }
+.goals-detail-crumbs .goals-draft-chip { margin-left: var(--space-sm); }
+
+/* Title — serif hero, quiet underline on approach. */
+.goal-editor-main input[type="text"].goal-embed-title {
+    font-size: var(--text-xl);
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    line-height: 1.25;
+    border-bottom: 1px solid transparent;
+    padding-bottom: var(--space-sm);
+    margin-bottom: var(--space-lg);
+}
+.goal-editor-main input[type="text"].goal-embed-title:hover {
+    border-bottom-color: var(--color-border-light);
+}
+.goal-editor-main input[type="text"].goal-embed-title:focus {
+    border-bottom: 1px solid var(--color-border-hover);
+}
+
+/* The properties as a PROPERTY LIST (2026-07-31) — replaced the surface
+   card full of bordered input wells. Label in a fixed left gutter, value
+   reading as plain text, hairline between rows; the edit affordance
+   appears only on approach (hover well, focus underline). The status
+   capsule is the one control that keeps its weight. */
+.goal-editor-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin-bottom: var(--space-lg);
+}
+
+/* Section headers drop to the quiet tertiary rung; covers Details and
+   the Tasks related-list header. */
+.goal-editor-main .detail-section-header {
+    font-size: 0.6875rem;
+    letter-spacing: 0.08em;
+    color: var(--color-text-tertiary);
+    margin-bottom: var(--space-xs);
+}
+
+/* The old inline row dissolves; every field is its own list row. */
+.goal-detail-row {
+    display: contents;
+}
+
+.goal-detail-field {
+    display: grid;
+    grid-template-columns: 108px 1fr;
+    align-items: center;
+    column-gap: var(--space-md);
+    padding: 6px 0;
+    border-bottom: 1px solid var(--color-border-light);
+}
+
+/* Field labels: the same uppercase micro voice as the task detail. */
+.goal-editor-main .goal-detail-field > label,
+.goal-editor-main .goal-description-wrapper label {
+    font-size: var(--text-xs);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-text-tertiary);
+}
+
+/* Values sit flush with the column at rest; the negative margin lets the
+   hover well grow around the text without the text shifting. Scoped
+   under .goal-detail-field to outrank the global input[type=…] rule in
+   components.css. */
+.goal-detail-field .goal-target-input,
+.goal-detail-field .goal-embed-group {
+    height: 30px;
+    width: auto;
+    justify-self: start;
+    padding: 4px 10px;
+    margin-left: -10px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--color-text);
+    font-size: var(--text-sm);
+    font-family: var(--font-sans);
+    transition: background var(--transition-fast), box-shadow var(--transition-fast);
+}
+.goal-detail-field .goal-embed-group { min-width: 220px; }
+.goal-detail-field .goal-target-input:hover,
+.goal-detail-field .goal-embed-group:hover { background: var(--color-surface-hover); }
+.goal-detail-field .goal-target-input:focus,
+.goal-detail-field .goal-embed-group:focus {
+    outline: none;
+    background: var(--color-surface-hover);
+    box-shadow: inset 0 -1.5px 0 var(--color-text);
+}
+
+.goal-detail-field--completed label { cursor: pointer; }
+
+.goal-completed-input {
+    width: 16px;
+    height: 16px;
+    justify-self: start;
+    cursor: pointer;
+    accent-color: var(--color-text);
+}
+
+/* Multi-line rows (Done means, why/obstacles prose): label tops out. */
+.goal-description-wrapper {
+    display: grid;
+    grid-template-columns: 108px 1fr;
+    align-items: start;
+    column-gap: var(--space-md);
+    padding: 6px 0;
+    border-bottom: 1px solid var(--color-border-light);
+}
+
+.goal-description-wrapper label { padding-top: 9px; }
+
+.goal-description-input {
+    font-family: var(--font-sans);
+    font-size: var(--text-sm);
+    line-height: 1.6;
+    color: var(--color-text);
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    outline: none;
+    resize: vertical;
+    min-height: 44px;
+    max-height: 300px;
+    padding: 7px 10px;
+    margin-left: -10px;
+    transition: background var(--transition-fast), box-shadow var(--transition-fast);
+}
+.goal-description-input::placeholder { color: var(--color-text-tertiary); }
+.goal-description-input:hover { background: var(--color-surface-hover); }
+.goal-description-input:focus {
+    background: var(--color-surface-hover);
+    box-shadow: inset 0 -1.5px 0 var(--color-text);
+}
+
+/* Interview-captured prose (why / obstacles) — read-only list rows. */
+.goals-prose-row {
+    display: grid;
+    grid-template-columns: 108px 1fr;
+    align-items: start;
+    column-gap: var(--space-md);
+    padding: 9px 0;
+    border-bottom: 1px solid var(--color-border-light);
+}
+.goals-prose-row > .goals-prose-label {
+    font-size: var(--text-xs);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-text-tertiary);
+    padding-top: 2px;
+}
+.goals-prose-row > p {
+    margin: 0;
+    font-size: var(--text-sm);
+    line-height: 1.6;
+    color: var(--color-text-secondary);
+}
+
+/* Prompt-buttons on the goal detail, between the card and the review. */
+.goals-detail-ask { margin-bottom: var(--space-md); }
+
+/* Task-detail pills, above the embedded schedule editor — on the same
+   centered 760px column as the editor's header and body. */
+.goals-task-ask {
+    max-width: 760px;
+    margin: var(--space-md) auto var(--space-sm);
+}
+
+/* Weekly goal review (shared .ai-review-* pattern, components.css). */
+.goals-review,
+.goals-review-foot { margin-top: var(--space-md); }
+
+/* .goal-editor-main is a gapless flex column, so give the Tasks and
+   Notes blocks breathing room above them. */
+.goals-goal-embed .task-list-section { margin-top: var(--space-xl); }
+.goals-goal-embed .goal-linked-notes-section { margin-top: var(--space-xl); }
+
+
+/* Delete: a ghost that shows red only on approach (mirrors the task
+   editor's Delete). */
+.goals-detail-actions {
+    display: flex;
+    gap: var(--space-sm);
+    justify-content: flex-end;
+    margin-top: var(--space-md);
+    padding-top: var(--space-sm);
+    border-top: 1px solid var(--color-border-light);
+}
+.goals-detail-actions .secondary-btn {
+    border-radius: 999px;
+    padding: 5px 16px;
+    border-color: transparent;
+    background: transparent;
+    color: var(--color-text-tertiary);
+}
+.goals-detail-actions .secondary-btn:hover {
+    color: var(--color-red);
+    border-color: var(--color-border);
+    background: var(--color-surface-hover);
+}
+
+/* Related lists inside the goal detail: flatten the shared linked-items
+   block's full-page indent. */
+.goal-linked-notes-section .linked-items-container {
+    margin: 0;
+    padding: 0;
+    gap: var(--space-lg);
+}
+.goal-linked-notes-section .linked-items-header {
+    border-bottom: none;
+    padding-bottom: 0;
+    margin-bottom: var(--space-xs);
+}
+.goal-linked-notes-section .linked-items-label {
+    font-family: var(--font-serif);
+    font-size: var(--text-base);
+    font-weight: 500;
+}
+
+/* ===================================
+   GoalBreakdown — "Suggest tasks" modal
+   =================================== */
+
+.goal-ai-wait {
+    font-style: italic;
+    color: var(--color-text-tertiary);
+    padding: var(--space-md) 0;
+}
+
+/* Live status while the model works — quiet pulse, same rhythm as the
+   weekly review's reflection wait. */
+.goal-ai-status {
+    font-style: italic;
+    color: var(--color-text-tertiary);
+    font-size: var(--text-sm);
+    padding: var(--space-xs) 0 var(--space-sm);
+    animation: goal-ai-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes goal-ai-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.45; }
+}
+
+/* Reasoning trace from think-enabled models — faint, capped, tail-scrolled. */
+.goal-ai-think {
+    font-size: var(--text-xs);
+    font-style: italic;
+    color: var(--color-text-tertiary);
+    border-left: 2px solid var(--color-border-hover);
+    padding-left: var(--space-md);
+    margin-bottom: var(--space-sm);
+    max-height: 120px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    line-height: 1.5;
+}
+
+.goal-ai-think.is-done {
+    opacity: 0.6;
+    max-height: 64px;
+}
+
+/* The answer streaming in (raw JSON forming) — monospace, faint, capped. */
+.goal-ai-live {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: var(--text-xs);
+    color: var(--color-text-secondary);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-light);
+    border-radius: var(--radius-sm);
+    padding: var(--space-sm) var(--space-md);
+    max-height: 140px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.goal-ai-lede {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    margin-bottom: var(--space-md);
+}
+
+.goal-ai-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-xs) var(--space-sm);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: var(--text-sm);
+}
+
+.goal-ai-row:hover {
+    background: var(--color-surface-hover);
+}
+
+.goal-ai-title {
+    flex: 1;
+    min-width: 0;
+}
+
+.goal-ai-date {
+    font-size: var(--text-xs);
+    color: var(--color-text-secondary);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    padding: 1px 10px;
+    flex-shrink: 0;
+}
+
+.goal-ai-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: var(--space-md);
+}
+
+/* ===================================
+   Responsive
+   =================================== */
+
+@media (max-width: 768px) {
+    .goal-editor-main {
+        padding: var(--space-md);
+    }
+
+    .goal-description-input {
+        font-size: var(--text-base);
+        min-height: 100px;
+    }
+
+    .goals-overview {
+        padding: var(--space-md);
+    }
+}
+
+/* ══ Projects, redesign pass (2026-09-09). The page's own law holds: no
+   per-goal dots, badges or colors — this is card lift, rail and spacing. ══ */
+/* White paper pass (2026-09-11, by request): card frames on --color-surface, chips inside fall back to --color-bg. */
+.goals-attn { padding: var(--space-md) var(--space-lg); border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); }
+.goals-attn-head { margin-bottom: var(--space-xs); }
+.goals-attn-row { padding: 6px 0; border-top: 1px solid var(--color-border-light); }
+.goals-attn-when { font-variant-numeric: tabular-nums; color: var(--color-text-secondary); }
+.goals-detail-title { font-weight: 700; letter-spacing: -0.02em; }
+
+/* ══ Projects, second pass (2026-09-10, by request): the project detail
+   as ONE SHEET and the rail on the kit. Laws unchanged — no per-project
+   dots, badges or colours; progress is the n/m count (now also a 3px ink
+   track beside it, pure arithmetic from the same numbers). ══ */
+
+/* ── Detail sheet ── */
+.goals-detail-pane .goals-goal-embed {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-lg) var(--space-xl) var(--space-lg);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+}
+[data-theme="dark"] .goals-detail-pane .goals-goal-embed { box-shadow: none; }
+.goals-detail-pane .goals-goal-embed .goals-detail-crumbs {
+    font-family: var(--font-sans);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-text-tertiary);
+    gap: 6px;
+    margin-bottom: var(--space-sm);
+}
+.goals-detail-pane .goals-goal-embed .goals-detail-crumbs .breadcrumb-link { color: var(--color-text-secondary); }
+.goals-detail-pane .goals-goal-embed .goals-detail-crumbs .breadcrumb-separator { color: var(--color-text-tertiary); }
+.goals-detail-pane .goals-goal-embed .goals-detail-crumbs .breadcrumb-current { color: var(--color-text-tertiary); }
+.goals-detail-pane .goal-editor-main input[type="text"].goal-embed-title {
+    font-family: var(--font-serif);
+    font-size: var(--text-2xl);
+    font-weight: 400;
+    letter-spacing: -0.012em;
+    line-height: 1.2;
+    padding: 0 0 var(--space-md);
+    margin-bottom: var(--space-md);
+    border-bottom: 1px solid var(--color-border-light);
+}
+.goals-detail-pane .goal-editor-main input[type="text"].goal-embed-title:focus { border-bottom-color: var(--color-accent); }
+.goals-detail-pane .goal-editor-main .detail-section-header,
+.goals-detail-pane .goal-editor-main .linked-items-label,
+.goals-detail-pane .goal-editor-main .schedule-section-title {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-text-tertiary);
+}
+.goals-detail-pane .goal-editor-card { margin-bottom: 0; }
+.goals-detail-pane .goal-detail-field,
+.goals-detail-pane .goal-description-wrapper,
+.goals-detail-pane .goals-prose-row { grid-template-columns: 112px 1fr; padding: 7px 0; }
+.goals-detail-pane .goal-editor-main .goal-detail-field > label,
+.goals-detail-pane .goal-editor-main .goal-description-wrapper label,
+.goals-detail-pane .goals-prose-row > .goals-prose-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--color-text-tertiary);
+}
+.goals-detail-pane .goal-detail-field .goal-target-input,
+.goals-detail-pane .goal-detail-field .goal-embed-group,
+.goals-detail-pane .goal-description-input { border-radius: 8px; font-size: var(--text-sm); }
+.goals-detail-pane .goal-description-input { line-height: 1.6; max-height: none; }
+.goals-detail-pane .goals-prose-row > p { color: var(--color-text); }
+.goals-detail-pane .goal-detail-field .goal-target-input:focus,
+.goals-detail-pane .goal-detail-field .goal-embed-group:focus,
+.goals-detail-pane .goal-description-input:focus {
+    background: var(--color-surface);
+    box-shadow: 0 0 0 1px var(--color-accent), 0 0 0 4px color-mix(in srgb, var(--color-accent) 15%, transparent);
+}
+.goals-detail-pane .goal-completed-input { accent-color: var(--color-accent); width: 17px; height: 17px; }
+
+/* Prompt pills as a surface band running edge to edge. */
+.goals-detail-pane .goals-detail-ask {
+    margin: var(--space-md) calc(-1 * var(--space-xl)) 0;
+    padding: var(--space-md) var(--space-xl);
+    background: var(--color-bg);
+    border-top: 1px solid var(--color-border-light);
+    border-bottom: 1px solid var(--color-border-light);
+}
+.goals-detail-pane .goals-detail-ask .ask-prompt-btn { background: var(--color-surface); }
+.goals-detail-pane .goals-detail-ask .ask-prompt-btn.ask-prompt-open { background: transparent; }
+
+
+/* Decisions, Tasks, Notes: hairline blocks on one interval. */
+.goals-detail-pane .goals-goal-embed .decisions-section,
+.goals-detail-pane .goals-goal-embed .task-list-section,
+.goals-detail-pane .goals-goal-embed .goal-linked-notes-section {
+    margin-top: var(--space-lg);
+    padding-top: var(--space-md);
+    border-top: 1px solid var(--color-border-light);
+}
+.goals-detail-pane .goals-goal-embed .goal-linked-notes-section { padding-top: var(--space-xs); }
+.goals-detail-pane .decisions-when { flex-basis: 96px; font-variant-numeric: tabular-nums; }
+.goals-detail-pane input[type="text"].decisions-add-input { margin-top: var(--space-xs); padding: 7px 12px; border-radius: 999px; font-size: var(--text-sm); }
+.goals-detail-pane input[type="text"].decisions-add-input:hover { background: var(--color-surface-hover); }
+.goals-detail-pane input[type="text"].decisions-add-input:focus {
+    outline: none;
+    background: var(--color-surface);
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 15%, transparent);
+}
+.goals-detail-pane .goals-goal-embed .detail-section-header-row { border-bottom: none; padding-bottom: 0; margin-bottom: var(--space-xs); }
+.goals-detail-pane .goals-goal-embed .detail-section-count { font-size: var(--text-xs); }
+.goals-detail-pane .goals-goal-embed .detail-section-actions .secondary-btn { border-radius: 999px; padding: 4px 12px; font-size: var(--text-xs); }
+.goals-detail-pane .goals-goal-embed .schedule-completed-arrow { font-size: 10px; }
+.goals-detail-pane .goals-goal-embed .goal-linked-notes-body { padding-top: var(--space-xs); }
+.goals-detail-pane .goals-goal-embed .linked-items-header { border-bottom: none; padding-bottom: 0; }
+.goals-detail-pane .goals-goal-embed .linked-items-add-btn,
+.goals-detail-pane .goals-goal-embed .linked-items-create-btn { border-radius: 999px; }
+.goals-detail-pane .goals-goal-embed .linked-item { border-radius: 999px; padding: 4px 12px; background: var(--color-bg); }
+
+/* Delete: the sheet's foot. */
+.goals-detail-pane .goals-detail-actions {
+    margin: var(--space-lg) calc(-1 * var(--space-xl)) calc(-1 * var(--space-lg));
+    padding: var(--space-sm) var(--space-lg);
+    border-top: 1px solid var(--color-border-light);
+    background: var(--color-bg);
+}
+
+/* Task detail opened inside Projects: .goals-task-ask rides .task-sheet-ask. */
+.goals-detail-pane .goals-task-ask { max-width: none; margin: 0; }
+.goals-detail-pane .goal-description-input { field-sizing: content; min-height: 44px; max-height: 480px; }
+.goals-detail-pane .goals-goal-embed .goals-linked-toggle .schedule-section-title,
+.goals-detail-pane .goals-goal-embed .schedule-completed-toggle .schedule-section-title {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    color: var(--color-text-tertiary);
+}
+
+/* Save indicator in the project sheet's crumb row (SaveStatus, 2026-09-10):
+   pushed to the right edge, sentence case against the uppercase crumbs. */
+.goals-detail-crumbs .goals-save-status { margin-left: auto; letter-spacing: 0.01em; text-transform: none; }
+
+/* ══ Projects, third pass (2026-09-10, by request): a HOME (every active
+   project as one table, completed folded beneath, a group row FILTERS it),
+   ONE creation door, the sheet reordered around the work (status pill in
+   the head, facts line, Tasks, the Updates log, Details, a folded More),
+   honest completion. Laws unchanged: no per-project dots or colours beyond
+   the semantic palette; progress is arithmetic. ══ */
+
+/* ── Home ── */
+/* Group filter row: All + one pill per group (rendered only with 2+
+   groups). Active = page colour + ring, the rail's own recipe. */
+.goals-filter-row { display: flex; flex-wrap: wrap; gap: 6px; margin: calc(-1 * var(--space-sm)) 0 var(--space-lg); }
+.goals-filter-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 12px;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    background: transparent;
+    font-family: var(--font-sans);
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    transition: background var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast);
+}
+.goals-filter-pill:hover { background: var(--color-surface-hover); color: var(--color-text); }
+.goals-filter-pill.is-active { background: var(--color-bg); color: var(--color-text); font-weight: 600; box-shadow: 0 0 0 1px var(--color-border), 0 1px 2px rgba(0, 0, 0, 0.05); }
+.goals-filter-count { font-size: var(--text-xs); color: var(--color-text-tertiary); font-variant-numeric: tabular-nums; }
+.goals-filter-pill.is-active .goals-filter-count { color: var(--color-text-secondary); }
+.goals-group-chip { cursor: pointer; }
+.goals-group-chip:hover { border-color: var(--color-border-hover); color: var(--color-text); }
+.goals-more-toggle { padding-left: 0; padding-right: 0; }
+.goals-home .goals-head { align-items: baseline; gap: var(--space-md); flex-wrap: wrap; margin-bottom: var(--space-lg); }
+.goals-home .goals-overview-sub { margin: 0; }
+.goals-crumb-btn {
+    border: none; background: none; padding: 0;
+    font: inherit; letter-spacing: inherit; text-transform: inherit;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+}
+.goals-crumb-btn:hover { color: var(--color-text); text-decoration: underline; text-underline-offset: 3px; }
+.goals-detail-eyebrow .breadcrumb-separator { color: var(--color-text-tertiary); }
+.goals-home .goals-attn { margin-bottom: var(--space-lg); }
+
+.goals-table {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+    margin-bottom: var(--space-lg);
+}
+[data-theme="dark"] .goals-table { box-shadow: none; }
+.goals-tr {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) 116px minmax(0, 1.1fr) 104px 96px;
+    align-items: center;
+    column-gap: var(--space-md);
+    width: 100%;
+    padding: 11px var(--space-lg);
+    border: none;
+    border-top: 1px solid var(--color-border-light);
+    background: transparent;
+    text-align: left;
+    font: inherit;
+    color: var(--color-text);
+    cursor: pointer;
+    transition: background var(--transition-fast);
+}
+.goals-th {
+    padding: 8px var(--space-lg);
+    border-top: none;
+    background: var(--color-bg);
+    cursor: default;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-text-tertiary);
+}
+.goals-tr:not(.goals-th):hover { background: var(--color-surface-hover); }
+.goals-td-title { display: flex; align-items: center; gap: var(--space-sm); min-width: 0; }
+.goals-td-name {
+    font-family: var(--font-sans);
+    font-size: var(--text-md);
+    font-weight: 600;
+    line-height: 1.25;
+    min-width: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.goals-td-title { flex-wrap: wrap; }
+.goals-tr.completed .goals-td-name { text-decoration: line-through; color: var(--color-text-tertiary); font-weight: 600; }
+.goals-group-chip {
+    flex: none;
+    font-size: var(--text-xs);
+    padding: 1px 8px;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    color: var(--color-text-secondary);
+    white-space: nowrap;
+}
+.goals-td-progress { display: flex; align-items: center; gap: var(--space-sm); min-width: 0; }
+.goals-track {
+    flex: 1 1 auto;
+    min-width: 36px;
+    height: 3px;
+    border-radius: 999px;
+    background: var(--color-border);
+    overflow: hidden;
+}
+.goals-track::after {
+    content: '';
+    display: block;
+    height: 100%;
+    width: calc(var(--gp, 0) * 100%);
+    background: var(--color-text);
+    border-radius: 999px;
+}
+.goals-td-count { flex: none; font-size: var(--text-xs); color: var(--color-text-secondary); font-variant-numeric: tabular-nums; }
+.goals-td-next { display: flex; flex-direction: column; min-width: 0; font-size: var(--text-sm); line-height: 1.35; }
+.goals-td-nexttitle { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.goals-td-sub { font-size: var(--text-xs); color: var(--color-text-tertiary); }
+.goals-td-empty { font-size: var(--text-xs); color: var(--color-text-tertiary); font-style: italic; }
+.goals-td-updated, .goals-td-targetcell { font-size: var(--text-sm); color: var(--color-text-secondary); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.goals-td-target.is-over { color: var(--color-red); font-weight: 600; }
+.goals-tr.is-quiet .goals-td-ago { color: var(--color-amber); }
+.goals-table.is-completed .goals-tr:not(.goals-th) { color: var(--color-text-secondary); }
+.goals-completed-fold { margin-bottom: var(--space-lg); }
+.goals-fold-toggle { padding: var(--space-sm) 0; }
+.goals-completed-fold .schedule-section-title,
+.goals-more-toggle .schedule-section-title {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-text-tertiary);
+}
+.goals-completed-fold .goals-table { margin-top: var(--space-sm); }
+.goals-home .goals-ask-row { margin-top: var(--space-md); }
+.goals-empty-line { padding-left: 0; }
+
+/* ── Sheet head: crumb eyebrow left, save state + status pill right. ── */
+.goals-sheet-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-md);
+    flex-wrap: wrap;
+    margin-bottom: var(--space-sm);
+}
+.goals-detail-pane .goals-goal-embed .goals-sheet-head .goals-detail-crumbs { margin-bottom: 0; flex: 1 1 auto; }
+.goals-sheet-head-right { display: flex; align-items: center; gap: var(--space-sm); flex: none; }
+.goals-status-pill {
+    border: 1px solid var(--color-text);
+    background: var(--color-text);
+    color: var(--color-bg);
+    border-radius: 999px;
+    padding: 5px 14px;
+    font-family: var(--font-sans);
+    font-size: var(--text-xs);
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.goals-status-pill:hover { opacity: 0.88; }
+.goals-status-pill.is-done {
+    background: color-mix(in srgb, var(--color-green) 12%, var(--color-bg));
+    color: var(--color-green);
+    border-color: color-mix(in srgb, var(--color-green) 35%, var(--color-border));
+    cursor: default;
+}
+.goals-status-pill.is-done:hover { opacity: 1; }
+.goals-reopen-btn { font-size: var(--text-xs); }
+.goals-goal-embed.is-completed .goal-embed-title { color: var(--color-text-secondary); }
+
+/* Facts line under the title: target · progress · last update. */
+.goals-sheet-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-sm) var(--space-md);
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    margin: 0 0 var(--space-md);
+}
+.goals-meta-sep { width: 3px; height: 3px; border-radius: 50%; background: var(--color-border-hover); }
+.goals-meta-target { font-variant-numeric: tabular-nums; }
+.goals-meta-target.is-over { color: var(--color-red); font-weight: 600; }
+.goals-meta-empty { color: var(--color-text-tertiary); font-style: italic; }
+.goals-meta-progress { display: inline-flex; align-items: center; gap: var(--space-sm); font-variant-numeric: tabular-nums; }
+.goals-meta-progress .goals-track { width: 72px; flex: none; }
+.goals-meta-updated { color: var(--color-text-tertiary); }
+.goals-detail-pane .goal-editor-main input[type="text"].goal-embed-title { margin-bottom: var(--space-sm); }
+.goals-detail-pane .goals-detail-ask { margin-top: 0; }
+
+/* Body order: Tasks (first, no hairline above — the band is the divider),
+   the Updates log, Details, then the folded More. One interval. */
+.goals-detail-pane .goals-goal-embed .task-list-section { margin-top: var(--space-lg); padding-top: 0; border-top: none; }
+.goals-updates-host { margin-top: var(--space-lg); padding-top: var(--space-md); border-top: 1px solid var(--color-border-light); }
+.goals-updates-host:empty { display: none; }
+.goals-detail-pane .goals-goal-embed .goal-editor-card { margin-top: var(--space-lg); padding-top: var(--space-md); border-top: 1px solid var(--color-border-light); }
+.goals-more { margin-top: var(--space-lg); border-top: 1px solid var(--color-border-light); }
+.goals-more-toggle { display: flex; align-items: center; gap: var(--space-sm); width: 100%; padding: var(--space-sm) 0; }
+.goals-more-hint { flex: 1; min-width: 0; font-size: var(--text-xs); color: var(--color-text-tertiary); text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.goals-more-body { padding-top: var(--space-xs); }
+.goals-more-block { padding: var(--space-xs) 0 var(--space-md); }
+.goals-more-body .decisions-section,
+.goals-more-body .goal-linked-notes-section { margin-top: 0; padding-top: var(--space-md); border-top: 1px solid var(--color-border-light); }
+.goals-more-body .goal-linked-notes-section .detail-section-header { margin-bottom: var(--space-sm); }
+.goals-more-body .goal-linked-notes-body { padding-top: var(--space-xs); }
+.goals-review-foot { margin-top: var(--space-xs); font-size: var(--text-sm); color: var(--color-text-secondary); line-height: 1.6; }
+.goals-confirm-note { display: inline-block; margin-top: 6px; font-size: var(--text-xs); color: var(--color-text-tertiary); }
+
+@media (max-width: 900px) {
+    .goals-tr { grid-template-columns: minmax(0, 1.4fr) 96px minmax(0, 1fr) 90px; }
+    .goals-td-targetcell, .goals-th span:last-child { display: none; }
+}
+
+/* ══ Colour as data (2026-09-10, by request — "similar to portfolio and
+   ticker detail pages"). This RETIRES the page's no-per-project-colour law
+   (docs/GOALS.md decision log). The rules: ONE hue per GROUP (--gh, set
+   inline by GoalsPageUI.groupHue) on the progress fill, the group chip,
+   the filter pill's dot and the sheet's group crumb; the indigo accent on
+   the assistant's own marks (Updates: the sparkle, a review tag); the
+   semantic palette on dates (passed red, due within a week amber) and on
+   a quiet log (amber). Titles, borders, cards and icons stay ink; dark
+   mode mixes every hue with the ground. ══ */
+#goals-view { --goals-accent: var(--color-accent); }
+.goals-hue-dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--gh, var(--color-border-hover));
+    flex: none;
+    margin-right: 8px;
+    vertical-align: middle;
+}
+.goals-filter-pill .goals-hue-dot { margin-right: 0; }
+.goals-filter-pill.is-active { box-shadow: 0 0 0 1px color-mix(in srgb, var(--gh, var(--color-border)) 55%, var(--color-border)), 0 1px 2px rgba(0, 0, 0, 0.05); }
+.goals-track::after { background: var(--gh, var(--color-text)); }
+.goals-group-chip {
+    border-color: color-mix(in srgb, var(--gh, var(--color-border)) 45%, var(--color-border));
+    color: color-mix(in srgb, var(--gh, var(--color-text-secondary)) 75%, var(--color-text));
+    background: color-mix(in srgb, var(--gh, transparent) 7%, var(--color-bg));
+}
+.goals-group-chip:hover { background: color-mix(in srgb, var(--gh, transparent) 14%, var(--color-bg)); }
+.goals-attn-title { display: flex; align-items: center; }
+.goals-attn-when.is-soon, .goals-attn-note.is-soon,
+.goals-td-target.is-soon, .goals-meta-target.is-soon { color: var(--color-amber); font-weight: 600; }
+.goals-tr.completed .goals-track::after { background: var(--color-green); }
+.goals-detail-pane .goals-goal-embed .goals-detail-crumbs .breadcrumb-link[data-crumb-group] {
+    color: color-mix(in srgb, var(--gh, var(--color-text-secondary)) 80%, var(--color-text));
+}
+.goals-detail-pane .goals-goal-embed .goals-detail-crumbs .breadcrumb-link[data-crumb-group]::before {
+    content: '';
+    display: inline-block;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--gh, var(--color-border-hover));
+    margin-right: 6px;
+    vertical-align: 1px;
+}
+.goals-goal-embed.is-completed .goals-meta-progress .goals-track::after { background: var(--color-green); }
+[data-theme="dark"] .goals-track::after { background: color-mix(in srgb, var(--gh, var(--color-text)) 85%, var(--color-bg)); }
+[data-theme="dark"] .goals-group-chip { background: color-mix(in srgb, var(--gh, transparent) 12%, var(--color-bg)); }
+
+/* Group rename / remove on the filtered home (2026-09-10). The title is
+   the rename door (click, or the Rename link); the input takes the
+   title's own type so nothing jumps. */
+.goals-home .goals-detail-title[data-rename-group] { cursor: text; border-bottom: 1px solid transparent; }
+.goals-home .goals-detail-title[data-rename-group]:hover { border-bottom-color: var(--color-border-hover); }
+.goals-group-actions { display: inline-flex; gap: var(--space-md); margin-left: auto; }
+.goals-group-actions .quiet-link-btn { font-size: var(--text-xs); }
+.goals-group-actions [data-remove-group]:hover { color: var(--color-red); }
+input[type="text"].goals-group-rename-input {
+    min-width: 0;
+    width: min(100%, 24ch);
+    padding: 0 0 2px;
+    border: none;
+    border-bottom: 1px solid var(--color-accent);
+    border-radius: 0;
+    background: transparent;
+    font-family: var(--font-serif);
+    font-size: var(--text-2xl);
+    font-weight: 400;
+    letter-spacing: -0.012em;
+    line-height: 1.2;
+    color: var(--color-text);
+    outline: none;
+    box-shadow: none;
+}
