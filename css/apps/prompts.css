@@ -1,0 +1,1207 @@
+/* Prompts App — standalone page for prompt notes.
+   The list rows and the create/edit form reuse the .prompt-mgr-* classes
+   (css/core.css) from the old "Manage prompts" modal; this file only adds
+   the page frame and the detail view. */
+
+/* The width lives on the view, not the wrapper, so core.css caps the header
+   bar to it too (see .app-view in core.css). Side padding stays off the
+   wrapper for the same reason — the view's own padding is the gutter.
+
+   Widened from 720px to 1180px on 2026-08-03: this page stopped being a form
+   with a list under it and became a six-column TABLE, and C10 made its second
+   column a whole sentence ("new email subject \"invoice\"") rather than a
+   two-word schedule. At 720 the title column wrapped to five lines and rows
+   lost their scannability.
+
+   ONE width for all three in-page views (list, detail, form) on purpose — the
+   header bar is capped to this same number, so a per-view width would make the
+   heading jump every time you opened a routine. The reading surfaces inside
+   the detail and form get their own measure below instead. */
+#prompts-view {
+    --view-content-max: min(1180px, 100%);
+}
+
+/* Prose and property lists don't want the table's width: a 1180px-wide
+   hover-input row with a 108px label gutter reads as a stretched form, and
+   prompt text at that measure is hard to follow. Capped to a reading width
+   inside the wide page. */
+.routines-detail-head,
+.routines-props,
+.routines-prompt-section,
+.routines-outputs,
+.routines-form {
+    max-width: 780px;
+}
+
+.prompts-layout {
+    padding: var(--space-lg) 0 var(--space-2xl);
+}
+
+/* The modal capped its list height to fit the dialog; the page scrolls. */
+#prompts-view .prompt-mgr-list {
+    max-height: none;
+    overflow-y: visible;
+}
+
+/* --- List sections: Scheduled vs On demand --- */
+
+.prompts-section {
+    margin-bottom: var(--space-xl);
+}
+
+.prompts-section-head {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-sm);
+    padding: 0 2px;
+}
+
+.prompts-section-label {
+    font-size: var(--text-xs);
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--color-text-secondary);
+}
+
+.prompts-section-hint {
+    margin-left: auto;
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    font-style: italic;
+    text-align: right;
+}
+
+/* --- Detail view (2026-07-31: quiet property-list language, same as the
+   goal/task details — no cards, label gutter, hairline rows) --- */
+
+.routines-detail-head {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-md);
+    margin-bottom: var(--space-md);
+}
+
+/* Light serif, like every other page title in the app. */
+.routines-detail-title {
+    font-family: var(--font-serif);
+    font-size: var(--text-2xl);
+    font-weight: 400;
+    color: var(--color-text);
+    margin: 0;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    flex: 1;
+}
+
+.routines-detail-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    flex: none;
+}
+
+.routines-act {
+    border-radius: 999px;
+    padding: 4px 14px;
+    font-size: var(--text-sm);
+}
+
+/* Delete is a ghost that shows red only on approach (mirrors the goal
+   and task editors' Delete). */
+.routines-act-delete {
+    border-color: transparent;
+    background: transparent;
+    color: var(--color-text-tertiary);
+}
+
+.routines-act-delete:hover {
+    color: var(--color-red);
+    border-color: var(--color-border);
+    background: var(--color-surface-hover);
+}
+
+/* Property rows — label gutter left, value as text, hairline between. */
+.routines-props {
+    margin-bottom: var(--space-xl);
+}
+
+.routines-prop {
+    display: grid;
+    grid-template-columns: 108px 1fr;
+    align-items: center;
+    column-gap: var(--space-md);
+    padding: 7px 0;
+    border-bottom: 1px solid var(--color-border-light);
+}
+
+.routines-prop-label {
+    font-size: var(--text-xs);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-text-tertiary);
+}
+
+.routines-prop-value {
+    font-size: var(--text-sm);
+    color: var(--color-text);
+}
+
+/* The prompt — the routine's actual content, shown as readable prose. */
+.routines-prompt-section {
+    margin-bottom: var(--space-xl);
+}
+
+.routines-prompt-section .detail-section-header,
+.routines-outputs .detail-section-header {
+    font-size: 0.6875rem;
+    letter-spacing: 0.08em;
+    color: var(--color-text-tertiary);
+    margin-bottom: var(--space-sm);
+}
+
+.routines-prompt-text {
+    white-space: pre-wrap;
+    line-height: 1.7;
+    font-size: var(--text-base);
+    color: var(--color-text);
+}
+
+.routines-empty {
+    color: var(--color-text-tertiary);
+    font-style: italic;
+    font-size: var(--text-sm);
+}
+
+/* --- Feed posts (this routine's runs) — hairline rows, when-gutter. --- */
+
+.routines-outputs {
+    display: flex;
+    flex-direction: column;
+}
+
+.routines-post-row {
+    display: grid;
+    grid-template-columns: 108px 1fr;
+    column-gap: var(--space-md);
+    align-items: baseline;
+    width: 100%;
+    text-align: left;
+    font: inherit;
+    border: none;
+    border-bottom: 1px solid var(--color-border-light);
+    background: transparent;
+    padding: 8px 0;
+    cursor: pointer;
+    transition: background var(--transition-fast);
+}
+
+.routines-post-row:hover {
+    background: var(--color-surface-hover);
+}
+
+.routines-post-when {
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    white-space: nowrap;
+}
+
+.routines-post-preview {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    line-height: 1.5;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.routines-post-row.is-error .routines-post-preview {
+    color: var(--color-red);
+}
+
+/* --- Run history (task-mode routines) — each run folds open to its
+   execution log. Same quiet row anatomy as the feed-post rows above, with
+   a verdict mark in front. --- */
+
+.routines-run {
+    border-bottom: 1px solid var(--color-border-light);
+}
+
+.routines-run-row {
+    display: grid;
+    grid-template-columns: 16px 108px 1fr;
+    column-gap: var(--space-md);
+    align-items: baseline;
+    padding: 8px 0;
+    cursor: pointer;
+    list-style: none;
+    transition: background var(--transition-fast);
+}
+
+.routines-run-row::-webkit-details-marker {
+    display: none;
+}
+
+.routines-run-row:hover {
+    background: var(--color-surface-hover);
+}
+
+.routines-run-mark {
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+}
+
+.routines-run.is-error .routines-run-mark,
+.routines-run.is-error .routines-post-preview {
+    color: var(--color-red);
+}
+
+.routines-run-report {
+    margin: 0 0 var(--space-md);
+    padding: var(--space-sm) var(--space-md);
+    font-size: var(--text-xs);
+    line-height: 1.6;
+    color: var(--color-text-secondary);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-light);
+    border-radius: var(--radius-sm);
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-x: auto;
+}
+
+/* --- Create/edit form — the title is the hero, the prompt is the page's
+   one focal text, everything else is a property row. --- */
+
+/* The conversation door above the blank form: the quoted pill asks the
+   assistant to interview you (the goals pattern), the quiet clause after
+   it keeps the form itself first-class. Create mode only — an edit is
+   already a routine, not a decision about what routines are. */
+.routines-ask-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    margin-bottom: var(--space-lg);
+}
+
+.routines-ask-or {
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+}
+
+.routines-form .detail-section-header {
+    font-size: 0.6875rem;
+    letter-spacing: 0.08em;
+    color: var(--color-text-tertiary);
+    margin-bottom: var(--space-xs);
+}
+
+input[type="text"].routines-title-input {
+    font-size: var(--text-xl);
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    line-height: 1.25;
+    border-bottom: 1px solid transparent;
+    padding-bottom: var(--space-sm);
+    margin-bottom: var(--space-lg);
+}
+
+input[type="text"].routines-title-input:hover {
+    border-bottom-color: var(--color-border-light);
+}
+
+input[type="text"].routines-title-input:focus {
+    border-bottom: 1px solid var(--color-border-hover);
+}
+
+.routines-body-input {
+    width: 100%;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: 1.7;
+    color: var(--color-text);
+    resize: vertical;
+    min-height: 96px;
+    padding: 7px 10px;
+    margin-left: -10px;
+    margin-bottom: var(--space-lg);
+    transition: background var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.routines-body-input::placeholder { color: var(--color-text-tertiary); }
+
+.routines-body-input:hover { background: var(--color-surface-hover); }
+
+.routines-body-input:focus {
+    outline: none;
+    background: var(--color-surface-hover);
+    box-shadow: inset 0 -1.5px 0 var(--color-text);
+}
+
+.routines-form-props {
+    margin-bottom: var(--space-sm);
+}
+
+/* The interval capsule hugs its content, like every other row value. */
+.routines-prop .prompt-mgr-seg {
+    justify-self: start;
+}
+
+.routines-form-props .routines-prop {
+    padding: 8px 0;
+}
+
+.routines-time {
+    height: 30px;
+    width: auto;
+    justify-self: start;
+    min-width: 110px;
+    padding: 4px 10px;
+    margin-left: -10px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--color-text);
+    font-size: var(--text-sm);
+    font-family: var(--font-sans);
+    transition: background var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.routines-time:hover { background: var(--color-surface-hover); }
+
+.routines-time:focus {
+    outline: none;
+    background: var(--color-surface-hover);
+    box-shadow: inset 0 -1.5px 0 var(--color-text);
+}
+
+.routines-uses {
+    display: flex;
+    gap: var(--space-sm);
+    flex-wrap: wrap;
+}
+
+.routines-form-hint {
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    font-style: italic;
+    margin: var(--space-sm) 0 var(--space-lg);
+}
+
+.routines-form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-sm);
+}
+
+/* --- Routines table (list view) ---
+   Sortable/filterable table: quiet uppercase headers, hairline rows,
+   actions revealed on row hover. Flag columns render a bare checkmark. */
+
+.routines-toolbar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-md);
+}
+
+.routines-search {
+    flex: 0 1 280px;
+    padding: 6px 10px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-size: var(--text-sm);
+}
+
+.routines-search:focus {
+    outline: none;
+    border-color: var(--color-border-hover);
+}
+
+.routines-filter {
+    /* A bare <select> inherits a 100% width from the shared form styles
+       and swallows the toolbar — pin it to its content size. */
+    flex: 0 0 auto;
+    width: auto;
+    max-width: 160px;
+    padding: 6px 8px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-bg);
+    color: var(--color-text-secondary);
+    font-size: var(--text-sm);
+}
+
+.routines-count {
+    margin-left: auto;
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    white-space: nowrap;
+}
+
+.routines-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.routines-th {
+    text-align: left;
+    font-size: var(--text-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-secondary);
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--color-border);
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+}
+
+.routines-th:hover {
+    color: var(--color-text);
+}
+
+.routines-sort-arrow {
+    margin-left: 4px;
+    font-size: 0.6rem;
+}
+
+.routines-th-flag,
+.routines-td-flag {
+    text-align: center;
+    width: 64px;
+}
+
+.routines-row td {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--color-border-light);
+    font-size: var(--text-sm);
+}
+
+.routines-row {
+    cursor: pointer;
+}
+
+.routines-row:hover td {
+    background: var(--color-surface-hover);
+}
+
+/* A routine created from a bare prompt with no title carries the whole
+   sentence as its name (create_routine truncates at 70 chars, but records
+   made before that, and by hand, do not). Two lines then ellipsis: one tall
+   row otherwise sets the rhythm for the entire table, and the full title is
+   one click away on the detail page. */
+.routines-td-title {
+    font-weight: 600;
+    max-width: 460px;
+}
+
+.routines-td-title-text {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.routines-td-sched,
+.routines-td-ran {
+    color: var(--color-text-secondary);
+    white-space: nowrap;
+}
+
+/* The trigger sentence is the one column that can legitimately be long
+   (a folder path, a subject rule) — let it wrap rather than force the
+   table wider than the page. */
+.routines-td-sched {
+    white-space: normal;
+}
+
+.routines-td-flag {
+    color: var(--color-text-secondary);
+}
+
+.routines-td-actions {
+    text-align: right;
+    white-space: nowrap;
+    width: 100px;
+}
+
+.routines-td-actions .prompt-mgr-iconbtn {
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+}
+
+.routines-row:hover .prompt-mgr-iconbtn,
+.routines-row:focus-within .prompt-mgr-iconbtn {
+    opacity: 1;
+}
+
+.routines-table-empty {
+    padding: var(--space-lg);
+    text-align: center;
+    font-style: italic;
+    color: var(--color-text-tertiary);
+}
+
+/* --- Form additions (the schedule block lives outside the composer card) --- */
+
+.prompts-sched-fields {
+    display: flex;
+    flex-direction: column;
+}
+
+/* ── C10: the Automations merge ───────────────────────────────────────────
+   Waiting-on-you rows, the trigger panes in the form, and the two row chips.
+   Deliberately reuses the page's existing hairline/quiet-label vocabulary
+   rather than importing the old Automations card look — one page, one voice. */
+
+/* Waiting on you — the only thing on this page blocked on the user, so it
+   sits above the list and its primary action shows at rest (everything else
+   here reveals actions on hover). */
+.routines-waiting-section {
+    margin-bottom: var(--space-xl);
+    padding-bottom: var(--space-md);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.routines-waiting-header {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-secondary);
+    margin: 0 0 var(--space-sm);
+}
+
+.routines-waiting-count {
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    font-weight: 500;
+    letter-spacing: 0;
+    text-transform: none;
+}
+
+.routines-waiting-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-sm) 0;
+}
+
+.routines-waiting-row + .routines-waiting-row {
+    border-top: 1px solid var(--color-border-light);
+}
+
+.routines-waiting-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.routines-waiting-title {
+    font-size: var(--text-sm);
+    color: var(--color-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.routines-waiting-sub {
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    margin-top: 2px;
+}
+
+.routines-waiting-actions {
+    display: flex;
+    gap: var(--space-xs);
+    flex-shrink: 0;
+}
+
+/* Row chips. "acts" says this routine can change things — the one fact the
+   merged list cannot convey by which page you are on. */
+.routines-mode-chip,
+.routines-err-chip {
+    display: inline-block;
+    margin-left: var(--space-xs);
+    padding: 1px 6px;
+    font-size: var(--text-xs);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text-secondary);
+    vertical-align: 1px;
+}
+
+.routines-err-chip {
+    border-color: var(--color-amber);
+    color: var(--color-amber);
+}
+
+.routines-err-text {
+    color: var(--color-amber);
+}
+
+/* R4 "Test trigger" result — a quiet inline report under the property
+   list, not a modal: it answers a question you asked about THIS routine
+   while you are looking at it. */
+.routines-trigtest {
+    margin: var(--space-sm) 0 var(--space-lg);
+    padding: var(--space-sm) var(--space-md);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    font-size: var(--text-sm);
+}
+
+.routines-trigtest[hidden] {
+    display: none;
+}
+
+.routines-trigtest-line {
+    margin: 0 0 4px;
+    color: var(--color-text-secondary);
+}
+
+.routines-trigtest-line:last-child {
+    margin-bottom: 0;
+}
+
+.routines-trigtest-line strong {
+    color: var(--color-text);
+}
+
+/* Trigger panes — all three live in the DOM and toggle by [hidden], so
+   switching type never loses what was typed into another. */
+.routines-trig-pane[hidden] {
+    display: none;
+}
+
+.routines-trig-input {
+    width: 100%;
+    padding: 6px 8px;
+    font-size: var(--text-sm);
+    font-family: inherit;
+    color: var(--color-text);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.routines-trig-input:hover {
+    background: var(--color-surface-hover);
+}
+
+.routines-trig-input:focus {
+    outline: none;
+    background: var(--color-bg);
+    border-color: var(--color-border-hover);
+}
+
+.routines-uses-row[hidden] {
+    display: none;
+}
+
+/* ══ Routines + the home feed, redesign pass (2026-09-09, by request —
+   "premium, subtle colour"). Colour as DATA: one stable hue per routine
+   (PromptFeed.routineHue, inline `--rt-hue`) on a kind tile that the feed
+   series, the result page and the routine detail all carry, so the three
+   surfaces read as one thing. The kind (writes an answer / takes actions /
+   from Anjadhe) is a stroked glyph on that tile. The indigo accent marks
+   unread; green and red say a run's verdict. Chrome stays ink. ══ */
+
+/* ── Home feed: series ─────────────────────────────────────────────── */
+/* The feed is ONE card (2026-09-11, by request): the loose hairline
+   sections on the ground read as scattered pieces next to the widget
+   cards above, so the whole digest now sits on one white sheet with the
+   same frame as a widget, series divided by hairlines inside it. Still a
+   reading surface — no per-row chrome, the rows are the navigation. */
+.prompt-feed-list:has(.feed-series) {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    padding: 4px 0;
+}
+[data-theme="dark"] .prompt-feed-list:has(.feed-series) { box-shadow: none; }
+.feed-series {
+    --rt-hue: #9CA3AF;
+    position: relative;
+    padding: 14px var(--space-md);
+    margin: 0;
+    border-top: none;
+    border-radius: 0;
+    transition: background var(--transition-fast);
+}
+.feed-series + .feed-series::before {
+    content: '';
+    position: absolute;
+    left: var(--space-md);
+    right: var(--space-md);
+    top: 0;
+    border-top: 1px solid var(--color-border-light);
+}
+.feed-series:hover { background: color-mix(in srgb, var(--color-surface-hover) 45%, transparent); }
+.feed-series:first-child { padding-top: 14px; }
+.feed-series-tile { background: color-mix(in srgb, var(--rt-hue) 13%, var(--color-surface)); }
+.feed-series-toggle { background: var(--color-surface); }
+
+.feed-series-head { align-items: center; gap: 10px; }
+.feed-series-tile {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in srgb, var(--rt-hue) 13%, var(--color-bg));
+    color: color-mix(in srgb, var(--rt-hue) 70%, var(--color-text));
+}
+.feed-series-tile svg { width: 14px; height: 14px; display: block; }
+.feed-series-title { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.feed-series-head:hover .feed-series-title { text-decoration: none; }
+.feed-series-dot {
+    margin-left: -2px;
+    width: 7px;
+    height: 7px;
+    background: var(--color-accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 16%, transparent);
+}
+.feed-series-meta { font-variant-numeric: tabular-nums; }
+.feed-series-summary {
+    margin: 6px 0 0 38px;
+    max-width: 68ch;
+    font-size: var(--text-sm);
+    line-height: 1.6;
+    color: var(--color-text-secondary);
+}
+.feed-series.is-unread .feed-series-summary { color: var(--color-text); }
+.feed-series-foot { margin: 8px 0 0 38px; }
+.feed-series-toggle {
+    padding: 3px 10px;
+    border: 1px solid var(--color-border-light);
+    border-radius: 999px;
+    background: var(--color-bg);
+    color: var(--color-text-secondary);
+    font-weight: 600;
+    transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+.feed-series-toggle:hover { text-decoration: none; color: var(--color-text); border-color: var(--color-border-hover); }
+
+/* Earlier editions: the date gutter with the routine's dot. */
+.feed-earlier { margin: 8px 0 0 38px; }
+.feed-earlier-row { padding: 5px 8px; margin: 0 -8px; border-radius: var(--radius-sm); align-items: center; }
+.feed-earlier-row:hover { box-shadow: none; }
+.feed-earlier-when { display: inline-flex; align-items: center; gap: 7px; flex-basis: 96px; }
+.feed-earlier-when::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: color-mix(in srgb, var(--rt-hue) 65%, var(--color-text)); flex-shrink: 0; }
+.feed-earlier-row.is-unread .feed-earlier-when::before { background: var(--color-accent); }
+
+[data-theme="dark"] .feed-series-tile {
+    background: color-mix(in srgb, var(--rt-hue) 22%, var(--color-bg));
+    color: color-mix(in srgb, var(--rt-hue) 82%, #fff);
+}
+
+/* ── Result page (the full-page post) ──────────────────────────────── */
+.feed-post-overlay { --rt-hue: #9CA3AF; }
+.feed-post-bar { padding-top: 10px; padding-bottom: 10px; }
+.feed-post-back { border-radius: 999px; padding: 5px 12px 5px 8px; border: 1px solid transparent; }
+.feed-post-back:hover { border-color: var(--color-border); }
+.feed-post-header {
+    margin-bottom: var(--space-xl);
+    padding-bottom: var(--space-lg);
+    border-bottom: 1px solid var(--color-border-light);
+}
+.feed-post-eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+.feed-post-tile {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: 11px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in srgb, var(--rt-hue) 14%, var(--color-bg));
+    color: color-mix(in srgb, var(--rt-hue) 72%, var(--color-text));
+}
+.feed-post-tile svg { width: 17px; height: 17px; display: block; }
+.feed-post-kind {
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: color-mix(in srgb, var(--rt-hue) 60%, var(--color-text));
+}
+.feed-post-overlay[data-rt-kind="published"] .feed-post-kind { color: var(--color-text-secondary); }
+.feed-post-title {
+    font-family: var(--font-serif); font-size: var(--text-3xl);
+    font-weight: 400;
+    line-height: 1.15;
+    letter-spacing: -0.012em;
+    text-wrap: balance;
+    max-width: 30ch;
+}
+.feed-post-meta { align-items: center; gap: 8px; margin-top: 14px; }
+.feed-post-time { font-size: var(--text-sm); color: var(--color-text-secondary); font-variant-numeric: tabular-nums; }
+.feed-post-prompt-toggle,
+.feed-post-prompt-link {
+    padding: 4px 11px;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    background: var(--color-bg);
+    color: var(--color-text-secondary);
+    font-weight: 600;
+    transition: color var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
+}
+.feed-post-prompt-toggle:hover,
+.feed-post-prompt-link:hover { text-decoration: none; color: var(--color-text); border-color: var(--color-border-hover); background: var(--color-surface); }
+.feed-post-prompt-toggle[aria-expanded="true"] { background: var(--color-text); color: var(--color-bg); border-color: var(--color-text); }
+
+/* The instruction behind the result: a quote card on the routine's hue. */
+.feed-post-prompt {
+    margin: var(--space-md) 0 0;
+    padding: 12px 16px;
+    border: 1px solid var(--color-border-light);
+    border-left: 3px solid color-mix(in srgb, var(--rt-hue) 70%, var(--color-text));
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--rt-hue) 5%, var(--color-bg));
+}
+/* Full column width (2026-09-11, by request): the 68ch caps on the body
+   and the quote card left them narrower than the page's own 1040px frame. */
+.feed-post-overlay .feed-post-body { font-size: 1rem; line-height: 1.75; }
+.feed-post-overlay .feed-post-body h2 { font-size: var(--text-xl); font-weight: 700; }
+.feed-post-overlay .feed-post-body h3 { font-size: var(--text-lg); font-weight: 700; }
+.feed-post-overlay .feed-post-body h4 { font-size: var(--text-base); font-weight: 700; }
+.feed-post-discuss { border-color: transparent; }
+[data-theme="dark"] .feed-post-tile {
+    background: color-mix(in srgb, var(--rt-hue) 24%, var(--color-bg));
+    color: color-mix(in srgb, var(--rt-hue) 84%, #fff);
+}
+[data-theme="dark"] .feed-post-kind { color: color-mix(in srgb, var(--rt-hue) 80%, #fff); }
+
+/* ── Routine detail ────────────────────────────────────────────────── */
+#prompts-main { --rt-hue: #9CA3AF; }
+.routines-detail-head { align-items: flex-start; gap: 14px; margin-bottom: var(--space-lg); }
+.routines-detail-tile {
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    border-radius: 13px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in srgb, var(--rt-hue) 14%, var(--color-bg));
+    color: color-mix(in srgb, var(--rt-hue) 72%, var(--color-text));
+    margin-top: 2px;
+}
+.routines-detail-tile svg { width: 20px; height: 20px; display: block; }
+.routines-detail-headtext { flex: 1; min-width: 0; }
+.routines-detail-eyebrow { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.routines-kind-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 9px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--rt-hue) 11%, var(--color-bg));
+    color: color-mix(in srgb, var(--rt-hue) 68%, var(--color-text));
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 20px;
+}
+.routines-detail-title {
+    font-family: var(--font-serif); font-size: 1.5rem;
+    font-weight: 400;
+    line-height: 1.2;
+    letter-spacing: -0.012em;
+    text-wrap: pretty;
+}
+.routines-detail-actions { gap: 6px; padding-top: 8px; }
+.routines-act { padding: 6px 14px; font-weight: 500; }
+.routines-act-run { font-weight: 600; }
+.routines-mode-chip, .routines-err-chip { border-radius: 999px; padding: 0 8px; line-height: 20px; margin-left: 0; font-weight: 600; vertical-align: 0; }
+.routines-mode-chip.is-live { color: var(--color-green); border-color: color-mix(in srgb, var(--color-green) 35%, var(--color-border)); background: color-mix(in srgb, var(--color-green) 9%, var(--color-bg)); }
+.routines-err-chip { background: color-mix(in srgb, var(--color-amber) 9%, var(--color-bg)); border-color: color-mix(in srgb, var(--color-amber) 35%, var(--color-border)); }
+[data-theme="dark"] .routines-detail-tile {
+    background: color-mix(in srgb, var(--rt-hue) 24%, var(--color-bg));
+    color: color-mix(in srgb, var(--rt-hue) 84%, #fff);
+}
+[data-theme="dark"] .routines-kind-chip {
+    background: color-mix(in srgb, var(--rt-hue) 20%, var(--color-bg));
+    color: color-mix(in srgb, var(--rt-hue) 82%, #fff);
+}
+
+/* Properties as a card with a quiet label gutter. */
+.routines-props {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-bg);
+    padding: 2px var(--space-md);
+    margin-bottom: var(--space-lg);
+}
+.routines-prop { grid-template-columns: 116px 1fr; padding: 9px 0; }
+.routines-prop:last-child { border-bottom: none; }
+.routines-prop-label { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; }
+.routines-prop-value { font-weight: 500; }
+.routines-prop .routines-stop { margin-left: 8px; padding: 2px 10px; font-size: var(--text-xs); }
+
+/* Section labels in the app's eyebrow voice. */
+.routines-prompt-section .detail-section-header,
+.routines-outputs .detail-section-header { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; margin-bottom: 8px; }
+
+/* The prompt: the routine's own words, as a quote card on its hue. */
+.routines-prompt-text {
+    padding: 14px 18px;
+    border: 1px solid var(--color-border-light);
+    border-left: 3px solid color-mix(in srgb, var(--rt-hue) 70%, var(--color-text));
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--rt-hue) 5%, var(--color-bg));
+    font-size: var(--text-sm);
+    line-height: 1.7;
+}
+
+/* Runs and posts: rows in a card, a verdict tile ahead of each run. */
+.routines-outputs {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-bg);
+    padding: 12px var(--space-md) 4px;
+    margin-bottom: var(--space-lg);
+}
+.routines-post-row, .routines-run-row { grid-template-columns: 116px 1fr; padding: 9px 0; align-items: center; border-radius: var(--radius-sm); }
+.routines-run-row { grid-template-columns: 22px 116px 1fr; column-gap: 12px; }
+.routines-post-row:hover, .routines-run-row:hover { background: var(--color-surface-hover); box-shadow: 0 0 0 8px var(--color-surface-hover); }
+.routines-post-row:last-child { border-bottom: none; }
+.routines-run:last-child { border-bottom: none; }
+.routines-post-when { display: inline-flex; align-items: center; gap: 7px; font-variant-numeric: tabular-nums; }
+.routines-post-row .routines-post-when::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: color-mix(in srgb, var(--rt-hue) 65%, var(--color-text)); flex-shrink: 0; }
+.routines-post-preview { color: var(--color-text); }
+.routines-run-mark {
+    width: 22px;
+    height: 22px;
+    border-radius: 7px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--color-green);
+    background: color-mix(in srgb, var(--color-green) 12%, var(--color-bg));
+}
+.routines-run.is-error .routines-run-mark { color: var(--color-red); background: color-mix(in srgb, var(--color-red) 12%, var(--color-bg)); }
+.routines-run.is-error .routines-post-preview { color: var(--color-red); }
+[data-theme="dark"] .routines-run-mark { color: #4ade80; }
+[data-theme="dark"] .routines-run.is-error .routines-run-mark,
+[data-theme="dark"] .routines-run.is-error .routines-post-preview { color: #f87171; }
+.routines-run-report {
+    margin: 4px 0 12px 34px;
+    padding: 12px 14px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11.5px;
+    line-height: 1.6;
+    border-radius: var(--radius-md);
+}
+.routines-empty { font-style: normal; padding: var(--space-md) var(--space-lg); border: 1px dashed var(--color-border); border-radius: var(--radius-md); }
+.routines-trigtest { border-radius: var(--radius-md); }
+
+/* List: the rows a touch taller, the search a pill with the accent ring. */
+.routines-search { border-radius: 999px; padding: 7px 14px; }
+.routines-search:focus { border-color: var(--color-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 15%, transparent); }
+.routines-filter { border-radius: 999px; padding: 6px 12px; }
+.routines-th { font-size: 10px; letter-spacing: 0.08em; color: var(--color-text-tertiary); }
+.routines-row td { padding: 10px 10px; }
+.routines-mode-chip { vertical-align: 1px; }
+/* Every section label on the detail in one eyebrow voice (the Decisions
+   block is the shared DecisionsUI component and brought its own). */
+#prompts-main .detail-section-header { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: var(--color-text-tertiary); }
+#prompts-main .detail-section-header-row { margin-bottom: var(--space-sm); }
+.routines-outputs { margin-top: var(--space-lg); }
+
+/* ── Routines list (2026-09-09, same pass): the table in a card, each row
+   led by the routine's hued kind tile, Web/Context as chips in one Uses
+   column, a status dot on the last run, stroked-icon actions on hover. ── */
+.routines-toolbar { gap: 10px; margin-bottom: var(--space-md); }
+.routines-search-wrap { position: relative; flex: 0 1 300px; display: inline-flex; align-items: center; }
+.routines-search-wrap svg { position: absolute; left: 12px; width: 14px; height: 14px; color: var(--color-text-tertiary); pointer-events: none; }
+.routines-search-wrap .routines-search { flex: 1 1 auto; width: 100%; padding-left: 34px; background: var(--color-surface); }
+.routines-search:focus { background: var(--color-bg); }
+.routines-filter { background: var(--color-surface); color: var(--color-text); font-weight: 500; }
+.routines-count { padding: 2px 9px; border-radius: 999px; background: var(--color-surface); border: 1px solid var(--color-border-light); font-variant-numeric: tabular-nums; }
+
+.routines-table {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-bg);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+}
+[data-theme="dark"] .routines-table { box-shadow: none; }
+.routines-table thead tr { background: var(--color-surface); }
+.routines-th { padding: 9px 14px; border-bottom: 1px solid var(--color-border); }
+.routines-th:first-child { padding-left: 18px; }
+.routines-row td { padding: 11px 14px; vertical-align: middle; }
+.routines-row td:first-child { padding-left: 14px; }
+.routines-row:last-child td { border-bottom: none; }
+.routines-row:hover td { background: color-mix(in srgb, var(--color-surface) 70%, transparent); }
+.routines-row:focus-visible { outline: none; }
+.routines-row:focus-visible td { box-shadow: inset 0 0 0 2px var(--color-text); }
+
+.routines-td-title { display: flex; align-items: flex-start; gap: 12px; max-width: 520px; }
+.routines-td-tile {
+    flex-shrink: 0;
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in srgb, var(--rt-hue, #9CA3AF) 13%, var(--color-bg));
+    color: color-mix(in srgb, var(--rt-hue, #9CA3AF) 70%, var(--color-text));
+}
+.routines-td-tile svg { width: 15px; height: 15px; display: block; }
+[data-theme="dark"] .routines-td-tile {
+    background: color-mix(in srgb, var(--rt-hue, #9CA3AF) 22%, var(--color-bg));
+    color: color-mix(in srgb, var(--rt-hue, #9CA3AF) 82%, #fff);
+}
+.routines-td-titlewrap { min-width: 0; display: flex; flex-direction: column; gap: 4px; padding-top: 5px; }
+.routines-td-title-text { font-family: var(--font-sans); font-size: 15px; font-weight: 600; line-height: 1.3; letter-spacing: -0.005em; }
+.routines-td-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.routines-td-chips:empty { display: none; }
+.routines-td-sched { color: var(--color-text-secondary); font-size: var(--text-sm); max-width: 380px; }
+.routines-td-uses { white-space: nowrap; }
+.routines-use-chip {
+    display: inline-block;
+    padding: 0 8px;
+    border-radius: 999px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-light);
+    color: var(--color-text-secondary);
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 18px;
+    margin-right: 4px;
+}
+.routines-td-ran { color: var(--color-text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.routines-ran-dot { display: inline-block; vertical-align: middle; margin: -2px 8px 0 0; width: 7px; height: 7px; border-radius: 50%; background: var(--color-border-hover); }
+.routines-ran-dot.is-ok { background: var(--color-green); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-green) 16%, transparent); }
+.routines-ran-dot.is-error { background: var(--color-amber); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-amber) 16%, transparent); }
+.routines-ran-dot.is-running { background: var(--color-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 18%, transparent); animation: routines-pulse 1.2s ease-in-out infinite; }
+@keyframes routines-pulse { 50% { opacity: 0.45; } }
+.routines-td-actions { width: 112px; }
+.routines-td-actions .prompt-mgr-iconbtn { width: 30px; height: 30px; border: 1px solid transparent; }
+.routines-td-actions .prompt-mgr-iconbtn svg { width: 14px; height: 14px; }
+.routines-td-actions .prompt-mgr-iconbtn:hover { border-color: var(--color-border); background: var(--color-bg); box-shadow: var(--shadow-sm); }
+.routines-table-empty { font-style: normal; }
+
+/* Waiting on you: a card in the amber voice, its rows led by a pause tile. */
+.routines-waiting-section {
+    padding: 12px var(--space-lg) 6px;
+    border: 1px solid color-mix(in srgb, var(--color-amber) 30%, var(--color-border));
+    border-radius: var(--radius-lg);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--color-amber) 8%, var(--color-bg)), var(--color-bg) 90px);
+    margin-bottom: var(--space-lg);
+}
+.routines-waiting-header { font-size: 10px; letter-spacing: 0.08em; color: var(--color-text-tertiary); display: flex; align-items: center; gap: 8px; }
+.routines-waiting-count { padding: 0 7px; border-radius: 999px; background: var(--color-amber); color: #fff; font-size: 10px; font-weight: 700; line-height: 16px; }
+.routines-waiting-row { padding: 10px 0; }
+.routines-waiting-title { font-weight: 600; }
+.routines-waiting-actions .routines-act { padding: 5px 12px; font-size: var(--text-xs); }
+
+/* ── Edit / new routine (same pass): the kind tile and an eyebrow lead a
+   display-weight title field; the prompt is the quote card, editable; the
+   settings sit in the property card with filled fields; pill actions. ── */
+.routines-ask-row { margin-bottom: var(--space-xl); }
+.routines-form-head { display: flex; align-items: flex-start; gap: 14px; margin-bottom: var(--space-xl); }
+.routines-form-tile { margin-top: 6px; }
+.routines-form-headtext { flex: 1; min-width: 0; }
+.routines-form-eyebrow { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-text-tertiary); margin-bottom: 2px; }
+#prompts-view input[type="text"].routines-title-input {
+    font-family: var(--font-serif); font-size: 1.5rem;
+    font-weight: 400;
+    letter-spacing: -0.012em;
+    line-height: 1.2;
+    padding: 4px 0 8px;
+    margin-bottom: 0;
+    border-bottom: 1px solid transparent;
+}
+#prompts-view input[type="text"].routines-title-input:hover { border-bottom-color: var(--color-border-light); }
+#prompts-view input[type="text"].routines-title-input:focus { border-bottom-color: var(--color-text); }
+
+.routines-form-section { margin-bottom: var(--space-lg); }
+.routines-form-section-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-md); }
+.routines-form .detail-section-header { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: var(--color-text-tertiary); margin-bottom: 8px; }
+.routines-form-kbd { font-size: var(--text-xs); color: var(--color-text-tertiary); font-variant-numeric: tabular-nums; }
+.routines-body-input {
+    margin: 0;
+    padding: 14px 18px;
+    border: 1px solid var(--color-border-light);
+    border-left: 3px solid color-mix(in srgb, var(--rt-hue) 70%, var(--color-text));
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--rt-hue) 5%, var(--color-bg));
+    font-size: var(--text-sm);
+    line-height: 1.7;
+    min-height: 120px;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
+}
+.routines-body-input:hover { background: color-mix(in srgb, var(--rt-hue) 7%, var(--color-bg)); }
+.routines-body-input:focus {
+    background: var(--color-bg);
+    border-color: color-mix(in srgb, var(--color-accent) 55%, var(--color-border));
+    border-left-color: color-mix(in srgb, var(--rt-hue) 70%, var(--color-text));
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 15%, transparent);
+}
+
+/* The settings card: rows a touch taller; text fields filled, not boxed. */
+.routines-form-props { margin-bottom: var(--space-sm); }
+.routines-form-props .routines-prop { padding: 10px 0; align-items: center; }
+.routines-prop .prompt-mgr-seg { background: var(--color-surface); }
+.routines-trig-input,
+.routines-time {
+    margin-left: 0;
+    padding: 7px 12px;
+    border: 1px solid var(--color-border-light);
+    border-radius: 999px;
+    background: var(--color-surface);
+    font-size: var(--text-sm);
+}
+.routines-trig-input:hover, .routines-time:hover { background: var(--color-surface-hover); }
+.routines-trig-input:focus, .routines-time:focus {
+    outline: none;
+    background: var(--color-bg);
+    border-color: color-mix(in srgb, var(--color-accent) 55%, var(--color-border));
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 15%, transparent);
+}
+.routines-trig-input { max-width: 440px; }
+.routines-time { height: auto; min-width: 130px; }
+.routines-form-hint { font-style: normal; color: var(--color-text-tertiary); margin: 6px 0 8px; line-height: 1.5; }
+.routines-trig-pane .routines-form-hint { padding-left: calc(116px + var(--space-md)); }
+.routines-mode-hint { margin: 0 0 var(--space-lg); padding: 10px 14px; border: 1px dashed var(--color-border); border-radius: var(--radius-md); }
+.prompt-mgr-optchip span svg { width: 13px; height: 13px; }
+.prompt-mgr-optchip span { padding: 5px 12px; font-weight: 600; }
+.routines-form-actions { padding-top: var(--space-md); border-top: 1px solid var(--color-border-light); }
+.routines-form-actions .primary-btn, .routines-form-actions .secondary-btn { border-radius: 999px; padding: 8px 18px; }
+.routines-form-actions .primary-btn { font-weight: 600; }
+@media (max-width: 640px) {
+    .routines-trig-pane .routines-form-hint { padding-left: 0; }
+}
+
+/* ── Reading sheet + prose measure (2026-09-11) ─────────────────────
+   The result body reads at the app's ONE prose setting (it was 16px/1.75,
+   a size no other page used); its markdown headings follow the prose
+   rule — serif at regular weight, small ones sans semibold. */
+.feed-post-overlay .feed-post-body { font-size: var(--prose-size); line-height: var(--prose-lh); }
+.feed-post-overlay .feed-post-body h2 { font-family: var(--font-serif); font-size: var(--text-xl); font-weight: 400; letter-spacing: -0.012em; }
+.feed-post-overlay .feed-post-body h3 { font-family: var(--font-serif); font-size: var(--text-lg); font-weight: 400; letter-spacing: -0.012em; }
+.feed-post-overlay .feed-post-body h4 { font-family: var(--font-sans); font-size: var(--text-base); font-weight: 600; }
