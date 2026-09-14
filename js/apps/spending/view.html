@@ -1,0 +1,29 @@
+<!-- Spending view — appended to #app-views by BundledApps (manifest.json `view`).
+     The Portfolio recipe: a left nav of PAGES (Overview, Categories,
+     Merchants, Recurring, Transactions) and ACCOUNTS (a scope that applies
+     to every page) beside the main column. Header chrome only; the nav and
+     the page are rendered by SpendingUI. Every door is behind the
+     `brokerage` feature flag (SpendingSync.available()). -->
+<div id="spending-view" class="view app-view app-view-full">
+    <div class="app-header-bar">
+        <div class="email-header-left">
+            <button id="spending-sidebar-toggle" class="email-sidebar-toggle" type="button" title="Toggle sidebar" aria-label="Toggle sidebar"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg></button>
+            <h2 class="app-view-title">
+                <span class="app-breadcrumb">Spending</span>
+            </h2>
+        </div>
+        <div class="app-header-actions">
+            <!-- No help button yet: the help corpus mirrors to the public site at
+                 release, and this feature is unannounced. Add the article with the flag flip. -->
+            <!-- Settings gear → Settings › Accounts › Linked institutions (AppManager.openAppSettings). -->
+            <button class="icon-btn app-settings-btn" data-settings-for="spending" title="Spending settings" aria-label="Spending settings"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+            <button id="spending-sync-btn" class="secondary-btn" title="Pull the latest transactions from your linked banks and cards" hidden>Sync now</button>
+            <button id="spending-link-btn" class="primary-btn" title="Connect a bank or credit card through Anjadhe Cloud">+ Link a bank or card</button>
+        </div>
+    </div>
+    <div class="spending-layout">
+        <nav id="spending-nav" class="spending-nav" aria-label="Spending sections and accounts"></nav>
+        <div id="spending-nav-resizer" class="actions-nav-resizer" role="separator" aria-orientation="vertical" aria-label="Resize sidebar" title="Drag to resize &mdash; double-click to reset"></div>
+        <div id="spending-body" class="spending-main"></div>
+    </div>
+</div>
