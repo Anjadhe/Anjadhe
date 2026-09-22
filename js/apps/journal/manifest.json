@@ -1,0 +1,23 @@
+{
+  "manifestVersion": 1,
+  "id": "journal",
+  "name": "Journal",
+  "version": "1.0.0",
+  "description": "A private daily journal with moods.",
+  "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M4 19.5A2.5 2.5 0 0 1 6.5 17H20\"/><path d=\"M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z\"/></svg>",
+  "group": "Capture",
+  "keywords": [
+    "journal",
+    "diary",
+    "mood"
+  ],
+  "styles": [
+    "journal.css"
+  ],
+  "view": "view.html",
+  "scripts": [
+    "journal-app.js",
+    "journal-ui.js",
+    "journal-tools.js"
+  ]
+}

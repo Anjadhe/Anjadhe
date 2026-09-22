@@ -1,0 +1,169 @@
+/* Alternate shell; all selectors gated so the full experience stays intact. */
+body.simple-experience { --sidenav-w: 0px; }
+/* Flow layout keeps the brand and navigation apart even when status pills
+   appear mid-session or the window is narrow. Leave room for traffic lights. */
+body.simple-experience .app-titlebar { justify-content: flex-start; padding: 0 12px 0 84px; gap: 4px; }
+body.simple-experience .titlebar-actions { position: relative; right: auto; top: auto; transform: none; margin-left: auto; }
+body.simple-experience .titlebar-home-btn { position: relative; left: auto; top: auto; transform: none; max-width: 140px; }
+body.simple-experience .titlebar-home-btn span { overflow: hidden; text-overflow: ellipsis; }
+/* The quiet bar. AI Activity is deliberately NOT in this list (2026-09-20,
+   by request): the model chip and readiness dot say what the brain IS, which
+   Settings answers, but the activity icon says what it is DOING right now —
+   it pulses while a call runs, and that is the one thing a shell built
+   around the AI should not hide. */
+body.simple-experience #app-sidenav,
+body.simple-experience .titlebar-model-select,
+body.simple-experience #titlebar-readiness,
+body.simple-experience .titlebar-divider,
+body.simple-experience #dashboard-view .dash-header,
+body.simple-experience #dashboard-view #dash-journal-nudge,
+body.simple-experience #agent-app-memory-btn,
+body.simple-experience #agent-view .app-help-btn,
+body.simple-experience #agent-view .app-settings-btn { display: none !important; }
+body.simple-experience.in-setup .simple-nav { display: none; }
+body.simple-experience #titlebar-apps-btn { width: auto; gap: 5px; padding: 0 8px; font: inherit; }
+body.simple-experience .simple-nav { display: flex; gap: 4px; -webkit-app-region: no-drag; }
+body.simple-experience .simple-nav button { height: 26px; padding: 0 8px; }
+body.simple-experience .simple-nav button,
+body.simple-experience .simple-section-head > button {
+    border: 0; background: transparent; color: var(--color-text-secondary);
+    font: inherit; font-size: var(--text-sm); cursor: pointer; border-radius: var(--radius-sm);
+}
+body.simple-experience .simple-nav button:hover,
+body.simple-experience .simple-section-head > button:hover { color: var(--color-text); background: var(--color-surface-hover); }
+body.simple-experience #dashboard-view .dashboard-container { max-width: 760px; width: 100%; margin: 0 auto; padding: 32px 24px 64px; }
+body.simple-experience .simple-intro { text-align: center; padding: clamp(20px, 6vh, 70px) 0 24px; }
+body.simple-experience .simple-intro p { font-size: var(--text-sm); color: var(--color-text-tertiary); margin: 0 0 12px; }
+body.simple-experience .simple-intro h1 { font: 400 var(--text-4xl)/1.2 var(--font-serif); letter-spacing: -.012em; margin: 0; }
+body.simple-experience .dash-agent-hero { margin-bottom: 32px; }
+/* The shared home entrance fades from zero; keep this mode's focal control
+   readable immediately, including when the Electron window is occluded. */
+body.simple-experience #dashboard-view.active .dash-agent-hero { animation: none; }
+body.simple-experience #dash-agent-input { min-height: 76px; }
+body.simple-experience #simple-home-sections { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; align-items: start; }
+body.simple-experience #simple-home-sections > :only-child { grid-column: 1 / -1; }
+body.simple-experience .simple-section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+body.simple-experience .simple-section-head h2 { margin: 0; font: 600 var(--text-sm)/1.5 var(--font-sans); }
+body.simple-experience .simple-sheet { border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); overflow: hidden; }
+body.simple-experience .simple-row { display: flex; align-items: center; justify-content: space-between; gap: 20px; width: 100%; text-align: left; padding: 15px 18px; border: 0; border-radius: 0; background: transparent; color: var(--color-text); font: inherit; font-size: var(--text-sm); cursor: pointer; }
+body.simple-experience .simple-row + .simple-row { border-top: 1px solid var(--color-border); }
+body.simple-experience .simple-row:hover { background: var(--color-surface-hover); }
+body.simple-experience .simple-row > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body.simple-experience .simple-row-meta { flex-shrink: 0; color: var(--color-text-tertiary); font-size: var(--text-xs); }
+body.simple-experience .simple-more { margin-top: 8px; padding: 6px 0; border: 0; background: transparent; color: var(--color-text-secondary); font: inherit; font-size: var(--text-sm); cursor: pointer; }
+body.simple-experience .simple-empty { text-align: center; color: var(--color-text-secondary); font-size: var(--text-sm); padding: 12px 0; }
+body.simple-experience .simple-updates { margin-top: 24px; }
+body.simple-experience .simple-section-link { display: grid; place-items: center; width: 28px; height: 28px; }
+body.simple-experience .simple-section-link svg,
+body.simple-experience .simple-updates-link svg,
+body.simple-experience .simple-connect > svg { width: 16px; height: 16px; flex-shrink: 0; }
+body.simple-experience #simple-home-sections .simple-home-row { justify-content: flex-start; gap: 12px; padding: 14px; min-height: 74px; }
+body.simple-experience .simple-home-icon { display: grid; place-items: center; width: 30px; height: 30px; flex: 0 0 30px; color: var(--color-text-secondary); background: var(--color-bg); border-radius: var(--radius-sm); }
+body.simple-experience .simple-home-icon svg { width: 18px; height: 18px; }
+body.simple-experience .simple-home-copy { display: grid; gap: 4px; flex: 1; min-width: 0; }
+body.simple-experience .simple-home-title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; line-height: 1.45; }
+body.simple-experience .simple-home-row > svg { width: 14px; height: 14px; flex: 0 0 14px; color: var(--color-text-tertiary); }
+body.simple-experience .simple-connect { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; padding: 16px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); color: var(--color-text); font: inherit; font-size: var(--text-sm); text-align: left; cursor: pointer; }
+body.simple-experience .simple-connect > svg { margin-left: auto; }
+body.simple-experience .simple-updates-link { display: flex; align-items: center; gap: 8px; border: 0; background: transparent; color: var(--color-text-secondary); font: inherit; font-size: var(--text-sm); padding: 8px 0; cursor: pointer; }
+body.simple-experience .simple-updates-link:hover { color: var(--color-text); }
+body.simple-experience .simple-connect:hover { background: var(--color-surface-hover); }
+body.simple-experience #updates-view { height: calc(100vh - 38px); }
+/* History is a normal routed page: the same ground, heading and reading
+   sheets as the other app pages. It owns its scroll position for Back. */
+body.simple-experience #conversations-view { --view-content-max: 760px; height: calc(100vh - 38px); overflow-y: auto; padding: 40px 24px 64px; }
+body.simple-experience .simple-history-header { margin-bottom: 24px; }
+body.simple-experience .simple-history-header h1 { margin: 0 0 8px; font: 400 var(--text-3xl)/1.2 var(--font-serif); letter-spacing: -.012em; }
+body.simple-experience .simple-history-header p { color: var(--color-text-secondary); font-size: var(--text-sm); }
+body.simple-experience .simple-history input[type="search"] { appearance: none; display: block; width: 100%; min-height: 40px; box-sizing: border-box; margin-bottom: 28px; padding: 9px 14px; border: 1px solid var(--color-border); border-radius: 999px; background: var(--color-surface); color: var(--color-text); font: inherit; font-size: var(--text-sm); }
+body.simple-experience .simple-history input[type="search"]::placeholder { color: var(--color-text-tertiary); }
+body.simple-experience .simple-history input[type="search"]:focus { outline: none; border-color: var(--color-accent); box-shadow: 0 0 0 3px var(--color-accent-soft); }
+body.simple-experience .simple-history-group { margin-bottom: 28px; }
+body.simple-experience .simple-history-group h2 { margin: 0 0 10px; font: 600 var(--text-sm)/1.5 var(--font-sans); }
+body.simple-experience .simple-history-copy { display: grid; gap: 5px; min-width: 0; }
+body.simple-experience .simple-history-title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
+body.simple-experience .simple-history-preview { overflow: hidden; text-overflow: ellipsis; color: var(--color-text-secondary); }
+body.simple-experience .simple-nav [aria-current="page"] { color: var(--color-text); background: var(--color-surface-hover); }
+@media (max-width: 700px) {
+    body.simple-experience #simple-home-sections { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+    body.simple-experience .titlebar-home-btn span,
+    body.simple-experience #whats-new-chip { display: none !important; }
+    body.simple-experience .titlebar-search-btn kbd { display: none; }
+    body.simple-experience #dashboard-view .dashboard-container { padding: 20px 16px 40px; }
+    body.simple-experience .simple-intro h1 { font-size: var(--text-3xl); }
+    body.simple-experience .simple-row { padding: 14px 12px; gap: 12px; }
+}
+/* Attention is a message asking for judgment, not a task-list row. */
+body.simple-experience #simple-home-sections { grid-template-columns: minmax(0, 1fr); }
+body.simple-experience .simple-attention-message { display: flex; gap: 12px; padding: 18px; }
+body.simple-experience .simple-attention-message + .simple-attention-message { border-top: 1px solid var(--color-border); }
+body.simple-experience .simple-attention-copy { min-width: 0; flex: 1; }
+body.simple-experience .simple-attention-copy h3 { margin: 0 0 6px; font: 600 var(--text-sm)/1.5 var(--font-sans); overflow-wrap: anywhere; }
+body.simple-experience .simple-attention-copy p { margin: 0 0 12px; font-size: var(--text-sm); color: var(--color-text-secondary); overflow-wrap: anywhere; }
+body.simple-experience .simple-message-actions { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+body.simple-experience .simple-message-actions button { font: inherit; font-size: var(--text-sm); padding: 0; border: 0; background: transparent; color: var(--color-text); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+body.simple-experience .simple-message-actions button + button { color: var(--color-text-secondary); }
+body.simple-experience .simple-working summary { cursor: pointer; font-size: var(--text-sm); color: var(--color-text-secondary); margin-bottom: 10px; }
+body.simple-experience .simple-working summary span { margin-left: 6px; }
+body.simple-experience .simple-attention-copy .simple-reminder-time { font-size: var(--text-xs); color: var(--color-text-tertiary); }
+body.simple-experience .simple-app-shortcuts { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: -8px 0 28px; }
+body.simple-experience .simple-app-shortcuts button { padding: 6px 14px; border: 1px solid var(--color-border); border-radius: 999px; background: var(--color-surface); color: var(--color-text-secondary); font: inherit; font-size: var(--text-sm); cursor: pointer; }
+body.simple-experience .simple-app-shortcuts button:hover { color: var(--color-text); background: var(--color-surface-hover); }
+body.simple-experience #simple-home-sections .simple-home-copy .simple-row-meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body.simple-experience #simple-home-sections section[aria-labelledby="simple-day-title"] .simple-home-row { min-height: 58px; padding: 10px 14px; }
+
+/* From your routines (2026-09-20) — the home feed reduced to one row per
+   routine. The row wears the ordinary home-row shape; only the trailing
+   "when" is new, and it stays quiet because the summary is the content. */
+body.simple-experience .simple-routine-row .simple-row-when { flex: 0 0 auto; margin-left: auto; color: var(--color-text-tertiary); font-size: var(--text-xs); white-space: nowrap; }
+body.simple-experience #simple-home-sections .simple-routine-row { min-height: 58px; padding: 10px 14px; }
+
+/* ══ The Updates page wears the simple shell's clothes (2026-09-20) ══════
+   It is the ORIGINAL home content, moved whole (mountUpdates) — so it
+   arrived wearing the full shell's vocabulary: a 1040px two-column spread,
+   lifted cards at --radius-lg, a 16px panel title, an inverted pill toggle.
+   Beside the simple home's 760px column of flat hairline sheets it read as
+   a different app. Every rule below is scoped to #updates-view, so the
+   classic home keeps its own look exactly.
+
+   Copy is untouched, and so is one thing that looks like theme but is not:
+   a widget's TONE edge (components.css, 2026-08-04 — amber warn, green
+   good, red alert) says what the DATA means and stays. Only its coloured
+   cast goes, so a toned card sits in the same family as an untoned one. */
+body.simple-experience #updates-view .dashboard-container { max-width: 760px; width: 100%; margin: 0 auto; padding: 40px 24px 64px; }
+
+/* The masthead becomes the routed-page heading the History page uses:
+   the greeting stacked over its date, no rule under it. */
+body.simple-experience #updates-view .dash-header { display: block; padding: 0; margin-bottom: 24px; border-bottom: 0; }
+body.simple-experience #updates-view .dash-greeting { font-size: var(--text-3xl); margin: 0 0 8px; }
+body.simple-experience #updates-view .dash-header-sep { display: none; }
+body.simple-experience #updates-view .dash-date-line { font-size: var(--text-sm); color: var(--color-text-secondary); letter-spacing: 0; }
+
+/* One column in a 760px page: dissolve the wrappers so each card's inline
+   `order` (its priority) reads true — the ≤1100px mechanism, applied by
+   width of the COLUMN rather than of the window. */
+body.simple-experience #updates-view .dash-widgets { display: flex; flex-direction: column; align-items: stretch; }
+body.simple-experience #updates-view .dash-widgets-col { display: contents; }
+
+/* Widget cards and the feed sheet take the simple sheet's frame. */
+body.simple-experience #updates-view .widget-card,
+body.simple-experience #updates-view .prompt-feed-list:has(.feed-series) { border-radius: var(--radius-md); box-shadow: none; }
+body.simple-experience #updates-view .widget-card[data-tone] { box-shadow: none; }
+body.simple-experience #updates-view .widget-title { font-size: var(--text-sm); font-weight: 600; }
+body.simple-experience #updates-view .widget-row-text { font-size: var(--text-sm); }
+
+/* Section heads and their controls speak at the simple home's volume. */
+body.simple-experience #updates-view .dash-panel-title { font-size: var(--text-sm); letter-spacing: 0; }
+body.simple-experience #updates-view .dash-feed-actions .secondary-btn {
+    border: 0; background: transparent; color: var(--color-text-secondary);
+    font: inherit; font-size: var(--text-sm); border-radius: var(--radius-sm); padding: 4px 8px;
+}
+body.simple-experience #updates-view .dash-feed-actions .secondary-btn:hover { color: var(--color-text); background: var(--color-surface-hover); }
+/* The current scope was an inverted black pill — the one filled shape on a
+   page that otherwise has none. It becomes the hover wash the shell uses
+   for "this row is the one", with ink text carrying the weight. */
+body.simple-experience #updates-view .feed-scope-btn.is-current { background: var(--color-surface-hover); color: var(--color-text); font-weight: 600; }
+/* "Log journal" is a nudge, not a shortcut: the shell's one accent, as the
+   dot it uses everywhere else for something live. */
+body.simple-experience .simple-app-shortcuts button.is-nudge { color: var(--color-text); display: inline-flex; align-items: center; gap: 7px; }
+body.simple-experience .simple-nudge-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--color-accent); flex: 0 0 6px; }
