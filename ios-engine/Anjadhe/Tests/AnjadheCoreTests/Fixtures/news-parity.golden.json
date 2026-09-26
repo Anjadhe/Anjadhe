@@ -1,0 +1,366 @@
+{
+ "parsed": {
+  "google": [
+   {
+    "title": "Apple unveils new iPhone lineup at annual event",
+    "url": "https://news.google.com/rss/articles/abc1",
+    "source": "The Verge",
+    "sourceUrl": "https://www.theverge.com",
+    "publishedAt": "2026-06-20T21:00:00.000Z",
+    "via": "google"
+   },
+   {
+    "title": "Chip makers & the AI boom: what's next",
+    "url": "https://news.google.com/rss/articles/abc2",
+    "source": "Financial Times",
+    "sourceUrl": "https://www.ft.com",
+    "publishedAt": "2026-06-20T18:30:00.000Z",
+    "via": "google"
+   },
+   {
+    "title": "Celebrity gossip roundup of the week in tech",
+    "url": "https://news.google.com/rss/articles/abc3",
+    "source": "Gossip Daily",
+    "sourceUrl": "https://gossip.example",
+    "publishedAt": "2026-06-20T19:00:00.000Z",
+    "via": "google"
+   },
+   {
+    "title": "Ancient story from last week",
+    "url": "https://news.google.com/rss/articles/abc4",
+    "source": "Old Times",
+    "sourceUrl": "https://old.example",
+    "publishedAt": "2026-06-15T10:00:00.000Z",
+    "via": "google"
+   },
+   {
+    "title": "Undated story",
+    "url": "https://news.google.com/rss/articles/abc5",
+    "source": "X",
+    "sourceUrl": "https://x.example",
+    "publishedAt": null,
+    "via": "google"
+   },
+   {
+    "title": "Apple unveils its new iPhone lineup at the event",
+    "url": "https://news.google.com/rss/articles/abc6",
+    "source": "CNET",
+    "sourceUrl": "https://www.cnet.com",
+    "publishedAt": "2026-06-20T17:00:00.000Z",
+    "via": "google"
+   },
+   {
+    "title": "Startup raises funds for 2026/06/10 launch",
+    "url": "https://example.com/2026/06/10/startup-raises",
+    "source": "Example",
+    "sourceUrl": "https://example.com",
+    "publishedAt": "2026-06-20T20:00:00.000Z",
+    "via": "google"
+   }
+  ],
+  "bing": [
+   {
+    "title": "Chennai metro phase two opens to riders",
+    "url": "https://www.thehindu.com/news/chennai-metro",
+    "source": "The Hindu",
+    "sourceUrl": "https://www.thehindu.com",
+    "publishedAt": "2026-06-20T16:45:00.000Z",
+    "via": "bing"
+   },
+   {
+    "title": "Heavy rain lashes Chennai suburbs",
+    "url": "https://www.dtnext.in/rain",
+    "source": "DT Next",
+    "sourceUrl": "https://www.dtnext.in",
+    "publishedAt": "2026-06-20T15:10:00.000Z",
+    "via": "bing"
+   }
+  ],
+  "hn": [
+   {
+    "title": "Show HN: A tiny climate model in Rust",
+    "url": "https://www.github.com/x/climate",
+    "source": "github.com",
+    "sourceUrl": "https://www.github.com",
+    "publishedAt": "2026-06-20T20:30:00.000Z",
+    "discussionUrl": "https://news.ycombinator.com/item?id=41000001",
+    "points": 187,
+    "via": "hn"
+   },
+   {
+    "title": "Ask HN: How do you track carbon at home?",
+    "url": "https://news.ycombinator.com/item?id=41000002",
+    "source": "Hacker News",
+    "sourceUrl": "https://news.ycombinator.com",
+    "publishedAt": "2026-06-20T12:00:00.000Z",
+    "discussionUrl": "https://news.ycombinator.com/item?id=41000002",
+    "points": 42,
+    "via": "hn"
+   }
+  ]
+ },
+ "fetched": [
+  {
+   "topic": "Technology",
+   "items": [
+    {
+     "title": "Apple unveils new iPhone lineup at annual event",
+     "url": "https://news.google.com/rss/articles/abc1",
+     "source": "The Verge",
+     "sourceUrl": "https://www.theverge.com",
+     "publishedAt": "2026-06-20T21:00:00.000Z",
+     "via": "google"
+    },
+    {
+     "title": "Startup raises funds for 2026/06/10 launch",
+     "url": "https://example.com/2026/06/10/startup-raises",
+     "source": "Example",
+     "sourceUrl": "https://example.com",
+     "publishedAt": "2026-06-20T20:00:00.000Z",
+     "via": "google"
+    },
+    {
+     "title": "Celebrity gossip roundup of the week in tech",
+     "url": "https://news.google.com/rss/articles/abc3",
+     "source": "Gossip Daily",
+     "sourceUrl": "https://gossip.example",
+     "publishedAt": "2026-06-20T19:00:00.000Z",
+     "via": "google"
+    },
+    {
+     "title": "Chip makers & the AI boom: what's next",
+     "url": "https://news.google.com/rss/articles/abc2",
+     "source": "Financial Times",
+     "sourceUrl": "https://www.ft.com",
+     "publishedAt": "2026-06-20T18:30:00.000Z",
+     "via": "google"
+    },
+    {
+     "title": "Apple unveils its new iPhone lineup at the event",
+     "url": "https://news.google.com/rss/articles/abc6",
+     "source": "CNET",
+     "sourceUrl": "https://www.cnet.com",
+     "publishedAt": "2026-06-20T17:00:00.000Z",
+     "via": "google"
+    },
+    {
+     "title": "Ancient story from last week",
+     "url": "https://news.google.com/rss/articles/abc4",
+     "source": "Old Times",
+     "sourceUrl": "https://old.example",
+     "publishedAt": "2026-06-15T10:00:00.000Z",
+     "via": "google"
+    },
+    {
+     "title": "Undated story",
+     "url": "https://news.google.com/rss/articles/abc5",
+     "source": "X",
+     "sourceUrl": "https://x.example",
+     "publishedAt": null,
+     "via": "google"
+    }
+   ]
+  },
+  {
+   "topic": "Chennai",
+   "items": [
+    {
+     "title": "Chennai metro phase two opens to riders",
+     "url": "https://www.thehindu.com/news/chennai-metro",
+     "source": "The Hindu",
+     "sourceUrl": "https://www.thehindu.com",
+     "publishedAt": "2026-06-20T16:45:00.000Z",
+     "via": "bing"
+    },
+    {
+     "title": "Heavy rain lashes Chennai suburbs",
+     "url": "https://www.dtnext.in/rain",
+     "source": "DT Next",
+     "sourceUrl": "https://www.dtnext.in",
+     "publishedAt": "2026-06-20T15:10:00.000Z",
+     "via": "bing"
+    }
+   ]
+  },
+  {
+   "topic": "Climate",
+   "items": [
+    {
+     "title": "Show HN: A tiny climate model in Rust",
+     "url": "https://www.github.com/x/climate",
+     "source": "github.com",
+     "sourceUrl": "https://www.github.com",
+     "publishedAt": "2026-06-20T20:30:00.000Z",
+     "discussionUrl": "https://news.ycombinator.com/item?id=41000001",
+     "points": 187,
+     "via": "hn"
+    },
+    {
+     "title": "Ask HN: How do you track carbon at home?",
+     "url": "https://news.ycombinator.com/item?id=41000002",
+     "source": "Hacker News",
+     "sourceUrl": "https://news.ycombinator.com",
+     "publishedAt": "2026-06-20T12:00:00.000Z",
+     "discussionUrl": "https://news.ycombinator.com/item?id=41000002",
+     "points": 42,
+     "via": "hn"
+    }
+   ]
+  },
+  {
+   "topic": "Failed",
+   "items": [],
+   "error": "unavailable"
+  }
+ ],
+ "groups": [
+  {
+   "topic": "Technology",
+   "hue": "#4F6BED",
+   "rows": [
+    {
+     "gi": 0,
+     "ri": 0,
+     "title": "Apple unveils new iPhone lineup at annual event",
+     "url": "https://news.google.com/rss/articles/abc1",
+     "source": "The Verge",
+     "sourceUrl": "https://www.theverge.com",
+     "topic": "Technology",
+     "publishedAt": 1781989200000,
+     "updated": false,
+     "via": "google",
+     "viaLabel": "",
+     "points": null,
+     "discussionUrl": "",
+     "why": "",
+     "read": true
+    },
+    {
+     "gi": 0,
+     "ri": 1,
+     "title": "Startup raises funds for 2026/06/10 launch",
+     "url": "https://example.com/2026/06/10/startup-raises",
+     "source": "Example",
+     "sourceUrl": "https://example.com",
+     "topic": "Technology",
+     "publishedAt": 1781985600000,
+     "updated": true,
+     "via": "google",
+     "viaLabel": "",
+     "points": null,
+     "discussionUrl": "",
+     "why": "",
+     "read": false
+    },
+    {
+     "gi": 0,
+     "ri": 2,
+     "title": "Chip makers & the AI boom: what's next",
+     "url": "https://news.google.com/rss/articles/abc2",
+     "source": "Financial Times",
+     "sourceUrl": "https://www.ft.com",
+     "topic": "Technology",
+     "publishedAt": 1781980200000,
+     "updated": false,
+     "via": "google",
+     "viaLabel": "",
+     "points": null,
+     "discussionUrl": "",
+     "why": "",
+     "read": false
+    }
+   ]
+  },
+  {
+   "topic": "Chennai",
+   "hue": "#F97316",
+   "rows": [
+    {
+     "gi": 1,
+     "ri": 0,
+     "title": "Chennai metro phase two opens to riders",
+     "url": "https://www.thehindu.com/news/chennai-metro",
+     "source": "The Hindu",
+     "sourceUrl": "https://www.thehindu.com",
+     "topic": "Chennai",
+     "publishedAt": 1781973900000,
+     "updated": false,
+     "via": "bing",
+     "viaLabel": "Bing News",
+     "points": null,
+     "discussionUrl": "",
+     "why": "",
+     "read": false
+    },
+    {
+     "gi": 1,
+     "ri": 1,
+     "title": "Heavy rain lashes Chennai suburbs",
+     "url": "https://www.dtnext.in/rain",
+     "source": "DT Next",
+     "sourceUrl": "https://www.dtnext.in",
+     "topic": "Chennai",
+     "publishedAt": 1781968200000,
+     "updated": false,
+     "via": "bing",
+     "viaLabel": "Bing News",
+     "points": null,
+     "discussionUrl": "",
+     "why": "",
+     "read": false
+    }
+   ]
+  },
+  {
+   "topic": "Climate",
+   "hue": "#0891B2",
+   "rows": [
+    {
+     "gi": 2,
+     "ri": 0,
+     "title": "Show HN: A tiny climate model in Rust",
+     "url": "https://www.github.com/x/climate",
+     "source": "github.com",
+     "sourceUrl": "https://www.github.com",
+     "topic": "Climate",
+     "publishedAt": 1781987400000,
+     "updated": false,
+     "via": "hn",
+     "viaLabel": "Hacker News",
+     "points": 187,
+     "discussionUrl": "https://news.ycombinator.com/item?id=41000001",
+     "why": "",
+     "read": false
+    },
+    {
+     "gi": 2,
+     "ri": 1,
+     "title": "Ask HN: How do you track carbon at home?",
+     "url": "https://news.ycombinator.com/item?id=41000002",
+     "source": "Hacker News",
+     "sourceUrl": "https://news.ycombinator.com",
+     "topic": "Climate",
+     "publishedAt": 1781956800000,
+     "updated": false,
+     "via": "hn",
+     "viaLabel": "Hacker News",
+     "points": 42,
+     "discussionUrl": "https://news.ycombinator.com/item?id=41000002",
+     "why": "",
+     "read": false
+    }
+   ]
+  }
+ ],
+ "topicHues": {
+  "Technology": "#4F6BED",
+  "Chennai": "#F97316",
+  "Climate": "#0891B2"
+ },
+ "bySource": {
+  "google": 3,
+  "bing": 2,
+  "hn": 2
+ },
+ "total": 7
+}

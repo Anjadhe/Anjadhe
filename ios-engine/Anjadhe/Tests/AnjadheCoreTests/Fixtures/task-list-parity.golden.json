@@ -1,0 +1,7427 @@
+{
+ "today|": {
+  "today": "2026-06-18",
+  "slice": "today",
+  "group": null,
+  "label": "Today",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": [
+   {
+    "id": "overdue",
+    "label": "Overdue",
+    "danger": true,
+    "items": [
+     {
+      "id": "late",
+      "title": "Pay rent",
+      "date": "2026-06-10",
+      "time": null,
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     }
+    ]
+   },
+   {
+    "id": "today",
+    "label": "Today",
+    "danger": false,
+    "items": [
+     {
+      "id": "now1",
+      "title": "Standup",
+      "date": "2026-06-18",
+      "time": "09:00",
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [
+       "work"
+      ],
+      "projects": [
+       {
+        "id": "g3",
+        "title": "Career"
+       },
+       {
+        "id": "g2",
+        "title": "Ship app"
+       }
+      ],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "now2",
+      "title": "Call bank",
+      "date": "2026-06-18",
+      "time": "14:00",
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "daily",
+      "title": "Meditate",
+      "date": "2026-06-01",
+      "time": null,
+      "repeat": "daily",
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "weekdays",
+      "title": "Email zero",
+      "date": null,
+      "time": null,
+      "repeat": "weekdays",
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "notitle",
+      "title": "",
+      "date": "2026-06-18",
+      "time": null,
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     }
+    ]
+   },
+   {
+    "id": "done",
+    "label": "Done today",
+    "danger": false,
+    "items": [
+     {
+      "id": "donetoday",
+      "title": "Finished",
+      "date": "2026-06-18",
+      "time": null,
+      "repeat": null,
+      "done": true,
+      "completedToday": true,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "skiptoday",
+      "title": "Skipped today",
+      "date": "2026-06-18",
+      "time": null,
+      "repeat": null,
+      "done": true,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "dailydone",
+      "title": "Stretch",
+      "date": "2026-06-01",
+      "time": null,
+      "repeat": "daily",
+      "done": true,
+      "completedToday": true,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     }
+    ]
+   }
+  ]
+ },
+ "today|t:home": {
+  "today": "2026-06-18",
+  "slice": "today",
+  "group": "t:home",
+  "label": "Today",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": []
+ },
+ "today|t:*": {
+  "today": "2026-06-18",
+  "slice": "today",
+  "group": "t:*",
+  "label": "Today",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": [
+   {
+    "id": "today",
+    "label": "Today",
+    "danger": false,
+    "items": [
+     {
+      "id": "now1",
+      "title": "Standup",
+      "date": "2026-06-18",
+      "time": "09:00",
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [
+       "work"
+      ],
+      "projects": [
+       {
+        "id": "g3",
+        "title": "Career"
+       },
+       {
+        "id": "g2",
+        "title": "Ship app"
+       }
+      ],
+      "source": null,
+      "note": null
+     }
+    ]
+   }
+  ]
+ },
+ "today|g:Home": {
+  "today": "2026-06-18",
+  "slice": "today",
+  "group": "g:Home",
+  "label": "Today",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": []
+ },
+ "today|g:": {
+  "today": "2026-06-18",
+  "slice": "today",
+  "group": "g:",
+  "label": "Today",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": [
+   {
+    "id": "today",
+    "label": "Today",
+    "danger": false,
+    "items": [
+     {
+      "id": "now1",
+      "title": "Standup",
+      "date": "2026-06-18",
+      "time": "09:00",
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [
+       "work"
+      ],
+      "projects": [
+       {
+        "id": "g3",
+        "title": "Career"
+       },
+       {
+        "id": "g2",
+        "title": "Ship app"
+       }
+      ],
+      "source": null,
+      "note": null
+     }
+    ]
+   }
+  ]
+ },
+ "today|g:Work": {
+  "today": "2026-06-18",
+  "slice": "today",
+  "group": "g:Work",
+  "label": "Today",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": [
+   {
+    "id": "today",
+    "label": "Today",
+    "danger": false,
+    "items": [
+     {
+      "id": "now1",
+      "title": "Standup",
+      "date": "2026-06-18",
+      "time": "09:00",
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [
+       "work"
+      ],
+      "projects": [
+       {
+        "id": "g3",
+        "title": "Career"
+       },
+       {
+        "id": "g2",
+        "title": "Ship app"
+       }
+      ],
+      "source": null,
+      "note": null
+     }
+    ]
+   }
+  ]
+ },
+ "today|unassigned": {
+  "today": "2026-06-18",
+  "slice": "today",
+  "group": "unassigned",
+  "label": "Today",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": [
+   {
+    "id": "overdue",
+    "label": "Overdue",
+    "danger": true,
+    "items": [
+     {
+      "id": "late",
+      "title": "Pay rent",
+      "date": "2026-06-10",
+      "time": null,
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     }
+    ]
+   },
+   {
+    "id": "today",
+    "label": "Today",
+    "danger": false,
+    "items": [
+     {
+      "id": "now2",
+      "title": "Call bank",
+      "date": "2026-06-18",
+      "time": "14:00",
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "daily",
+      "title": "Meditate",
+      "date": "2026-06-01",
+      "time": null,
+      "repeat": "daily",
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "weekdays",
+      "title": "Email zero",
+      "date": null,
+      "time": null,
+      "repeat": "weekdays",
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "notitle",
+      "title": "",
+      "date": "2026-06-18",
+      "time": null,
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     }
+    ]
+   },
+   {
+    "id": "done",
+    "label": "Done today",
+    "danger": false,
+    "items": [
+     {
+      "id": "donetoday",
+      "title": "Finished",
+      "date": "2026-06-18",
+      "time": null,
+      "repeat": null,
+      "done": true,
+      "completedToday": true,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "skiptoday",
+      "title": "Skipped today",
+      "date": "2026-06-18",
+      "time": null,
+      "repeat": null,
+      "done": true,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "dailydone",
+      "title": "Stretch",
+      "date": "2026-06-01",
+      "time": null,
+      "repeat": "daily",
+      "done": true,
+      "completedToday": true,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     }
+    ]
+   }
+  ]
+ },
+ "today|src:email": {
+  "today": "2026-06-18",
+  "slice": "today",
+  "group": "src:email",
+  "label": "Today",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": []
+ },
+ "today|src:imessage": {
+  "today": "2026-06-18",
+  "slice": "today",
+  "group": "src:imessage",
+  "label": "Today",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": []
+ },
+ "tomorrow|": {
+  "today": "2026-06-18",
+  "slice": "tomorrow",
+  "group": null,
+  "label": "Tomorrow",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": [
+   {
+    "id": "2026-06-19",
+    "label": "2026-06-19",
+    "date": "2026-06-19",
+    "danger": false,
+    "items": [
+     {
+      "id": "tmr",
+      "title": "Dentist",
+      "date": "2026-06-19",
+      "time": null,
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "daily",
+      "title": "Meditate",
+      "date": "2026-06-01",
+      "time": null,
+      "repeat": "daily",
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "dailydone",
+      "title": "Stretch",
+      "date": "2026-06-01",
+      "time": null,
+      "repeat": "daily",
+      "done": true,
+      "completedToday": true,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "weekly",
+      "title": "Review",
+      "date": "2026-06-01",
+      "time": null,
+      "repeat": "weekly",
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "weekdays",
+      "title": "Email zero",
+      "date": null,
+      "time": null,
+      "repeat": "weekdays",
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     }
+    ]
+   }
+  ]
+ },
+ "tomorrow|t:home": {
+  "today": "2026-06-18",
+  "slice": "tomorrow",
+  "group": "t:home",
+  "label": "Tomorrow",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": []
+ },
+ "tomorrow|t:*": {
+  "today": "2026-06-18",
+  "slice": "tomorrow",
+  "group": "t:*",
+  "label": "Tomorrow",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": []
+ },
+ "tomorrow|g:Home": {
+  "today": "2026-06-18",
+  "slice": "tomorrow",
+  "group": "g:Home",
+  "label": "Tomorrow",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": []
+ },
+ "tomorrow|g:": {
+  "today": "2026-06-18",
+  "slice": "tomorrow",
+  "group": "g:",
+  "label": "Tomorrow",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": []
+ },
+ "tomorrow|g:Work": {
+  "today": "2026-06-18",
+  "slice": "tomorrow",
+  "group": "g:Work",
+  "label": "Tomorrow",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": []
+ },
+ "tomorrow|unassigned": {
+  "today": "2026-06-18",
+  "slice": "tomorrow",
+  "group": "unassigned",
+  "label": "Tomorrow",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": [
+   {
+    "id": "2026-06-19",
+    "label": "2026-06-19",
+    "date": "2026-06-19",
+    "danger": false,
+    "items": [
+     {
+      "id": "tmr",
+      "title": "Dentist",
+      "date": "2026-06-19",
+      "time": null,
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "daily",
+      "title": "Meditate",
+      "date": "2026-06-01",
+      "time": null,
+      "repeat": "daily",
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "dailydone",
+      "title": "Stretch",
+      "date": "2026-06-01",
+      "time": null,
+      "repeat": "daily",
+      "done": true,
+      "completedToday": true,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "weekly",
+      "title": "Review",
+      "date": "2026-06-01",
+      "time": null,
+      "repeat": "weekly",
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "weekdays",
+      "title": "Email zero",
+      "date": null,
+      "time": null,
+      "repeat": "weekdays",
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     }
+    ]
+   }
+  ]
+ },
+ "tomorrow|src:email": {
+  "today": "2026-06-18",
+  "slice": "tomorrow",
+  "group": "src:email",
+  "label": "Tomorrow",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": []
+ },
+ "tomorrow|src:imessage": {
+  "today": "2026-06-18",
+  "slice": "tomorrow",
+  "group": "src:imessage",
+  "label": "Tomorrow",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": []
+ },
+ "week|": {
+  "today": "2026-06-18",
+  "slice": "week",
+  "group": null,
+  "label": "This week",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": [
+   {
+    "id": "2026-06-18",
+    "label": "2026-06-18",
+    "date": "2026-06-18",
+    "danger": false,
+    "items": [
+     {
+      "id": "daily",
+      "title": "Meditate",
+      "date": "2026-06-01",
+      "time": null,
+      "repeat": "daily",
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "now1",
+      "title": "Standup",
+      "date": "2026-06-18",
+      "time": "09:00",
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [
+       "work"
+      ],
+      "projects": [
+       {
+        "id": "g3",
+        "title": "Career"
+       },
+       {
+        "id": "g2",
+        "title": "Ship app"
+       }
+      ],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "now2",
+      "title": "Call bank",
+      "date": "2026-06-18",
+      "time": "14:00",
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "weekdays",
+      "title": "Email zero",
+      "date": null,
+      "time": null,
+      "repeat": "weekdays",
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     }
+    ]
+   },
+   {
+    "id": "2026-06-19",
+    "label": "2026-06-19",
+    "date": "2026-06-19",
+    "danger": false,
+    "items": [
+     {
+      "id": "tmr",
+      "title": "Dentist",
+      "date": "2026-06-19",
+      "time": null,
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "daily",
+      "title": "Meditate",
+      "date": "2026-06-01",
+      "time": null,
+      "repeat": "daily",
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "dailydone",
+      "title": "Stretch",
+      "date": "2026-06-01",
+      "time": null,
+      "repeat": "daily",
+      "done": true,
+      "completedToday": true,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "weekly",
+      "title": "Review",
+      "date": "2026-06-01",
+      "time": null,
+      "repeat": "weekly",
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "weekdays",
+      "title": "Email zero",
+      "date": null,
+      "time": null,
+      "repeat": "weekdays",
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     }
+    ]
+   },
+   {
+    "id": "2026-06-20",
+    "label": "2026-06-20",
+    "date": "2026-06-20",
+    "danger": false,
+    "items": [
+     {
+      "id": "sat",
+      "title": "Groceries",
+      "date": "2026-06-20",
+      "time": null,
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [
+       "home"
+      ],
+      "projects": [
+       {
+        "id": "g1",
+        "title": "Move house"
+       }
+      ],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "daily",
+      "title": "Meditate",
+      "date": "2026-06-01",
+      "time": null,
+      "repeat": "daily",
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "dailydone",
+      "title": "Stretch",
+      "date": "2026-06-01",
+      "time": null,
+      "repeat": "daily",
+      "done": true,
+      "completedToday": true,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "custom",
+      "title": "Gym",
+      "date": "2026-06-01",
+      "time": "07:00",
+      "repeat": "custom",
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     }
+    ]
+   },
+   {
+    "id": "2026-06-21",
+    "label": "2026-06-21",
+    "date": "2026-06-21",
+    "danger": false,
+    "items": [
+     {
+      "id": "daily",
+      "title": "Meditate",
+      "date": "2026-06-01",
+      "time": null,
+      "repeat": "daily",
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "dailydone",
+      "title": "Stretch",
+      "date": "2026-06-01",
+      "time": null,
+      "repeat": "daily",
+      "done": true,
+      "completedToday": true,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     }
+    ]
+   }
+  ]
+ },
+ "week|t:home": {
+  "today": "2026-06-18",
+  "slice": "week",
+  "group": "t:home",
+  "label": "This week",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": [
+   {
+    "id": "2026-06-20",
+    "label": "2026-06-20",
+    "date": "2026-06-20",
+    "danger": false,
+    "items": [
+     {
+      "id": "sat",
+      "title": "Groceries",
+      "date": "2026-06-20",
+      "time": null,
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [
+       "home"
+      ],
+      "projects": [
+       {
+        "id": "g1",
+        "title": "Move house"
+       }
+      ],
+      "source": null,
+      "note": null
+     }
+    ]
+   }
+  ]
+ },
+ "week|t:*": {
+  "today": "2026-06-18",
+  "slice": "week",
+  "group": "t:*",
+  "label": "This week",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": [
+   {
+    "id": "2026-06-18",
+    "label": "2026-06-18",
+    "date": "2026-06-18",
+    "danger": false,
+    "items": [
+     {
+      "id": "now1",
+      "title": "Standup",
+      "date": "2026-06-18",
+      "time": "09:00",
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [
+       "work"
+      ],
+      "projects": [
+       {
+        "id": "g3",
+        "title": "Career"
+       },
+       {
+        "id": "g2",
+        "title": "Ship app"
+       }
+      ],
+      "source": null,
+      "note": null
+     }
+    ]
+   },
+   {
+    "id": "2026-06-20",
+    "label": "2026-06-20",
+    "date": "2026-06-20",
+    "danger": false,
+    "items": [
+     {
+      "id": "sat",
+      "title": "Groceries",
+      "date": "2026-06-20",
+      "time": null,
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [
+       "home"
+      ],
+      "projects": [
+       {
+        "id": "g1",
+        "title": "Move house"
+       }
+      ],
+      "source": null,
+      "note": null
+     }
+    ]
+   }
+  ]
+ },
+ "week|g:Home": {
+  "today": "2026-06-18",
+  "slice": "week",
+  "group": "g:Home",
+  "label": "This week",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": [
+   {
+    "id": "2026-06-20",
+    "label": "2026-06-20",
+    "date": "2026-06-20",
+    "danger": false,
+    "items": [
+     {
+      "id": "sat",
+      "title": "Groceries",
+      "date": "2026-06-20",
+      "time": null,
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [
+       "home"
+      ],
+      "projects": [
+       {
+        "id": "g1",
+        "title": "Move house"
+       }
+      ],
+      "source": null,
+      "note": null
+     }
+    ]
+   }
+  ]
+ },
+ "week|g:": {
+  "today": "2026-06-18",
+  "slice": "week",
+  "group": "g:",
+  "label": "This week",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": [
+   {
+    "id": "2026-06-18",
+    "label": "2026-06-18",
+    "date": "2026-06-18",
+    "danger": false,
+    "items": [
+     {
+      "id": "now1",
+      "title": "Standup",
+      "date": "2026-06-18",
+      "time": "09:00",
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [
+       "work"
+      ],
+      "projects": [
+       {
+        "id": "g3",
+        "title": "Career"
+       },
+       {
+        "id": "g2",
+        "title": "Ship app"
+       }
+      ],
+      "source": null,
+      "note": null
+     }
+    ]
+   }
+  ]
+ },
+ "week|g:Work": {
+  "today": "2026-06-18",
+  "slice": "week",
+  "group": "g:Work",
+  "label": "This week",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": [
+   {
+    "id": "2026-06-18",
+    "label": "2026-06-18",
+    "date": "2026-06-18",
+    "danger": false,
+    "items": [
+     {
+      "id": "now1",
+      "title": "Standup",
+      "date": "2026-06-18",
+      "time": "09:00",
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [
+       "work"
+      ],
+      "projects": [
+       {
+        "id": "g3",
+        "title": "Career"
+       },
+       {
+        "id": "g2",
+        "title": "Ship app"
+       }
+      ],
+      "source": null,
+      "note": null
+     }
+    ]
+   }
+  ]
+ },
+ "week|unassigned": {
+  "today": "2026-06-18",
+  "slice": "week",
+  "group": "unassigned",
+  "label": "This week",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": [
+   {
+    "id": "2026-06-18",
+    "label": "2026-06-18",
+    "date": "2026-06-18",
+    "danger": false,
+    "items": [
+     {
+      "id": "daily",
+      "title": "Meditate",
+      "date": "2026-06-01",
+      "time": null,
+      "repeat": "daily",
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "now2",
+      "title": "Call bank",
+      "date": "2026-06-18",
+      "time": "14:00",
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "weekdays",
+      "title": "Email zero",
+      "date": null,
+      "time": null,
+      "repeat": "weekdays",
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     }
+    ]
+   },
+   {
+    "id": "2026-06-19",
+    "label": "2026-06-19",
+    "date": "2026-06-19",
+    "danger": false,
+    "items": [
+     {
+      "id": "tmr",
+      "title": "Dentist",
+      "date": "2026-06-19",
+      "time": null,
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "daily",
+      "title": "Meditate",
+      "date": "2026-06-01",
+      "time": null,
+      "repeat": "daily",
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "dailydone",
+      "title": "Stretch",
+      "date": "2026-06-01",
+      "time": null,
+      "repeat": "daily",
+      "done": true,
+      "completedToday": true,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "weekly",
+      "title": "Review",
+      "date": "2026-06-01",
+      "time": null,
+      "repeat": "weekly",
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "weekdays",
+      "title": "Email zero",
+      "date": null,
+      "time": null,
+      "repeat": "weekdays",
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     }
+    ]
+   },
+   {
+    "id": "2026-06-20",
+    "label": "2026-06-20",
+    "date": "2026-06-20",
+    "danger": false,
+    "items": [
+     {
+      "id": "daily",
+      "title": "Meditate",
+      "date": "2026-06-01",
+      "time": null,
+      "repeat": "daily",
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "dailydone",
+      "title": "Stretch",
+      "date": "2026-06-01",
+      "time": null,
+      "repeat": "daily",
+      "done": true,
+      "completedToday": true,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "custom",
+      "title": "Gym",
+      "date": "2026-06-01",
+      "time": "07:00",
+      "repeat": "custom",
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     }
+    ]
+   },
+   {
+    "id": "2026-06-21",
+    "label": "2026-06-21",
+    "date": "2026-06-21",
+    "danger": false,
+    "items": [
+     {
+      "id": "daily",
+      "title": "Meditate",
+      "date": "2026-06-01",
+      "time": null,
+      "repeat": "daily",
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "dailydone",
+      "title": "Stretch",
+      "date": "2026-06-01",
+      "time": null,
+      "repeat": "daily",
+      "done": true,
+      "completedToday": true,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     }
+    ]
+   }
+  ]
+ },
+ "week|src:email": {
+  "today": "2026-06-18",
+  "slice": "week",
+  "group": "src:email",
+  "label": "This week",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": []
+ },
+ "week|src:imessage": {
+  "today": "2026-06-18",
+  "slice": "week",
+  "group": "src:imessage",
+  "label": "This week",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": []
+ },
+ "month|": {
+  "today": "2026-06-18",
+  "slice": "month",
+  "group": null,
+  "label": "This month",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": [
+   {
+    "id": "2026-06-18",
+    "label": "2026-06-18",
+    "date": "2026-06-18",
+    "danger": false,
+    "items": [
+     {
+      "id": "now1",
+      "title": "Standup",
+      "date": "2026-06-18",
+      "time": "09:00",
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [
+       "work"
+      ],
+      "projects": [
+       {
+        "id": "g3",
+        "title": "Career"
+       },
+       {
+        "id": "g2",
+        "title": "Ship app"
+       }
+      ],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "now2",
+      "title": "Call bank",
+      "date": "2026-06-18",
+      "time": "14:00",
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     }
+    ]
+   },
+   {
+    "id": "2026-06-19",
+    "label": "2026-06-19",
+    "date": "2026-06-19",
+    "danger": false,
+    "items": [
+     {
+      "id": "tmr",
+      "title": "Dentist",
+      "date": "2026-06-19",
+      "time": null,
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     }
+    ]
+   },
+   {
+    "id": "2026-06-20",
+    "label": "2026-06-20",
+    "date": "2026-06-20",
+    "danger": false,
+    "items": [
+     {
+      "id": "sat",
+      "title": "Groceries",
+      "date": "2026-06-20",
+      "time": null,
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [
+       "home"
+      ],
+      "projects": [
+       {
+        "id": "g1",
+        "title": "Move house"
+       }
+      ],
+      "source": null,
+      "note": null
+     }
+    ]
+   },
+   {
+    "id": "2026-06-28",
+    "label": "2026-06-28",
+    "date": "2026-06-28",
+    "danger": false,
+    "items": [
+     {
+      "id": "monthly",
+      "title": "Invoice",
+      "date": "2026-01-28",
+      "time": null,
+      "repeat": "monthly",
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     }
+    ]
+   }
+  ]
+ },
+ "month|t:home": {
+  "today": "2026-06-18",
+  "slice": "month",
+  "group": "t:home",
+  "label": "This month",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": [
+   {
+    "id": "2026-06-20",
+    "label": "2026-06-20",
+    "date": "2026-06-20",
+    "danger": false,
+    "items": [
+     {
+      "id": "sat",
+      "title": "Groceries",
+      "date": "2026-06-20",
+      "time": null,
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [
+       "home"
+      ],
+      "projects": [
+       {
+        "id": "g1",
+        "title": "Move house"
+       }
+      ],
+      "source": null,
+      "note": null
+     }
+    ]
+   }
+  ]
+ },
+ "month|t:*": {
+  "today": "2026-06-18",
+  "slice": "month",
+  "group": "t:*",
+  "label": "This month",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": [
+   {
+    "id": "2026-06-18",
+    "label": "2026-06-18",
+    "date": "2026-06-18",
+    "danger": false,
+    "items": [
+     {
+      "id": "now1",
+      "title": "Standup",
+      "date": "2026-06-18",
+      "time": "09:00",
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [
+       "work"
+      ],
+      "projects": [
+       {
+        "id": "g3",
+        "title": "Career"
+       },
+       {
+        "id": "g2",
+        "title": "Ship app"
+       }
+      ],
+      "source": null,
+      "note": null
+     }
+    ]
+   },
+   {
+    "id": "2026-06-20",
+    "label": "2026-06-20",
+    "date": "2026-06-20",
+    "danger": false,
+    "items": [
+     {
+      "id": "sat",
+      "title": "Groceries",
+      "date": "2026-06-20",
+      "time": null,
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [
+       "home"
+      ],
+      "projects": [
+       {
+        "id": "g1",
+        "title": "Move house"
+       }
+      ],
+      "source": null,
+      "note": null
+     }
+    ]
+   }
+  ]
+ },
+ "month|g:Home": {
+  "today": "2026-06-18",
+  "slice": "month",
+  "group": "g:Home",
+  "label": "This month",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": [
+   {
+    "id": "2026-06-20",
+    "label": "2026-06-20",
+    "date": "2026-06-20",
+    "danger": false,
+    "items": [
+     {
+      "id": "sat",
+      "title": "Groceries",
+      "date": "2026-06-20",
+      "time": null,
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [
+       "home"
+      ],
+      "projects": [
+       {
+        "id": "g1",
+        "title": "Move house"
+       }
+      ],
+      "source": null,
+      "note": null
+     }
+    ]
+   }
+  ]
+ },
+ "month|g:": {
+  "today": "2026-06-18",
+  "slice": "month",
+  "group": "g:",
+  "label": "This month",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": [
+   {
+    "id": "2026-06-18",
+    "label": "2026-06-18",
+    "date": "2026-06-18",
+    "danger": false,
+    "items": [
+     {
+      "id": "now1",
+      "title": "Standup",
+      "date": "2026-06-18",
+      "time": "09:00",
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [
+       "work"
+      ],
+      "projects": [
+       {
+        "id": "g3",
+        "title": "Career"
+       },
+       {
+        "id": "g2",
+        "title": "Ship app"
+       }
+      ],
+      "source": null,
+      "note": null
+     }
+    ]
+   }
+  ]
+ },
+ "month|g:Work": {
+  "today": "2026-06-18",
+  "slice": "month",
+  "group": "g:Work",
+  "label": "This month",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": [
+   {
+    "id": "2026-06-18",
+    "label": "2026-06-18",
+    "date": "2026-06-18",
+    "danger": false,
+    "items": [
+     {
+      "id": "now1",
+      "title": "Standup",
+      "date": "2026-06-18",
+      "time": "09:00",
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [
+       "work"
+      ],
+      "projects": [
+       {
+        "id": "g3",
+        "title": "Career"
+       },
+       {
+        "id": "g2",
+        "title": "Ship app"
+       }
+      ],
+      "source": null,
+      "note": null
+     }
+    ]
+   }
+  ]
+ },
+ "month|unassigned": {
+  "today": "2026-06-18",
+  "slice": "month",
+  "group": "unassigned",
+  "label": "This month",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": [
+   {
+    "id": "2026-06-18",
+    "label": "2026-06-18",
+    "date": "2026-06-18",
+    "danger": false,
+    "items": [
+     {
+      "id": "now2",
+      "title": "Call bank",
+      "date": "2026-06-18",
+      "time": "14:00",
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     }
+    ]
+   },
+   {
+    "id": "2026-06-19",
+    "label": "2026-06-19",
+    "date": "2026-06-19",
+    "danger": false,
+    "items": [
+     {
+      "id": "tmr",
+      "title": "Dentist",
+      "date": "2026-06-19",
+      "time": null,
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     }
+    ]
+   },
+   {
+    "id": "2026-06-28",
+    "label": "2026-06-28",
+    "date": "2026-06-28",
+    "danger": false,
+    "items": [
+     {
+      "id": "monthly",
+      "title": "Invoice",
+      "date": "2026-01-28",
+      "time": null,
+      "repeat": "monthly",
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     }
+    ]
+   }
+  ]
+ },
+ "month|src:email": {
+  "today": "2026-06-18",
+  "slice": "month",
+  "group": "src:email",
+  "label": "This month",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": []
+ },
+ "month|src:imessage": {
+  "today": "2026-06-18",
+  "slice": "month",
+  "group": "src:imessage",
+  "label": "This month",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": []
+ },
+ "later|": {
+  "today": "2026-06-18",
+  "slice": "later",
+  "group": null,
+  "label": "Later",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": [
+   {
+    "id": "2026-07",
+    "label": "July 2026",
+    "danger": false,
+    "items": [
+     {
+      "id": "jul",
+      "title": "Renew passport",
+      "date": "2026-07-15",
+      "time": null,
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": "email",
+      "note": "From the embassy"
+     }
+    ]
+   },
+   {
+    "id": "2026-08",
+    "label": "August 2026",
+    "danger": false,
+    "items": [
+     {
+      "id": "aug",
+      "title": "Imsg task",
+      "date": "2026-08-02",
+      "time": "08:30",
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": "imessage",
+      "note": null
+     }
+    ]
+   },
+   {
+    "id": "2026-11",
+    "label": "November 2026",
+    "danger": false,
+    "items": [
+     {
+      "id": "annual",
+      "title": "Birthday",
+      "date": "2020-11-03",
+      "time": null,
+      "repeat": "annually",
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     }
+    ]
+   },
+   {
+    "id": "nodate",
+    "label": "No date",
+    "danger": false,
+    "items": [
+     {
+      "id": "some2",
+      "title": "Alpha backlog",
+      "date": null,
+      "time": "10:00",
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "some",
+      "title": "Learn piano",
+      "date": null,
+      "time": null,
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     }
+    ]
+   }
+  ]
+ },
+ "later|t:home": {
+  "today": "2026-06-18",
+  "slice": "later",
+  "group": "t:home",
+  "label": "Later",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": []
+ },
+ "later|t:*": {
+  "today": "2026-06-18",
+  "slice": "later",
+  "group": "t:*",
+  "label": "Later",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": []
+ },
+ "later|g:Home": {
+  "today": "2026-06-18",
+  "slice": "later",
+  "group": "g:Home",
+  "label": "Later",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": []
+ },
+ "later|g:": {
+  "today": "2026-06-18",
+  "slice": "later",
+  "group": "g:",
+  "label": "Later",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": []
+ },
+ "later|g:Work": {
+  "today": "2026-06-18",
+  "slice": "later",
+  "group": "g:Work",
+  "label": "Later",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": []
+ },
+ "later|unassigned": {
+  "today": "2026-06-18",
+  "slice": "later",
+  "group": "unassigned",
+  "label": "Later",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": [
+   {
+    "id": "2026-07",
+    "label": "July 2026",
+    "danger": false,
+    "items": [
+     {
+      "id": "jul",
+      "title": "Renew passport",
+      "date": "2026-07-15",
+      "time": null,
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": "email",
+      "note": "From the embassy"
+     }
+    ]
+   },
+   {
+    "id": "2026-08",
+    "label": "August 2026",
+    "danger": false,
+    "items": [
+     {
+      "id": "aug",
+      "title": "Imsg task",
+      "date": "2026-08-02",
+      "time": "08:30",
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": "imessage",
+      "note": null
+     }
+    ]
+   },
+   {
+    "id": "2026-11",
+    "label": "November 2026",
+    "danger": false,
+    "items": [
+     {
+      "id": "annual",
+      "title": "Birthday",
+      "date": "2020-11-03",
+      "time": null,
+      "repeat": "annually",
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     }
+    ]
+   },
+   {
+    "id": "nodate",
+    "label": "No date",
+    "danger": false,
+    "items": [
+     {
+      "id": "some2",
+      "title": "Alpha backlog",
+      "date": null,
+      "time": "10:00",
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "some",
+      "title": "Learn piano",
+      "date": null,
+      "time": null,
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     }
+    ]
+   }
+  ]
+ },
+ "later|src:email": {
+  "today": "2026-06-18",
+  "slice": "later",
+  "group": "src:email",
+  "label": "Later",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": [
+   {
+    "id": "2026-07",
+    "label": "July 2026",
+    "danger": false,
+    "items": [
+     {
+      "id": "jul",
+      "title": "Renew passport",
+      "date": "2026-07-15",
+      "time": null,
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": "email",
+      "note": "From the embassy"
+     }
+    ]
+   }
+  ]
+ },
+ "later|src:imessage": {
+  "today": "2026-06-18",
+  "slice": "later",
+  "group": "src:imessage",
+  "label": "Later",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": [
+   {
+    "id": "2026-08",
+    "label": "August 2026",
+    "danger": false,
+    "items": [
+     {
+      "id": "aug",
+      "title": "Imsg task",
+      "date": "2026-08-02",
+      "time": "08:30",
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": "imessage",
+      "note": null
+     }
+    ]
+   }
+  ]
+ },
+ "all|": {
+  "today": "2026-06-18",
+  "slice": "all",
+  "group": null,
+  "label": "All",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": [
+   {
+    "id": "overdue",
+    "label": "Overdue",
+    "danger": true,
+    "items": [
+     {
+      "id": "late",
+      "title": "Pay rent",
+      "date": "2026-06-10",
+      "time": null,
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     }
+    ]
+   },
+   {
+    "id": "today",
+    "label": "Today",
+    "danger": false,
+    "items": [
+     {
+      "id": "now1",
+      "title": "Standup",
+      "date": "2026-06-18",
+      "time": "09:00",
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [
+       "work"
+      ],
+      "projects": [
+       {
+        "id": "g3",
+        "title": "Career"
+       },
+       {
+        "id": "g2",
+        "title": "Ship app"
+       }
+      ],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "now2",
+      "title": "Call bank",
+      "date": "2026-06-18",
+      "time": "14:00",
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "daily",
+      "title": "Meditate",
+      "date": "2026-06-01",
+      "time": null,
+      "repeat": "daily",
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "weekdays",
+      "title": "Email zero",
+      "date": null,
+      "time": null,
+      "repeat": "weekdays",
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "notitle",
+      "title": "",
+      "date": "2026-06-18",
+      "time": null,
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     }
+    ]
+   },
+   {
+    "id": "tomorrow",
+    "label": "Tomorrow",
+    "danger": false,
+    "items": [
+     {
+      "id": "tmr",
+      "title": "Dentist",
+      "date": "2026-06-19",
+      "time": null,
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "daily",
+      "title": "Meditate",
+      "date": "2026-06-01",
+      "time": null,
+      "repeat": "daily",
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "dailydone",
+      "title": "Stretch",
+      "date": "2026-06-01",
+      "time": null,
+      "repeat": "daily",
+      "done": true,
+      "completedToday": true,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "weekly",
+      "title": "Review",
+      "date": "2026-06-01",
+      "time": null,
+      "repeat": "weekly",
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "weekdays",
+      "title": "Email zero",
+      "date": null,
+      "time": null,
+      "repeat": "weekdays",
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     }
+    ]
+   },
+   {
+    "id": "later",
+    "label": "Later",
+    "danger": false,
+    "items": [
+     {
+      "id": "sat",
+      "title": "Groceries",
+      "date": "2026-06-20",
+      "time": null,
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [
+       "home"
+      ],
+      "projects": [
+       {
+        "id": "g1",
+        "title": "Move house"
+       }
+      ],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "monthly",
+      "title": "Invoice",
+      "date": "2026-01-28",
+      "time": null,
+      "repeat": "monthly",
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "monthly31",
+      "title": "Month end",
+      "date": "2026-01-31",
+      "time": null,
+      "repeat": "monthly",
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "jul",
+      "title": "Renew passport",
+      "date": "2026-07-15",
+      "time": null,
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": "email",
+      "note": "From the embassy"
+     },
+     {
+      "id": "aug",
+      "title": "Imsg task",
+      "date": "2026-08-02",
+      "time": "08:30",
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": "imessage",
+      "note": null
+     },
+     {
+      "id": "annual",
+      "title": "Birthday",
+      "date": "2020-11-03",
+      "time": null,
+      "repeat": "annually",
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     }
+    ]
+   },
+   {
+    "id": "nodate",
+    "label": "No date",
+    "danger": false,
+    "items": [
+     {
+      "id": "some2",
+      "title": "Alpha backlog",
+      "date": null,
+      "time": "10:00",
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "some",
+      "title": "Learn piano",
+      "date": null,
+      "time": null,
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     }
+    ]
+   },
+   {
+    "id": "done",
+    "label": "Done today",
+    "danger": false,
+    "items": [
+     {
+      "id": "donetoday",
+      "title": "Finished",
+      "date": "2026-06-18",
+      "time": null,
+      "repeat": null,
+      "done": true,
+      "completedToday": true,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "skiptoday",
+      "title": "Skipped today",
+      "date": "2026-06-18",
+      "time": null,
+      "repeat": null,
+      "done": true,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "dailydone",
+      "title": "Stretch",
+      "date": "2026-06-01",
+      "time": null,
+      "repeat": "daily",
+      "done": true,
+      "completedToday": true,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     }
+    ]
+   }
+  ]
+ },
+ "all|t:home": {
+  "today": "2026-06-18",
+  "slice": "all",
+  "group": "t:home",
+  "label": "All",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": [
+   {
+    "id": "later",
+    "label": "Later",
+    "danger": false,
+    "items": [
+     {
+      "id": "sat",
+      "title": "Groceries",
+      "date": "2026-06-20",
+      "time": null,
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [
+       "home"
+      ],
+      "projects": [
+       {
+        "id": "g1",
+        "title": "Move house"
+       }
+      ],
+      "source": null,
+      "note": null
+     }
+    ]
+   }
+  ]
+ },
+ "all|t:*": {
+  "today": "2026-06-18",
+  "slice": "all",
+  "group": "t:*",
+  "label": "All",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": [
+   {
+    "id": "today",
+    "label": "Today",
+    "danger": false,
+    "items": [
+     {
+      "id": "now1",
+      "title": "Standup",
+      "date": "2026-06-18",
+      "time": "09:00",
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [
+       "work"
+      ],
+      "projects": [
+       {
+        "id": "g3",
+        "title": "Career"
+       },
+       {
+        "id": "g2",
+        "title": "Ship app"
+       }
+      ],
+      "source": null,
+      "note": null
+     }
+    ]
+   },
+   {
+    "id": "later",
+    "label": "Later",
+    "danger": false,
+    "items": [
+     {
+      "id": "sat",
+      "title": "Groceries",
+      "date": "2026-06-20",
+      "time": null,
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [
+       "home"
+      ],
+      "projects": [
+       {
+        "id": "g1",
+        "title": "Move house"
+       }
+      ],
+      "source": null,
+      "note": null
+     }
+    ]
+   }
+  ]
+ },
+ "all|g:Home": {
+  "today": "2026-06-18",
+  "slice": "all",
+  "group": "g:Home",
+  "label": "All",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": [
+   {
+    "id": "later",
+    "label": "Later",
+    "danger": false,
+    "items": [
+     {
+      "id": "sat",
+      "title": "Groceries",
+      "date": "2026-06-20",
+      "time": null,
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [
+       "home"
+      ],
+      "projects": [
+       {
+        "id": "g1",
+        "title": "Move house"
+       }
+      ],
+      "source": null,
+      "note": null
+     }
+    ]
+   }
+  ]
+ },
+ "all|g:": {
+  "today": "2026-06-18",
+  "slice": "all",
+  "group": "g:",
+  "label": "All",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": [
+   {
+    "id": "today",
+    "label": "Today",
+    "danger": false,
+    "items": [
+     {
+      "id": "now1",
+      "title": "Standup",
+      "date": "2026-06-18",
+      "time": "09:00",
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [
+       "work"
+      ],
+      "projects": [
+       {
+        "id": "g3",
+        "title": "Career"
+       },
+       {
+        "id": "g2",
+        "title": "Ship app"
+       }
+      ],
+      "source": null,
+      "note": null
+     }
+    ]
+   }
+  ]
+ },
+ "all|g:Work": {
+  "today": "2026-06-18",
+  "slice": "all",
+  "group": "g:Work",
+  "label": "All",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": [
+   {
+    "id": "today",
+    "label": "Today",
+    "danger": false,
+    "items": [
+     {
+      "id": "now1",
+      "title": "Standup",
+      "date": "2026-06-18",
+      "time": "09:00",
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [
+       "work"
+      ],
+      "projects": [
+       {
+        "id": "g3",
+        "title": "Career"
+       },
+       {
+        "id": "g2",
+        "title": "Ship app"
+       }
+      ],
+      "source": null,
+      "note": null
+     }
+    ]
+   }
+  ]
+ },
+ "all|unassigned": {
+  "today": "2026-06-18",
+  "slice": "all",
+  "group": "unassigned",
+  "label": "All",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": [
+   {
+    "id": "overdue",
+    "label": "Overdue",
+    "danger": true,
+    "items": [
+     {
+      "id": "late",
+      "title": "Pay rent",
+      "date": "2026-06-10",
+      "time": null,
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     }
+    ]
+   },
+   {
+    "id": "today",
+    "label": "Today",
+    "danger": false,
+    "items": [
+     {
+      "id": "now2",
+      "title": "Call bank",
+      "date": "2026-06-18",
+      "time": "14:00",
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "daily",
+      "title": "Meditate",
+      "date": "2026-06-01",
+      "time": null,
+      "repeat": "daily",
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "weekdays",
+      "title": "Email zero",
+      "date": null,
+      "time": null,
+      "repeat": "weekdays",
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "notitle",
+      "title": "",
+      "date": "2026-06-18",
+      "time": null,
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     }
+    ]
+   },
+   {
+    "id": "tomorrow",
+    "label": "Tomorrow",
+    "danger": false,
+    "items": [
+     {
+      "id": "tmr",
+      "title": "Dentist",
+      "date": "2026-06-19",
+      "time": null,
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "daily",
+      "title": "Meditate",
+      "date": "2026-06-01",
+      "time": null,
+      "repeat": "daily",
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "dailydone",
+      "title": "Stretch",
+      "date": "2026-06-01",
+      "time": null,
+      "repeat": "daily",
+      "done": true,
+      "completedToday": true,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "weekly",
+      "title": "Review",
+      "date": "2026-06-01",
+      "time": null,
+      "repeat": "weekly",
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "weekdays",
+      "title": "Email zero",
+      "date": null,
+      "time": null,
+      "repeat": "weekdays",
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     }
+    ]
+   },
+   {
+    "id": "later",
+    "label": "Later",
+    "danger": false,
+    "items": [
+     {
+      "id": "monthly",
+      "title": "Invoice",
+      "date": "2026-01-28",
+      "time": null,
+      "repeat": "monthly",
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "monthly31",
+      "title": "Month end",
+      "date": "2026-01-31",
+      "time": null,
+      "repeat": "monthly",
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "jul",
+      "title": "Renew passport",
+      "date": "2026-07-15",
+      "time": null,
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": "email",
+      "note": "From the embassy"
+     },
+     {
+      "id": "aug",
+      "title": "Imsg task",
+      "date": "2026-08-02",
+      "time": "08:30",
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": "imessage",
+      "note": null
+     },
+     {
+      "id": "annual",
+      "title": "Birthday",
+      "date": "2020-11-03",
+      "time": null,
+      "repeat": "annually",
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     }
+    ]
+   },
+   {
+    "id": "nodate",
+    "label": "No date",
+    "danger": false,
+    "items": [
+     {
+      "id": "some2",
+      "title": "Alpha backlog",
+      "date": null,
+      "time": "10:00",
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "some",
+      "title": "Learn piano",
+      "date": null,
+      "time": null,
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     }
+    ]
+   },
+   {
+    "id": "done",
+    "label": "Done today",
+    "danger": false,
+    "items": [
+     {
+      "id": "donetoday",
+      "title": "Finished",
+      "date": "2026-06-18",
+      "time": null,
+      "repeat": null,
+      "done": true,
+      "completedToday": true,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "skiptoday",
+      "title": "Skipped today",
+      "date": "2026-06-18",
+      "time": null,
+      "repeat": null,
+      "done": true,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     },
+     {
+      "id": "dailydone",
+      "title": "Stretch",
+      "date": "2026-06-01",
+      "time": null,
+      "repeat": "daily",
+      "done": true,
+      "completedToday": true,
+      "tags": [],
+      "projects": [],
+      "source": null,
+      "note": null
+     }
+    ]
+   }
+  ]
+ },
+ "all|src:email": {
+  "today": "2026-06-18",
+  "slice": "all",
+  "group": "src:email",
+  "label": "All",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": [
+   {
+    "id": "later",
+    "label": "Later",
+    "danger": false,
+    "items": [
+     {
+      "id": "jul",
+      "title": "Renew passport",
+      "date": "2026-07-15",
+      "time": null,
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": "email",
+      "note": "From the embassy"
+     }
+    ]
+   }
+  ]
+ },
+ "all|src:imessage": {
+  "today": "2026-06-18",
+  "slice": "all",
+  "group": "src:imessage",
+  "label": "All",
+  "nav": {
+   "slices": [
+    {
+     "id": "today",
+     "label": "Today",
+     "count": 6,
+     "attention": true
+    },
+    {
+     "id": "tomorrow",
+     "label": "Tomorrow",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "week",
+     "label": "This week",
+     "count": 15,
+     "attention": false
+    },
+    {
+     "id": "month",
+     "label": "This month",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "later",
+     "label": "Later",
+     "count": 5,
+     "attention": false
+    },
+    {
+     "id": "all",
+     "label": "All",
+     "count": 17,
+     "attention": false
+    }
+   ],
+   "tags": [
+    {
+     "id": "t:home",
+     "name": "home",
+     "count": 1
+    },
+    {
+     "id": "t:work",
+     "name": "work",
+     "count": 1
+    }
+   ],
+   "projects": [
+    {
+     "id": "g:Home",
+     "name": "Home",
+     "count": 1
+    },
+    {
+     "id": "g:",
+     "name": "Ungrouped",
+     "count": 1
+    },
+    {
+     "id": "g:Work",
+     "name": "Work",
+     "count": 1
+    }
+   ],
+   "sources": [
+    {
+     "id": "src:email",
+     "label": "From email",
+     "count": 1
+    },
+    {
+     "id": "src:imessage",
+     "label": "From texts",
+     "count": 1
+    }
+   ],
+   "unassigned": 15
+  },
+  "groups": [
+   {
+    "id": "later",
+    "label": "Later",
+    "danger": false,
+    "items": [
+     {
+      "id": "aug",
+      "title": "Imsg task",
+      "date": "2026-08-02",
+      "time": "08:30",
+      "repeat": null,
+      "done": false,
+      "completedToday": false,
+      "tags": [],
+      "projects": [],
+      "source": "imessage",
+      "note": null
+     }
+    ]
+   }
+  ]
+ }
+}
