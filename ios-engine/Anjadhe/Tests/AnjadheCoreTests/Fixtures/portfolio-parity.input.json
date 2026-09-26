@@ -1,0 +1,113 @@
+{
+ "nowMs": 1789743600000,
+ "today": "2026-09-18",
+ "portfolio": {
+  "accounts": [
+   {"id": "acc-a", "name": "Fidelity Individual", "type": "brokerage", "cashBalance": 5000, "strategyId": null, "createdAt": "2025-01-01T00:00:00Z"},
+   {"id": "acc-b", "name": "Roth", "type": "roth-ira", "cashBalance": 1200.55, "strategyId": "strat-2"},
+   {"id": "acc-c", "name": "Coinbase", "type": "crypto", "brokerage": {"itemId": "x"}},
+   {"id": "acc-d", "name": "Mom's account", "type": "brokerage", "cashBalance": 900, "shared": {"from": "contact-1"}}
+  ],
+  "transactions": [
+   {"id": "t1", "accountId": "acc-a", "ticker": "AAPL", "type": "buy", "quantity": 10, "pricePerShare": 150, "date": "2025-01-10"},
+   {"id": "t2", "accountId": "acc-a", "ticker": "AAPL", "type": "buy", "quantity": 5, "pricePerShare": 180.25, "date": "2026-03-01", "notes": "added on dip"},
+   {"id": "t3", "accountId": "acc-a", "ticker": "AAPL", "type": "sell", "quantity": 3, "pricePerShare": 200, "date": "2026-06-01"},
+   {"id": "t4", "accountId": "acc-a", "ticker": "MSFT", "type": "buy", "quantity": 4, "pricePerShare": 300, "date": "2025-05-05"},
+   {"id": "t5", "accountId": "acc-b", "ticker": "VTI", "type": "holding", "quantity": 20, "pricePerShare": 200, "date": "2024-12-01"},
+   {"id": "t6", "accountId": "acc-a", "ticker": "NVDA270115C00150000", "type": "buy", "quantity": 2, "pricePerShare": 12.5, "date": "2026-07-01"},
+   {"id": "t7", "accountId": "acc-a", "ticker": "TSLA", "type": "buy", "quantity": 1, "pricePerShare": 230, "date": "2026-01-02"},
+   {"id": "t8", "accountId": "acc-a", "ticker": "TSLA", "type": "buy", "quantity": 2, "pricePerShare": 240, "date": "2026-09-18"},
+   {"id": "t9", "accountId": "acc-b", "ticker": "BRK.B", "type": "buy", "quantity": 3, "pricePerShare": 400, "date": "2025-08-08"},
+   {"id": "t10", "accountId": "acc-b", "ticker": "AAPL", "type": "buy", "quantity": 2, "pricePerShare": 170, "date": "2025-09-09"},
+   {"id": "t11", "accountId": "acc-a", "ticker": "INTC", "type": "buy", "quantity": 10, "pricePerShare": 30, "date": "2025-02-02"},
+   {"id": "t12", "accountId": "acc-a", "ticker": "INTC", "type": "sell", "quantity": 10, "pricePerShare": 25, "date": "2025-12-12"},
+   {"id": "t13", "accountId": "acc-c", "ticker": "BTC-USD", "type": "holding", "quantity": 0.25, "pricePerShare": 40000, "date": "2024-06-01"},
+   {"id": "t14", "accountId": "acc-d", "ticker": "AMZN", "type": "buy", "quantity": 5, "pricePerShare": 150, "date": "2025-04-04"},
+   {"id": "t15", "accountId": "acc-a", "ticker": "SPY250117P00400000", "type": "buy", "quantity": 1, "pricePerShare": 3.1, "date": "2024-11-01"}
+  ],
+  "properties": [
+   {"id": "p1", "name": "Home", "address": "12 Elm St", "currentValue": 800000, "purchasePrice": 550000, "purchaseDate": "2018-06-01", "notes": "Refi 2021"}
+  ],
+  "liabilities": [
+   {"id": "l1", "name": "Mortgage", "type": "mortgage", "lender": "Chase", "balance": 400000, "originalAmount": 440000, "interestRate": 3.1, "monthlyPayment": 2500, "startDate": "2018-06-01", "propertyId": "p1"},
+   {"id": "l2", "name": "Sapphire", "type": "credit", "balance": 1200.4, "monthlyPayment": 300},
+   {"id": "l3", "name": "Old loan", "type": "weird", "balance": 0}
+  ],
+  "strategies": [
+   {"id": "strat-1", "name": "Core Growth", "objective": "Retirement", "horizon": "20+ years", "riskLevel": "moderate", "thesis": "Index core, a few conviction picks", "coverage": "Everything", "reviewCadence": "Quarterly", "isDefault": true, "status": "active",
+    "targets": [
+     {"id": "g1", "label": "US index", "tickers": ["VTI"], "includeCash": false, "targetPct": 40},
+     {"id": "g2", "label": "Big tech", "tickers": ["AAPL", "MSFT", "NVDA"], "includeCash": false, "targetPct": 30, "maxPct": 50},
+     {"id": "g3", "label": "Cash", "tickers": [], "includeCash": true, "targetPct": 10, "minPct": 5}
+    ],
+    "rules": [
+     {"id": "r1", "kind": "max_position", "value": 15, "exclude": ["VTI"], "text": "No single stock over 15%"},
+     {"id": "r2", "kind": "min_cash", "value": 5, "text": ""},
+     {"id": "r3", "kind": "avoid", "tickers": ["TSLA"], "text": "No Musk"},
+     {"id": "r4", "kind": "custom", "text": "Nothing I would be embarrassed to explain"},
+     {"id": "r5", "kind": "only", "tickers": [], "text": "empty only is dropped"}
+    ],
+    "history": [{"at": "2026-09-01T00:00:00Z", "summary": "Updated targets"}, {"at": "2026-08-01T00:00:00Z", "summary": "Created"}]
+   },
+   {"id": "strat-2", "name": "Roth plan", "objective": "", "horizon": "", "riskLevel": "", "thesis": "", "coverage": "", "isDefault": false, "status": "draft", "targets": [], "rules": [{"id": "r6", "kind": "max_cash", "value": 20}]}
+  ],
+  "watchlist": [
+   {"id": "w1", "ticker": "GOOG", "createdAt": "2026-01-01T00:00:00Z"},
+   {"id": "w2", "ticker": "AAPL", "createdAt": "2026-01-01T00:00:00Z"},
+   {"id": "w3", "ticker": "amd", "createdAt": "2026-01-01T00:00:00Z"}
+  ],
+  "tombstones": {}
+ },
+ "history": {"snapshots": [
+  {"date": "2026-09-15", "totalValue": 900000, "netWorth": 498000, "accounts": {"acc-a": {"value": 9000, "cash": 5000}, "acc-b": {"value": 7000, "cash": 1200}}, "tickers": {"AAPL": {"price": 220, "value": 3740}, "VTI": {"price": 275, "value": 5500}}},
+  {"date": "2026-09-16", "totalValue": 905000.5, "netWorth": 503000, "accounts": {"acc-a": {"value": 9100, "cash": 5000}}, "tickers": {"AAPL": {"price": 225, "value": 3825}}},
+  {"date": "2026-09-17", "totalValue": null, "netWorth": 1, "accounts": {"acc-b": {"value": 7100.25, "cash": 1200}}, "tickers": {}}
+ ]},
+ "quotes": {
+  "AAPL": {"price": 230.5, "change": 2.5, "changePercent": 1.0965, "updatedAt": 1789741800000, "after": {"price": 231, "change": 0.5, "changePercent": 0.2169, "session": "post"}},
+  "MSFT": {"price": 410, "change": -6.1, "changePercent": -1.466, "updatedAt": 1789741800000},
+  "VTI": {"price": 280.12, "change": 0.5, "changePercent": 0.1788, "updatedAt": 1789675200000},
+  "NVDA270115C00150000": {"price": 30.4, "change": 1.2, "changePercent": 4.1, "updatedAt": 1789741800000, "estimated": true},
+  "TSLA": {"price": 250, "change": -5, "changePercent": -1.96, "updatedAt": 1789741800000},
+  "BRK.B": {"price": null, "change": 0, "changePercent": 0, "updatedAt": 1789741800000, "missing": true},
+  "BTC-USD": {"price": 60000, "change": 1200, "changePercent": 2.04, "updatedAt": 1789741800000},
+  "GOOG": {"price": 170, "change": 3, "changePercent": 1.8, "updatedAt": 1789741800000},
+  "AMZN": {"price": 180, "change": 1, "changePercent": 0.56, "updatedAt": 1789741800000}
+ },
+ "companyInfo": {
+  "AAPL": {"name": "Apple Inc.", "type": "EQUITY"},
+  "VTI": {"name": "Vanguard Total Stock Market Index Fund ETF Shares", "type": "ETF"},
+  "MSFT": {"name": "MSFT", "type": "EQUITY"}
+ },
+ "marketHistory": [{"date": "2026-09-16", "price": 225.1}, {"date": "2026-09-17", "price": 228}],
+ "newsIdentity": {
+  "AAPL": {"name": "Apple Inc.", "type": "EQUITY"},
+  "VTI": {"name": "Vanguard Total Stock Market Index Fund ETF Shares", "type": "ETF"},
+  "MSFT": {"name": "Microsoft Corporation", "type": "EQUITY"},
+  "NVDA": {"name": "NVIDIA Corporation", "type": "EQUITY"},
+  "TSLA": {"name": "Tesla, Inc.", "type": "EQUITY"},
+  "BRK.B": {"name": "Berkshire Hathaway Inc. New", "type": "EQUITY"},
+  "BTC-USD": {"name": "BTC-USD", "type": "CRYPTOCURRENCY"},
+  "SPY": {"name": "SPDR S&P 500 ETF Trust", "type": "ETF"},
+  "GOOG": {"name": "Alphabet Inc.", "type": "EQUITY"},
+  "AMD": {"name": "Advanced Micro Devices, Inc.", "type": "EQUITY"}
+ },
+ "newsFetched": {
+  "Apple AAPL": [
+   {"title": "Apple unveils new iPhone", "url": "https://n.example/a1", "source": "Verge", "publishedAt": "2026-09-18T10:00:00Z"},
+   {"title": "Old apple news", "url": "https://n.example/a2", "source": "X", "publishedAt": "2026-09-01T10:00:00Z"},
+   {"title": "Apple supplier deal", "url": "https://n.example/a3", "source": "FT", "publishedAt": "2026-09-17T09:00:00Z"},
+   {"title": "", "url": "https://n.example/a4", "publishedAt": "2026-09-17T09:00:00Z"}
+  ],
+  "Microsoft MSFT": [
+   {"title": "Microsoft earnings beat", "url": "https://n.example/m1", "source": "CNBC", "publishedAt": "2026-09-16T12:00:00Z"},
+   {"title": "Apple unveils new iPhone", "url": "https://n.example/a1", "source": "Verge", "publishedAt": "2026-09-18T10:00:00Z"}
+  ],
+  "NVIDIA NVDA": [{"title": "Nvidia chips", "url": "https://n.example/n1", "source": "Reuters", "publishedAt": "2026-09-18T01:00:00Z"}],
+  "Tesla TSLA": [{"title": "Tesla recall", "url": "https://n.example/t1", "source": "AP", "publishedAt": "2026-09-15T01:00:00Z"}],
+  "Berkshire Hathaway Inc. New BRK.B": [],
+  "BTC-USD stock": [{"title": "Bitcoin rallies", "url": "https://n.example/b1", "source": "CoinDesk", "publishedAt": "2026-09-18T02:00:00Z"}],
+  "Alphabet GOOG": [{"title": "Google antitrust", "url": "https://n.example/g1", "source": "WSJ", "publishedAt": "2026-09-14T02:00:00Z"}],
+  "Advanced Micro Devices AMD": [{"title": "AMD launches", "url": "https://n.example/d1", "source": "Tom's", "publishedAt": "2026-09-13T02:00:00Z"}]
+ }
+}
