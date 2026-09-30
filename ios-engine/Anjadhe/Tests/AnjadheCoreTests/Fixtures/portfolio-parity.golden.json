@@ -1,0 +1,3816 @@
+{
+ "portfolio": {
+  "all": {
+   "scope": "all",
+   "pricesAsOf": 1789741800000,
+   "totalValue": 838499.95,
+   "totalCost": 22177.5,
+   "netWorth": 437299.54999999993,
+   "liabilitiesTotal": 401200.4,
+   "cash": 6200.55,
+   "realEstateValue": 800000,
+   "dayChange": 575.6,
+   "dayChangePercent": 1.8144106317654254,
+   "dayBase": 31723.800000000003,
+   "totalPL": 10121.900000000001,
+   "totalPLPercent": 45.64040130763162,
+   "after": {
+    "session": "post",
+    "change": 7,
+    "base": 3227
+   },
+   "composition": [
+    {
+     "key": "stocks",
+     "label": "Investments",
+     "value": 32299.399999999907
+    },
+    {
+     "key": "cash",
+     "label": "Cash",
+     "value": 6200.55
+    },
+    {
+     "key": "realestate",
+     "label": "Real estate",
+     "value": 800000
+    }
+   ],
+   "holdings": [
+    {
+     "ticker": "BTC-USD",
+     "label": "BTC-USD",
+     "name": "",
+     "option": null,
+     "shares": 0.25,
+     "avgCost": 40000,
+     "costBasis": 10000,
+     "price": 60000,
+     "priceEstimated": false,
+     "value": 15000,
+     "weight": 38.96108955985657,
+     "pl": 5000,
+     "plPercent": 50,
+     "dayChange": 300,
+     "dayPercent": 2.0408163265306123,
+     "after": null,
+     "accounts": [
+      "acc-c"
+     ]
+    },
+    {
+     "ticker": "NVDA270115C00150000",
+     "label": "NVDA $150 Call 1/15/27",
+     "name": "Call · $150.00 · Jan 15, 2027",
+     "option": {
+      "underlying": "NVDA",
+      "expiration": "2027-01-15",
+      "optionType": "call",
+      "strike": 150,
+      "daysToExpiry": 119
+     },
+     "shares": 2,
+     "avgCost": 12.5,
+     "costBasis": 2500,
+     "price": 30.4,
+     "priceEstimated": true,
+     "value": 6080,
+     "weight": 15.792228301595197,
+     "pl": 3580,
+     "plPercent": 143.2,
+     "dayChange": 240,
+     "dayPercent": 4.10958904109589,
+     "after": null,
+     "accounts": [
+      "acc-a"
+     ]
+    },
+    {
+     "ticker": "VTI",
+     "label": "VTI",
+     "name": "Vanguard Total Stock Market Index Fund ETF Shares",
+     "option": null,
+     "shares": 20,
+     "avgCost": 200,
+     "costBasis": 4000,
+     "price": 280.12,
+     "priceEstimated": false,
+     "value": 5602.4,
+     "weight": 14.55170721000936,
+     "pl": 1602.3999999999996,
+     "plPercent": 40.05999999999999,
+     "dayChange": 10,
+     "dayPercent": 0.1788141048565911,
+     "after": null,
+     "accounts": [
+      "acc-b"
+     ]
+    },
+    {
+     "ticker": "AAPL",
+     "label": "AAPL",
+     "name": "Apple Inc.",
+     "option": null,
+     "shares": 14,
+     "avgCost": 161.25,
+     "costBasis": 2257.5,
+     "price": 230.5,
+     "priceEstimated": false,
+     "value": 3227,
+     "weight": 8.381829067310475,
+     "pl": 969.5,
+     "plPercent": 42.945736434108525,
+     "dayChange": 35,
+     "dayPercent": 1.0964912280701753,
+     "after": {
+      "price": 231,
+      "change": 0.5,
+      "changePercent": 0.2169,
+      "session": "post"
+     },
+     "accounts": [
+      "acc-a",
+      "acc-b"
+     ]
+    },
+    {
+     "ticker": "MSFT",
+     "label": "MSFT",
+     "name": "",
+     "option": null,
+     "shares": 4,
+     "avgCost": 300,
+     "costBasis": 1200,
+     "price": 410,
+     "priceEstimated": false,
+     "value": 1640,
+     "weight": 4.259745791877651,
+     "pl": 440,
+     "plPercent": 36.666666666666664,
+     "dayChange": -24.4,
+     "dayPercent": -1.4659937515020427,
+     "after": null,
+     "accounts": [
+      "acc-a"
+     ]
+    },
+    {
+     "ticker": "TSLA",
+     "label": "TSLA",
+     "name": "",
+     "option": null,
+     "shares": 3,
+     "avgCost": 236.66666666666666,
+     "costBasis": 710,
+     "price": 250,
+     "priceEstimated": false,
+     "value": 750,
+     "weight": 1.9480544779928284,
+     "pl": 40,
+     "plPercent": 5.633802816901409,
+     "dayChange": 15,
+     "dayPercent": 2.0408163265306123,
+     "after": null,
+     "accounts": [
+      "acc-a"
+     ]
+    },
+    {
+     "ticker": "SPY250117P00400000",
+     "label": "SPY $400 Put 1/17/25",
+     "name": "Put · $400.00 · Jan 17, 2025",
+     "option": {
+      "underlying": "SPY",
+      "expiration": "2025-01-17",
+      "optionType": "put",
+      "strike": 400,
+      "daysToExpiry": -609
+     },
+     "shares": 1,
+     "avgCost": 3.1,
+     "costBasis": 310,
+     "price": 0,
+     "priceEstimated": false,
+     "value": 0,
+     "weight": 0,
+     "pl": -310,
+     "plPercent": -100,
+     "dayChange": 0,
+     "dayPercent": 0,
+     "after": null,
+     "accounts": [
+      "acc-a"
+     ]
+    },
+    {
+     "ticker": "BRK.B",
+     "label": "BRK.B",
+     "name": "",
+     "option": null,
+     "shares": 3,
+     "avgCost": 400,
+     "costBasis": 1200,
+     "price": 0,
+     "priceEstimated": false,
+     "value": 0,
+     "weight": 0,
+     "pl": -1200,
+     "plPercent": -100,
+     "dayChange": 0,
+     "dayPercent": 0,
+     "after": null,
+     "accounts": [
+      "acc-b"
+     ]
+    }
+   ],
+   "movers": [
+    {
+     "ticker": "BTC-USD",
+     "label": "BTC-USD",
+     "dayChange": 300,
+     "dayChangePercent": 2.0408163265306123
+    },
+    {
+     "ticker": "NVDA270115C00150000",
+     "label": "NVDA $150 Call 1/15/27",
+     "dayChange": 240,
+     "dayChangePercent": 4.10958904109589
+    },
+    {
+     "ticker": "AAPL",
+     "label": "AAPL",
+     "dayChange": 35,
+     "dayChangePercent": 1.0964912280701753
+    },
+    {
+     "ticker": "MSFT",
+     "label": "MSFT",
+     "dayChange": -24.4,
+     "dayChangePercent": -1.4659937515020427
+    },
+    {
+     "ticker": "TSLA",
+     "label": "TSLA",
+     "dayChange": 15,
+     "dayChangePercent": 2.0408163265306123
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-a",
+     "name": "Fidelity Individual",
+     "type": "brokerage",
+     "typeLabel": "Brokerage",
+     "value": 16236,
+     "cash": 5000,
+     "holdings": 5,
+     "linked": false
+    },
+    {
+     "id": "acc-b",
+     "name": "Roth",
+     "type": "roth-ira",
+     "typeLabel": "Roth IRA",
+     "value": 7263.95,
+     "cash": 1200.55,
+     "holdings": 3,
+     "linked": false
+    },
+    {
+     "id": "acc-c",
+     "name": "Coinbase",
+     "type": "crypto",
+     "typeLabel": "crypto",
+     "value": 15000,
+     "cash": 0,
+     "holdings": 1,
+     "linked": true
+    }
+   ],
+   "tickersNav": {
+    "held": 8,
+    "watching": 2
+   },
+   "strategy": {
+    "id": "strat-1",
+    "name": "Core Growth",
+    "objective": "Retirement",
+    "status": "active",
+    "inherited": false,
+    "report": {
+     "status": "breach",
+     "headline": "BTC-USD is 39%, NVDA $150 Call 1/15/27 is 16% against a 15% cap.",
+     "counts": {
+      "drifted": 2,
+      "breaches": 2,
+      "needsJudgment": 1
+     },
+     "empty": false
+    }
+   },
+   "history": [
+    {
+     "date": "2026-09-15",
+     "value": 900000,
+     "netWorth": 498000
+    },
+    {
+     "date": "2026-09-16",
+     "value": 905000.5,
+     "netWorth": 503000
+    }
+   ],
+   "properties": [
+    {
+     "id": "p1",
+     "name": "Home",
+     "address": "12 Elm St",
+     "currentValue": 800000,
+     "purchasePrice": 550000,
+     "purchaseDate": "2018-06-01",
+     "notes": "Refi 2021"
+    }
+   ],
+   "liabilities": [
+    {
+     "id": "l1",
+     "name": "Mortgage",
+     "type": "mortgage",
+     "typeLabel": "Mortgage",
+     "lender": "Chase",
+     "balance": 400000,
+     "originalAmount": 440000,
+     "interestRate": 3.1,
+     "monthlyPayment": 2500,
+     "startDate": "2018-06-01",
+     "propertyId": "p1",
+     "notes": ""
+    },
+    {
+     "id": "l2",
+     "name": "Sapphire",
+     "type": "credit",
+     "typeLabel": "Credit card",
+     "lender": "",
+     "balance": 1200.4,
+     "originalAmount": null,
+     "interestRate": null,
+     "monthlyPayment": 300,
+     "startDate": null,
+     "propertyId": null,
+     "notes": ""
+    },
+    {
+     "id": "l3",
+     "name": "Old loan",
+     "type": "weird",
+     "typeLabel": "Other",
+     "lender": "",
+     "balance": 0,
+     "originalAmount": null,
+     "interestRate": null,
+     "monthlyPayment": null,
+     "startDate": null,
+     "propertyId": null,
+     "notes": ""
+    }
+   ],
+   "monthlyPayments": 2800,
+   "watchlist": [
+    {
+     "ticker": "AAPL",
+     "name": "Apple Inc.",
+     "price": 230.5,
+     "change": 2.5,
+     "changePercent": 1.0965
+    },
+    {
+     "ticker": "AMD",
+     "name": "",
+     "price": null,
+     "change": null,
+     "changePercent": null
+    },
+    {
+     "ticker": "GOOG",
+     "name": "",
+     "price": 170,
+     "change": 3,
+     "changePercent": 1.8
+    }
+   ]
+  },
+  "acc-a": {
+   "scope": "acc-a",
+   "pricesAsOf": 1789741800000,
+   "totalValue": 16236,
+   "totalCost": 6641,
+   "netWorth": 16236,
+   "liabilitiesTotal": 0,
+   "cash": 5000,
+   "realEstateValue": 0,
+   "dayChange": 260.6,
+   "dayChangePercent": 2.374400932995609,
+   "dayBase": 10975.4,
+   "totalPL": 4595,
+   "totalPLPercent": 69.19138683933143,
+   "after": {
+    "session": "post",
+    "change": 6,
+    "base": 2766
+   },
+   "composition": [
+    {
+     "key": "stocks",
+     "label": "Investments",
+     "value": 11236
+    },
+    {
+     "key": "cash",
+     "label": "Cash",
+     "value": 5000
+    }
+   ],
+   "holdings": [
+    {
+     "ticker": "NVDA270115C00150000",
+     "label": "NVDA $150 Call 1/15/27",
+     "name": "Call · $150.00 · Jan 15, 2027",
+     "option": {
+      "underlying": "NVDA",
+      "expiration": "2027-01-15",
+      "optionType": "call",
+      "strike": 150,
+      "daysToExpiry": 119
+     },
+     "shares": 2,
+     "avgCost": 12.5,
+     "costBasis": 2500,
+     "price": 30.4,
+     "priceEstimated": true,
+     "value": 6080,
+     "weight": 37.447647203744765,
+     "pl": 3580,
+     "plPercent": 143.2,
+     "dayChange": 240,
+     "dayPercent": 4.10958904109589,
+     "after": null,
+     "accounts": [
+      "acc-a"
+     ]
+    },
+    {
+     "ticker": "AAPL",
+     "label": "AAPL",
+     "name": "Apple Inc.",
+     "option": null,
+     "shares": 12,
+     "avgCost": 160.08333333333334,
+     "costBasis": 1921,
+     "price": 230.5,
+     "priceEstimated": false,
+     "value": 2766,
+     "weight": 17.03621581670362,
+     "pl": 845,
+     "plPercent": 43.98750650702759,
+     "dayChange": 30,
+     "dayPercent": 1.0964912280701753,
+     "after": {
+      "price": 231,
+      "change": 0.5,
+      "changePercent": 0.2169,
+      "session": "post"
+     },
+     "accounts": [
+      "acc-a"
+     ]
+    },
+    {
+     "ticker": "MSFT",
+     "label": "MSFT",
+     "name": "",
+     "option": null,
+     "shares": 4,
+     "avgCost": 300,
+     "costBasis": 1200,
+     "price": 410,
+     "priceEstimated": false,
+     "value": 1640,
+     "weight": 10.1010101010101,
+     "pl": 440,
+     "plPercent": 36.666666666666664,
+     "dayChange": -24.4,
+     "dayPercent": -1.4659937515020427,
+     "after": null,
+     "accounts": [
+      "acc-a"
+     ]
+    },
+    {
+     "ticker": "TSLA",
+     "label": "TSLA",
+     "name": "",
+     "option": null,
+     "shares": 3,
+     "avgCost": 236.66666666666666,
+     "costBasis": 710,
+     "price": 250,
+     "priceEstimated": false,
+     "value": 750,
+     "weight": 4.619364375461936,
+     "pl": 40,
+     "plPercent": 5.633802816901409,
+     "dayChange": 15,
+     "dayPercent": 2.0408163265306123,
+     "after": null,
+     "accounts": [
+      "acc-a"
+     ]
+    },
+    {
+     "ticker": "SPY250117P00400000",
+     "label": "SPY $400 Put 1/17/25",
+     "name": "Put · $400.00 · Jan 17, 2025",
+     "option": {
+      "underlying": "SPY",
+      "expiration": "2025-01-17",
+      "optionType": "put",
+      "strike": 400,
+      "daysToExpiry": -609
+     },
+     "shares": 1,
+     "avgCost": 3.1,
+     "costBasis": 310,
+     "price": 0,
+     "priceEstimated": false,
+     "value": 0,
+     "weight": 0,
+     "pl": -310,
+     "plPercent": -100,
+     "dayChange": 0,
+     "dayPercent": 0,
+     "after": null,
+     "accounts": [
+      "acc-a"
+     ]
+    }
+   ],
+   "movers": [
+    {
+     "ticker": "NVDA270115C00150000",
+     "label": "NVDA $150 Call 1/15/27",
+     "dayChange": 240,
+     "dayChangePercent": 4.10958904109589
+    },
+    {
+     "ticker": "AAPL",
+     "label": "AAPL",
+     "dayChange": 30,
+     "dayChangePercent": 1.0964912280701753
+    },
+    {
+     "ticker": "MSFT",
+     "label": "MSFT",
+     "dayChange": -24.4,
+     "dayChangePercent": -1.4659937515020427
+    },
+    {
+     "ticker": "TSLA",
+     "label": "TSLA",
+     "dayChange": 15,
+     "dayChangePercent": 2.0408163265306123
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-a",
+     "name": "Fidelity Individual",
+     "type": "brokerage",
+     "typeLabel": "Brokerage",
+     "value": 16236,
+     "cash": 5000,
+     "holdings": 5,
+     "linked": false
+    },
+    {
+     "id": "acc-b",
+     "name": "Roth",
+     "type": "roth-ira",
+     "typeLabel": "Roth IRA",
+     "value": 7263.95,
+     "cash": 1200.55,
+     "holdings": 3,
+     "linked": false
+    },
+    {
+     "id": "acc-c",
+     "name": "Coinbase",
+     "type": "crypto",
+     "typeLabel": "crypto",
+     "value": 15000,
+     "cash": 0,
+     "holdings": 1,
+     "linked": true
+    }
+   ],
+   "tickersNav": {
+    "held": 8,
+    "watching": 2
+   },
+   "strategy": {
+    "id": "strat-1",
+    "name": "Core Growth",
+    "objective": "Retirement",
+    "status": "active",
+    "inherited": true,
+    "report": {
+     "status": "breach",
+     "headline": "NVDA $150 Call 1/15/27 is 37%, AAPL is 17% against a 15% cap.",
+     "counts": {
+      "drifted": 3,
+      "breaches": 2,
+      "needsJudgment": 1
+     },
+     "empty": false
+    }
+   },
+   "history": [
+    {
+     "date": "2026-09-15",
+     "value": 9000
+    },
+    {
+     "date": "2026-09-16",
+     "value": 9100
+    }
+   ],
+   "account": {
+    "id": "acc-a",
+    "name": "Fidelity Individual",
+    "type": "brokerage",
+    "typeLabel": "Brokerage",
+    "value": 16236,
+    "cash": 5000,
+    "holdings": 5,
+    "linked": false
+   }
+  },
+  "acc-b": {
+   "scope": "acc-b",
+   "pricesAsOf": 1789741800000,
+   "totalValue": 7263.95,
+   "totalCost": 5540,
+   "netWorth": 7263.95,
+   "liabilitiesTotal": 0,
+   "cash": 1200.55,
+   "realEstateValue": 0,
+   "dayChange": 15,
+   "dayChangePercent": 0.247999470934462,
+   "dayBase": 6048.4,
+   "totalPL": 523.3999999999996,
+   "totalPLPercent": 9.447653429602882,
+   "after": {
+    "session": "post",
+    "change": 1,
+    "base": 461
+   },
+   "composition": [
+    {
+     "key": "stocks",
+     "label": "Investments",
+     "value": 6063.4
+    },
+    {
+     "key": "cash",
+     "label": "Cash",
+     "value": 1200.55
+    }
+   ],
+   "holdings": [
+    {
+     "ticker": "VTI",
+     "label": "VTI",
+     "name": "Vanguard Total Stock Market Index Fund ETF Shares",
+     "option": null,
+     "shares": 20,
+     "avgCost": 200,
+     "costBasis": 4000,
+     "price": 280.12,
+     "priceEstimated": false,
+     "value": 5602.4,
+     "weight": 77.12608153965817,
+     "pl": 1602.3999999999996,
+     "plPercent": 40.05999999999999,
+     "dayChange": 10,
+     "dayPercent": 0.1788141048565911,
+     "after": null,
+     "accounts": [
+      "acc-b"
+     ]
+    },
+    {
+     "ticker": "AAPL",
+     "label": "AAPL",
+     "name": "Apple Inc.",
+     "option": null,
+     "shares": 2,
+     "avgCost": 170,
+     "costBasis": 340,
+     "price": 230.5,
+     "priceEstimated": false,
+     "value": 461,
+     "weight": 6.346409322751395,
+     "pl": 121,
+     "plPercent": 35.588235294117645,
+     "dayChange": 5,
+     "dayPercent": 1.0964912280701753,
+     "after": {
+      "price": 231,
+      "change": 0.5,
+      "changePercent": 0.2169,
+      "session": "post"
+     },
+     "accounts": [
+      "acc-b"
+     ]
+    },
+    {
+     "ticker": "BRK.B",
+     "label": "BRK.B",
+     "name": "",
+     "option": null,
+     "shares": 3,
+     "avgCost": 400,
+     "costBasis": 1200,
+     "price": 0,
+     "priceEstimated": false,
+     "value": 0,
+     "weight": 0,
+     "pl": -1200,
+     "plPercent": -100,
+     "dayChange": 0,
+     "dayPercent": 0,
+     "after": null,
+     "accounts": [
+      "acc-b"
+     ]
+    }
+   ],
+   "movers": [
+    {
+     "ticker": "AAPL",
+     "label": "AAPL",
+     "dayChange": 5,
+     "dayChangePercent": 1.0964912280701753
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-a",
+     "name": "Fidelity Individual",
+     "type": "brokerage",
+     "typeLabel": "Brokerage",
+     "value": 16236,
+     "cash": 5000,
+     "holdings": 5,
+     "linked": false
+    },
+    {
+     "id": "acc-b",
+     "name": "Roth",
+     "type": "roth-ira",
+     "typeLabel": "Roth IRA",
+     "value": 7263.95,
+     "cash": 1200.55,
+     "holdings": 3,
+     "linked": false
+    },
+    {
+     "id": "acc-c",
+     "name": "Coinbase",
+     "type": "crypto",
+     "typeLabel": "crypto",
+     "value": 15000,
+     "cash": 0,
+     "holdings": 1,
+     "linked": true
+    }
+   ],
+   "tickersNav": {
+    "held": 8,
+    "watching": 2
+   },
+   "strategy": {
+    "id": "strat-2",
+    "name": "Roth plan",
+    "objective": "",
+    "status": "draft",
+    "inherited": false,
+    "report": {
+     "status": "on-track",
+     "headline": "Holdings match the plan.",
+     "counts": {
+      "drifted": 0,
+      "breaches": 0,
+      "needsJudgment": 0
+     },
+     "empty": false
+    }
+   },
+   "history": [
+    {
+     "date": "2026-09-15",
+     "value": 7000
+    },
+    {
+     "date": "2026-09-17",
+     "value": 7100.25
+    }
+   ],
+   "account": {
+    "id": "acc-b",
+    "name": "Roth",
+    "type": "roth-ira",
+    "typeLabel": "Roth IRA",
+    "value": 7263.95,
+    "cash": 1200.55,
+    "holdings": 3,
+    "linked": false
+   }
+  },
+  "acc-c": {
+   "scope": "acc-c",
+   "pricesAsOf": 1789741800000,
+   "totalValue": 15000,
+   "totalCost": 10000,
+   "netWorth": 15000,
+   "liabilitiesTotal": 0,
+   "cash": 0,
+   "realEstateValue": 0,
+   "dayChange": 300,
+   "dayChangePercent": 2.0408163265306123,
+   "dayBase": 14700,
+   "totalPL": 5000,
+   "totalPLPercent": 50,
+   "after": null,
+   "composition": [
+    {
+     "key": "stocks",
+     "label": "Investments",
+     "value": 15000
+    }
+   ],
+   "holdings": [
+    {
+     "ticker": "BTC-USD",
+     "label": "BTC-USD",
+     "name": "",
+     "option": null,
+     "shares": 0.25,
+     "avgCost": 40000,
+     "costBasis": 10000,
+     "price": 60000,
+     "priceEstimated": false,
+     "value": 15000,
+     "weight": 100,
+     "pl": 5000,
+     "plPercent": 50,
+     "dayChange": 300,
+     "dayPercent": 2.0408163265306123,
+     "after": null,
+     "accounts": [
+      "acc-c"
+     ]
+    }
+   ],
+   "movers": [
+    {
+     "ticker": "BTC-USD",
+     "label": "BTC-USD",
+     "dayChange": 300,
+     "dayChangePercent": 2.0408163265306123
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-a",
+     "name": "Fidelity Individual",
+     "type": "brokerage",
+     "typeLabel": "Brokerage",
+     "value": 16236,
+     "cash": 5000,
+     "holdings": 5,
+     "linked": false
+    },
+    {
+     "id": "acc-b",
+     "name": "Roth",
+     "type": "roth-ira",
+     "typeLabel": "Roth IRA",
+     "value": 7263.95,
+     "cash": 1200.55,
+     "holdings": 3,
+     "linked": false
+    },
+    {
+     "id": "acc-c",
+     "name": "Coinbase",
+     "type": "crypto",
+     "typeLabel": "crypto",
+     "value": 15000,
+     "cash": 0,
+     "holdings": 1,
+     "linked": true
+    }
+   ],
+   "tickersNav": {
+    "held": 8,
+    "watching": 2
+   },
+   "strategy": {
+    "id": "strat-1",
+    "name": "Core Growth",
+    "objective": "Retirement",
+    "status": "active",
+    "inherited": true,
+    "report": {
+     "status": "breach",
+     "headline": "BTC-USD is 100% against a 15% cap.",
+     "counts": {
+      "drifted": 3,
+      "breaches": 2,
+      "needsJudgment": 1
+     },
+     "empty": false
+    }
+   },
+   "history": [],
+   "account": {
+    "id": "acc-c",
+    "name": "Coinbase",
+    "type": "crypto",
+    "typeLabel": "crypto",
+    "value": 15000,
+    "cash": 0,
+    "holdings": 1,
+    "linked": true
+   }
+  },
+  "acc-d": {
+   "scope": "all",
+   "pricesAsOf": 1789741800000,
+   "totalValue": 838499.95,
+   "totalCost": 22177.5,
+   "netWorth": 437299.54999999993,
+   "liabilitiesTotal": 401200.4,
+   "cash": 6200.55,
+   "realEstateValue": 800000,
+   "dayChange": 575.6,
+   "dayChangePercent": 1.8144106317654254,
+   "dayBase": 31723.800000000003,
+   "totalPL": 10121.900000000001,
+   "totalPLPercent": 45.64040130763162,
+   "after": {
+    "session": "post",
+    "change": 7,
+    "base": 3227
+   },
+   "composition": [
+    {
+     "key": "stocks",
+     "label": "Investments",
+     "value": 32299.399999999907
+    },
+    {
+     "key": "cash",
+     "label": "Cash",
+     "value": 6200.55
+    },
+    {
+     "key": "realestate",
+     "label": "Real estate",
+     "value": 800000
+    }
+   ],
+   "holdings": [
+    {
+     "ticker": "BTC-USD",
+     "label": "BTC-USD",
+     "name": "",
+     "option": null,
+     "shares": 0.25,
+     "avgCost": 40000,
+     "costBasis": 10000,
+     "price": 60000,
+     "priceEstimated": false,
+     "value": 15000,
+     "weight": 38.96108955985657,
+     "pl": 5000,
+     "plPercent": 50,
+     "dayChange": 300,
+     "dayPercent": 2.0408163265306123,
+     "after": null,
+     "accounts": [
+      "acc-c"
+     ]
+    },
+    {
+     "ticker": "NVDA270115C00150000",
+     "label": "NVDA $150 Call 1/15/27",
+     "name": "Call · $150.00 · Jan 15, 2027",
+     "option": {
+      "underlying": "NVDA",
+      "expiration": "2027-01-15",
+      "optionType": "call",
+      "strike": 150,
+      "daysToExpiry": 119
+     },
+     "shares": 2,
+     "avgCost": 12.5,
+     "costBasis": 2500,
+     "price": 30.4,
+     "priceEstimated": true,
+     "value": 6080,
+     "weight": 15.792228301595197,
+     "pl": 3580,
+     "plPercent": 143.2,
+     "dayChange": 240,
+     "dayPercent": 4.10958904109589,
+     "after": null,
+     "accounts": [
+      "acc-a"
+     ]
+    },
+    {
+     "ticker": "VTI",
+     "label": "VTI",
+     "name": "Vanguard Total Stock Market Index Fund ETF Shares",
+     "option": null,
+     "shares": 20,
+     "avgCost": 200,
+     "costBasis": 4000,
+     "price": 280.12,
+     "priceEstimated": false,
+     "value": 5602.4,
+     "weight": 14.55170721000936,
+     "pl": 1602.3999999999996,
+     "plPercent": 40.05999999999999,
+     "dayChange": 10,
+     "dayPercent": 0.1788141048565911,
+     "after": null,
+     "accounts": [
+      "acc-b"
+     ]
+    },
+    {
+     "ticker": "AAPL",
+     "label": "AAPL",
+     "name": "Apple Inc.",
+     "option": null,
+     "shares": 14,
+     "avgCost": 161.25,
+     "costBasis": 2257.5,
+     "price": 230.5,
+     "priceEstimated": false,
+     "value": 3227,
+     "weight": 8.381829067310475,
+     "pl": 969.5,
+     "plPercent": 42.945736434108525,
+     "dayChange": 35,
+     "dayPercent": 1.0964912280701753,
+     "after": {
+      "price": 231,
+      "change": 0.5,
+      "changePercent": 0.2169,
+      "session": "post"
+     },
+     "accounts": [
+      "acc-a",
+      "acc-b"
+     ]
+    },
+    {
+     "ticker": "MSFT",
+     "label": "MSFT",
+     "name": "",
+     "option": null,
+     "shares": 4,
+     "avgCost": 300,
+     "costBasis": 1200,
+     "price": 410,
+     "priceEstimated": false,
+     "value": 1640,
+     "weight": 4.259745791877651,
+     "pl": 440,
+     "plPercent": 36.666666666666664,
+     "dayChange": -24.4,
+     "dayPercent": -1.4659937515020427,
+     "after": null,
+     "accounts": [
+      "acc-a"
+     ]
+    },
+    {
+     "ticker": "TSLA",
+     "label": "TSLA",
+     "name": "",
+     "option": null,
+     "shares": 3,
+     "avgCost": 236.66666666666666,
+     "costBasis": 710,
+     "price": 250,
+     "priceEstimated": false,
+     "value": 750,
+     "weight": 1.9480544779928284,
+     "pl": 40,
+     "plPercent": 5.633802816901409,
+     "dayChange": 15,
+     "dayPercent": 2.0408163265306123,
+     "after": null,
+     "accounts": [
+      "acc-a"
+     ]
+    },
+    {
+     "ticker": "SPY250117P00400000",
+     "label": "SPY $400 Put 1/17/25",
+     "name": "Put · $400.00 · Jan 17, 2025",
+     "option": {
+      "underlying": "SPY",
+      "expiration": "2025-01-17",
+      "optionType": "put",
+      "strike": 400,
+      "daysToExpiry": -609
+     },
+     "shares": 1,
+     "avgCost": 3.1,
+     "costBasis": 310,
+     "price": 0,
+     "priceEstimated": false,
+     "value": 0,
+     "weight": 0,
+     "pl": -310,
+     "plPercent": -100,
+     "dayChange": 0,
+     "dayPercent": 0,
+     "after": null,
+     "accounts": [
+      "acc-a"
+     ]
+    },
+    {
+     "ticker": "BRK.B",
+     "label": "BRK.B",
+     "name": "",
+     "option": null,
+     "shares": 3,
+     "avgCost": 400,
+     "costBasis": 1200,
+     "price": 0,
+     "priceEstimated": false,
+     "value": 0,
+     "weight": 0,
+     "pl": -1200,
+     "plPercent": -100,
+     "dayChange": 0,
+     "dayPercent": 0,
+     "after": null,
+     "accounts": [
+      "acc-b"
+     ]
+    }
+   ],
+   "movers": [
+    {
+     "ticker": "BTC-USD",
+     "label": "BTC-USD",
+     "dayChange": 300,
+     "dayChangePercent": 2.0408163265306123
+    },
+    {
+     "ticker": "NVDA270115C00150000",
+     "label": "NVDA $150 Call 1/15/27",
+     "dayChange": 240,
+     "dayChangePercent": 4.10958904109589
+    },
+    {
+     "ticker": "AAPL",
+     "label": "AAPL",
+     "dayChange": 35,
+     "dayChangePercent": 1.0964912280701753
+    },
+    {
+     "ticker": "MSFT",
+     "label": "MSFT",
+     "dayChange": -24.4,
+     "dayChangePercent": -1.4659937515020427
+    },
+    {
+     "ticker": "TSLA",
+     "label": "TSLA",
+     "dayChange": 15,
+     "dayChangePercent": 2.0408163265306123
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-a",
+     "name": "Fidelity Individual",
+     "type": "brokerage",
+     "typeLabel": "Brokerage",
+     "value": 16236,
+     "cash": 5000,
+     "holdings": 5,
+     "linked": false
+    },
+    {
+     "id": "acc-b",
+     "name": "Roth",
+     "type": "roth-ira",
+     "typeLabel": "Roth IRA",
+     "value": 7263.95,
+     "cash": 1200.55,
+     "holdings": 3,
+     "linked": false
+    },
+    {
+     "id": "acc-c",
+     "name": "Coinbase",
+     "type": "crypto",
+     "typeLabel": "crypto",
+     "value": 15000,
+     "cash": 0,
+     "holdings": 1,
+     "linked": true
+    }
+   ],
+   "tickersNav": {
+    "held": 8,
+    "watching": 2
+   },
+   "strategy": {
+    "id": "strat-1",
+    "name": "Core Growth",
+    "objective": "Retirement",
+    "status": "active",
+    "inherited": false,
+    "report": {
+     "status": "breach",
+     "headline": "BTC-USD is 39%, NVDA $150 Call 1/15/27 is 16% against a 15% cap.",
+     "counts": {
+      "drifted": 2,
+      "breaches": 2,
+      "needsJudgment": 1
+     },
+     "empty": false
+    }
+   },
+   "history": [
+    {
+     "date": "2026-09-15",
+     "value": 900000,
+     "netWorth": 498000
+    },
+    {
+     "date": "2026-09-16",
+     "value": 905000.5,
+     "netWorth": 503000
+    }
+   ],
+   "properties": [
+    {
+     "id": "p1",
+     "name": "Home",
+     "address": "12 Elm St",
+     "currentValue": 800000,
+     "purchasePrice": 550000,
+     "purchaseDate": "2018-06-01",
+     "notes": "Refi 2021"
+    }
+   ],
+   "liabilities": [
+    {
+     "id": "l1",
+     "name": "Mortgage",
+     "type": "mortgage",
+     "typeLabel": "Mortgage",
+     "lender": "Chase",
+     "balance": 400000,
+     "originalAmount": 440000,
+     "interestRate": 3.1,
+     "monthlyPayment": 2500,
+     "startDate": "2018-06-01",
+     "propertyId": "p1",
+     "notes": ""
+    },
+    {
+     "id": "l2",
+     "name": "Sapphire",
+     "type": "credit",
+     "typeLabel": "Credit card",
+     "lender": "",
+     "balance": 1200.4,
+     "originalAmount": null,
+     "interestRate": null,
+     "monthlyPayment": 300,
+     "startDate": null,
+     "propertyId": null,
+     "notes": ""
+    },
+    {
+     "id": "l3",
+     "name": "Old loan",
+     "type": "weird",
+     "typeLabel": "Other",
+     "lender": "",
+     "balance": 0,
+     "originalAmount": null,
+     "interestRate": null,
+     "monthlyPayment": null,
+     "startDate": null,
+     "propertyId": null,
+     "notes": ""
+    }
+   ],
+   "monthlyPayments": 2800,
+   "watchlist": [
+    {
+     "ticker": "AAPL",
+     "name": "Apple Inc.",
+     "price": 230.5,
+     "change": 2.5,
+     "changePercent": 1.0965
+    },
+    {
+     "ticker": "AMD",
+     "name": "",
+     "price": null,
+     "change": null,
+     "changePercent": null
+    },
+    {
+     "ticker": "GOOG",
+     "name": "",
+     "price": 170,
+     "change": 3,
+     "changePercent": 1.8
+    }
+   ]
+  },
+  "nope": {
+   "scope": "all",
+   "pricesAsOf": 1789741800000,
+   "totalValue": 838499.95,
+   "totalCost": 22177.5,
+   "netWorth": 437299.54999999993,
+   "liabilitiesTotal": 401200.4,
+   "cash": 6200.55,
+   "realEstateValue": 800000,
+   "dayChange": 575.6,
+   "dayChangePercent": 1.8144106317654254,
+   "dayBase": 31723.800000000003,
+   "totalPL": 10121.900000000001,
+   "totalPLPercent": 45.64040130763162,
+   "after": {
+    "session": "post",
+    "change": 7,
+    "base": 3227
+   },
+   "composition": [
+    {
+     "key": "stocks",
+     "label": "Investments",
+     "value": 32299.399999999907
+    },
+    {
+     "key": "cash",
+     "label": "Cash",
+     "value": 6200.55
+    },
+    {
+     "key": "realestate",
+     "label": "Real estate",
+     "value": 800000
+    }
+   ],
+   "holdings": [
+    {
+     "ticker": "BTC-USD",
+     "label": "BTC-USD",
+     "name": "",
+     "option": null,
+     "shares": 0.25,
+     "avgCost": 40000,
+     "costBasis": 10000,
+     "price": 60000,
+     "priceEstimated": false,
+     "value": 15000,
+     "weight": 38.96108955985657,
+     "pl": 5000,
+     "plPercent": 50,
+     "dayChange": 300,
+     "dayPercent": 2.0408163265306123,
+     "after": null,
+     "accounts": [
+      "acc-c"
+     ]
+    },
+    {
+     "ticker": "NVDA270115C00150000",
+     "label": "NVDA $150 Call 1/15/27",
+     "name": "Call · $150.00 · Jan 15, 2027",
+     "option": {
+      "underlying": "NVDA",
+      "expiration": "2027-01-15",
+      "optionType": "call",
+      "strike": 150,
+      "daysToExpiry": 119
+     },
+     "shares": 2,
+     "avgCost": 12.5,
+     "costBasis": 2500,
+     "price": 30.4,
+     "priceEstimated": true,
+     "value": 6080,
+     "weight": 15.792228301595197,
+     "pl": 3580,
+     "plPercent": 143.2,
+     "dayChange": 240,
+     "dayPercent": 4.10958904109589,
+     "after": null,
+     "accounts": [
+      "acc-a"
+     ]
+    },
+    {
+     "ticker": "VTI",
+     "label": "VTI",
+     "name": "Vanguard Total Stock Market Index Fund ETF Shares",
+     "option": null,
+     "shares": 20,
+     "avgCost": 200,
+     "costBasis": 4000,
+     "price": 280.12,
+     "priceEstimated": false,
+     "value": 5602.4,
+     "weight": 14.55170721000936,
+     "pl": 1602.3999999999996,
+     "plPercent": 40.05999999999999,
+     "dayChange": 10,
+     "dayPercent": 0.1788141048565911,
+     "after": null,
+     "accounts": [
+      "acc-b"
+     ]
+    },
+    {
+     "ticker": "AAPL",
+     "label": "AAPL",
+     "name": "Apple Inc.",
+     "option": null,
+     "shares": 14,
+     "avgCost": 161.25,
+     "costBasis": 2257.5,
+     "price": 230.5,
+     "priceEstimated": false,
+     "value": 3227,
+     "weight": 8.381829067310475,
+     "pl": 969.5,
+     "plPercent": 42.945736434108525,
+     "dayChange": 35,
+     "dayPercent": 1.0964912280701753,
+     "after": {
+      "price": 231,
+      "change": 0.5,
+      "changePercent": 0.2169,
+      "session": "post"
+     },
+     "accounts": [
+      "acc-a",
+      "acc-b"
+     ]
+    },
+    {
+     "ticker": "MSFT",
+     "label": "MSFT",
+     "name": "",
+     "option": null,
+     "shares": 4,
+     "avgCost": 300,
+     "costBasis": 1200,
+     "price": 410,
+     "priceEstimated": false,
+     "value": 1640,
+     "weight": 4.259745791877651,
+     "pl": 440,
+     "plPercent": 36.666666666666664,
+     "dayChange": -24.4,
+     "dayPercent": -1.4659937515020427,
+     "after": null,
+     "accounts": [
+      "acc-a"
+     ]
+    },
+    {
+     "ticker": "TSLA",
+     "label": "TSLA",
+     "name": "",
+     "option": null,
+     "shares": 3,
+     "avgCost": 236.66666666666666,
+     "costBasis": 710,
+     "price": 250,
+     "priceEstimated": false,
+     "value": 750,
+     "weight": 1.9480544779928284,
+     "pl": 40,
+     "plPercent": 5.633802816901409,
+     "dayChange": 15,
+     "dayPercent": 2.0408163265306123,
+     "after": null,
+     "accounts": [
+      "acc-a"
+     ]
+    },
+    {
+     "ticker": "SPY250117P00400000",
+     "label": "SPY $400 Put 1/17/25",
+     "name": "Put · $400.00 · Jan 17, 2025",
+     "option": {
+      "underlying": "SPY",
+      "expiration": "2025-01-17",
+      "optionType": "put",
+      "strike": 400,
+      "daysToExpiry": -609
+     },
+     "shares": 1,
+     "avgCost": 3.1,
+     "costBasis": 310,
+     "price": 0,
+     "priceEstimated": false,
+     "value": 0,
+     "weight": 0,
+     "pl": -310,
+     "plPercent": -100,
+     "dayChange": 0,
+     "dayPercent": 0,
+     "after": null,
+     "accounts": [
+      "acc-a"
+     ]
+    },
+    {
+     "ticker": "BRK.B",
+     "label": "BRK.B",
+     "name": "",
+     "option": null,
+     "shares": 3,
+     "avgCost": 400,
+     "costBasis": 1200,
+     "price": 0,
+     "priceEstimated": false,
+     "value": 0,
+     "weight": 0,
+     "pl": -1200,
+     "plPercent": -100,
+     "dayChange": 0,
+     "dayPercent": 0,
+     "after": null,
+     "accounts": [
+      "acc-b"
+     ]
+    }
+   ],
+   "movers": [
+    {
+     "ticker": "BTC-USD",
+     "label": "BTC-USD",
+     "dayChange": 300,
+     "dayChangePercent": 2.0408163265306123
+    },
+    {
+     "ticker": "NVDA270115C00150000",
+     "label": "NVDA $150 Call 1/15/27",
+     "dayChange": 240,
+     "dayChangePercent": 4.10958904109589
+    },
+    {
+     "ticker": "AAPL",
+     "label": "AAPL",
+     "dayChange": 35,
+     "dayChangePercent": 1.0964912280701753
+    },
+    {
+     "ticker": "MSFT",
+     "label": "MSFT",
+     "dayChange": -24.4,
+     "dayChangePercent": -1.4659937515020427
+    },
+    {
+     "ticker": "TSLA",
+     "label": "TSLA",
+     "dayChange": 15,
+     "dayChangePercent": 2.0408163265306123
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-a",
+     "name": "Fidelity Individual",
+     "type": "brokerage",
+     "typeLabel": "Brokerage",
+     "value": 16236,
+     "cash": 5000,
+     "holdings": 5,
+     "linked": false
+    },
+    {
+     "id": "acc-b",
+     "name": "Roth",
+     "type": "roth-ira",
+     "typeLabel": "Roth IRA",
+     "value": 7263.95,
+     "cash": 1200.55,
+     "holdings": 3,
+     "linked": false
+    },
+    {
+     "id": "acc-c",
+     "name": "Coinbase",
+     "type": "crypto",
+     "typeLabel": "crypto",
+     "value": 15000,
+     "cash": 0,
+     "holdings": 1,
+     "linked": true
+    }
+   ],
+   "tickersNav": {
+    "held": 8,
+    "watching": 2
+   },
+   "strategy": {
+    "id": "strat-1",
+    "name": "Core Growth",
+    "objective": "Retirement",
+    "status": "active",
+    "inherited": false,
+    "report": {
+     "status": "breach",
+     "headline": "BTC-USD is 39%, NVDA $150 Call 1/15/27 is 16% against a 15% cap.",
+     "counts": {
+      "drifted": 2,
+      "breaches": 2,
+      "needsJudgment": 1
+     },
+     "empty": false
+    }
+   },
+   "history": [
+    {
+     "date": "2026-09-15",
+     "value": 900000,
+     "netWorth": 498000
+    },
+    {
+     "date": "2026-09-16",
+     "value": 905000.5,
+     "netWorth": 503000
+    }
+   ],
+   "properties": [
+    {
+     "id": "p1",
+     "name": "Home",
+     "address": "12 Elm St",
+     "currentValue": 800000,
+     "purchasePrice": 550000,
+     "purchaseDate": "2018-06-01",
+     "notes": "Refi 2021"
+    }
+   ],
+   "liabilities": [
+    {
+     "id": "l1",
+     "name": "Mortgage",
+     "type": "mortgage",
+     "typeLabel": "Mortgage",
+     "lender": "Chase",
+     "balance": 400000,
+     "originalAmount": 440000,
+     "interestRate": 3.1,
+     "monthlyPayment": 2500,
+     "startDate": "2018-06-01",
+     "propertyId": "p1",
+     "notes": ""
+    },
+    {
+     "id": "l2",
+     "name": "Sapphire",
+     "type": "credit",
+     "typeLabel": "Credit card",
+     "lender": "",
+     "balance": 1200.4,
+     "originalAmount": null,
+     "interestRate": null,
+     "monthlyPayment": 300,
+     "startDate": null,
+     "propertyId": null,
+     "notes": ""
+    },
+    {
+     "id": "l3",
+     "name": "Old loan",
+     "type": "weird",
+     "typeLabel": "Other",
+     "lender": "",
+     "balance": 0,
+     "originalAmount": null,
+     "interestRate": null,
+     "monthlyPayment": null,
+     "startDate": null,
+     "propertyId": null,
+     "notes": ""
+    }
+   ],
+   "monthlyPayments": 2800,
+   "watchlist": [
+    {
+     "ticker": "AAPL",
+     "name": "Apple Inc.",
+     "price": 230.5,
+     "change": 2.5,
+     "changePercent": 1.0965
+    },
+    {
+     "ticker": "AMD",
+     "name": "",
+     "price": null,
+     "change": null,
+     "changePercent": null
+    },
+    {
+     "ticker": "GOOG",
+     "name": "",
+     "price": 170,
+     "change": 3,
+     "changePercent": 1.8
+    }
+   ]
+  }
+ },
+ "tickers": {
+  "all": {
+   "pricesAsOf": 1789741800000,
+   "accountId": null,
+   "summary": {
+    "total": 10,
+    "held": 8,
+    "watched": 3,
+    "both": 1,
+    "options": 2,
+    "value": 32299.4,
+    "dayChange": 575.6,
+    "pl": 11631.9,
+    "accountCount": 3
+   },
+   "indicatorSummary": {
+    "total": 10,
+    "profiled": 0,
+    "today": 0,
+    "missing": 10
+   },
+   "specs": [],
+   "rows": [
+    {
+     "ticker": "BTC-USD",
+     "label": "BTC-USD",
+     "name": "",
+     "held": true,
+     "watched": false,
+     "option": false,
+     "shares": 0.25,
+     "avgCost": 40000,
+     "price": 60000,
+     "priceEstimated": false,
+     "value": 15000,
+     "weight": 38.96108955985657,
+     "pl": 5000,
+     "plPct": 50,
+     "dayChange": 300,
+     "dayPct": 2.0408163265306123,
+     "accountCount": 1,
+     "profiled": false,
+     "profileDay": null,
+     "ind": {}
+    },
+    {
+     "ticker": "NVDA270115C00150000",
+     "label": "NVDA $150 Call 1/15/27",
+     "name": "Call · $150.00 · Jan 15, 2027",
+     "held": true,
+     "watched": false,
+     "option": true,
+     "shares": 2,
+     "avgCost": 12.5,
+     "price": 30.4,
+     "priceEstimated": true,
+     "value": 6080,
+     "weight": 15.792228301595197,
+     "pl": 3580,
+     "plPct": 143.2,
+     "dayChange": 240,
+     "dayPct": 4.10958904109589,
+     "accountCount": 1,
+     "profiled": false,
+     "profileDay": null,
+     "ind": {}
+    },
+    {
+     "ticker": "VTI",
+     "label": "VTI",
+     "name": "Vanguard Total Stock Market Index Fund ETF Shares",
+     "held": true,
+     "watched": false,
+     "option": false,
+     "shares": 20,
+     "avgCost": 200,
+     "price": 280.12,
+     "priceEstimated": false,
+     "value": 5602.4,
+     "weight": 14.55170721000936,
+     "pl": 1602.3999999999996,
+     "plPct": 40.05999999999999,
+     "dayChange": 10,
+     "dayPct": 0.1788141048565911,
+     "accountCount": 1,
+     "profiled": false,
+     "profileDay": null,
+     "ind": {}
+    },
+    {
+     "ticker": "AAPL",
+     "label": "AAPL",
+     "name": "Apple Inc.",
+     "held": true,
+     "watched": true,
+     "option": false,
+     "shares": 14,
+     "avgCost": 161.25,
+     "price": 230.5,
+     "priceEstimated": false,
+     "value": 3227,
+     "weight": 8.381829067310475,
+     "pl": 969.5,
+     "plPct": 42.945736434108525,
+     "dayChange": 35,
+     "dayPct": 1.0964912280701753,
+     "accountCount": 2,
+     "profiled": false,
+     "profileDay": null,
+     "ind": {}
+    },
+    {
+     "ticker": "MSFT",
+     "label": "MSFT",
+     "name": "",
+     "held": true,
+     "watched": false,
+     "option": false,
+     "shares": 4,
+     "avgCost": 300,
+     "price": 410,
+     "priceEstimated": false,
+     "value": 1640,
+     "weight": 4.259745791877651,
+     "pl": 440,
+     "plPct": 36.666666666666664,
+     "dayChange": -24.4,
+     "dayPct": -1.4659937515020427,
+     "accountCount": 1,
+     "profiled": false,
+     "profileDay": null,
+     "ind": {}
+    },
+    {
+     "ticker": "TSLA",
+     "label": "TSLA",
+     "name": "",
+     "held": true,
+     "watched": false,
+     "option": false,
+     "shares": 3,
+     "avgCost": 236.66666666666666,
+     "price": 250,
+     "priceEstimated": false,
+     "value": 750,
+     "weight": 1.9480544779928284,
+     "pl": 40,
+     "plPct": 5.633802816901409,
+     "dayChange": 15,
+     "dayPct": 2.0408163265306123,
+     "accountCount": 1,
+     "profiled": false,
+     "profileDay": null,
+     "ind": {}
+    },
+    {
+     "ticker": "SPY250117P00400000",
+     "label": "SPY $400 Put 1/17/25",
+     "name": "Put · $400.00 · Jan 17, 2025",
+     "held": true,
+     "watched": false,
+     "option": true,
+     "shares": 1,
+     "avgCost": 3.1,
+     "price": 0,
+     "priceEstimated": false,
+     "value": 0,
+     "weight": 0,
+     "pl": null,
+     "plPct": null,
+     "dayChange": null,
+     "dayPct": null,
+     "accountCount": 1,
+     "profiled": false,
+     "profileDay": null,
+     "ind": {}
+    },
+    {
+     "ticker": "BRK.B",
+     "label": "BRK.B",
+     "name": "",
+     "held": true,
+     "watched": false,
+     "option": false,
+     "shares": 3,
+     "avgCost": 400,
+     "price": 0,
+     "priceEstimated": false,
+     "value": 0,
+     "weight": 0,
+     "pl": null,
+     "plPct": null,
+     "dayChange": null,
+     "dayPct": null,
+     "accountCount": 1,
+     "profiled": false,
+     "profileDay": null,
+     "ind": {}
+    },
+    {
+     "ticker": "GOOG",
+     "label": "GOOG",
+     "name": "",
+     "held": false,
+     "watched": true,
+     "option": false,
+     "shares": 0,
+     "avgCost": null,
+     "price": 170,
+     "priceEstimated": false,
+     "value": null,
+     "weight": null,
+     "pl": null,
+     "plPct": null,
+     "dayChange": 3,
+     "dayPct": 1.8,
+     "accountCount": 0,
+     "profiled": false,
+     "profileDay": null,
+     "ind": {}
+    },
+    {
+     "ticker": "AMD",
+     "label": "AMD",
+     "name": "",
+     "held": false,
+     "watched": true,
+     "option": false,
+     "shares": 0,
+     "avgCost": null,
+     "price": 0,
+     "priceEstimated": false,
+     "value": null,
+     "weight": null,
+     "pl": null,
+     "plPct": null,
+     "dayChange": null,
+     "dayPct": null,
+     "accountCount": 0,
+     "profiled": false,
+     "profileDay": null,
+     "ind": {}
+    }
+   ]
+  },
+  "acc-a": {
+   "pricesAsOf": 1789741800000,
+   "accountId": "acc-a",
+   "summary": {
+    "total": 7,
+    "held": 5,
+    "watched": 3,
+    "both": 1,
+    "options": 2,
+    "value": 11236,
+    "dayChange": 260.6,
+    "pl": 4905,
+    "accountCount": 1
+   },
+   "indicatorSummary": {
+    "total": 7,
+    "profiled": 0,
+    "today": 0,
+    "missing": 7
+   },
+   "specs": [],
+   "rows": [
+    {
+     "ticker": "NVDA270115C00150000",
+     "label": "NVDA $150 Call 1/15/27",
+     "name": "Call · $150.00 · Jan 15, 2027",
+     "held": true,
+     "watched": false,
+     "option": true,
+     "shares": 2,
+     "avgCost": 12.5,
+     "price": 30.4,
+     "priceEstimated": true,
+     "value": 6080,
+     "weight": 37.447647203744765,
+     "pl": 3580,
+     "plPct": 143.2,
+     "dayChange": 240,
+     "dayPct": 4.10958904109589,
+     "accountCount": 1,
+     "profiled": false,
+     "profileDay": null,
+     "ind": {}
+    },
+    {
+     "ticker": "AAPL",
+     "label": "AAPL",
+     "name": "Apple Inc.",
+     "held": true,
+     "watched": true,
+     "option": false,
+     "shares": 12,
+     "avgCost": 160.08333333333334,
+     "price": 230.5,
+     "priceEstimated": false,
+     "value": 2766,
+     "weight": 17.03621581670362,
+     "pl": 845,
+     "plPct": 43.98750650702759,
+     "dayChange": 30,
+     "dayPct": 1.0964912280701753,
+     "accountCount": 1,
+     "profiled": false,
+     "profileDay": null,
+     "ind": {}
+    },
+    {
+     "ticker": "MSFT",
+     "label": "MSFT",
+     "name": "",
+     "held": true,
+     "watched": false,
+     "option": false,
+     "shares": 4,
+     "avgCost": 300,
+     "price": 410,
+     "priceEstimated": false,
+     "value": 1640,
+     "weight": 10.1010101010101,
+     "pl": 440,
+     "plPct": 36.666666666666664,
+     "dayChange": -24.4,
+     "dayPct": -1.4659937515020427,
+     "accountCount": 1,
+     "profiled": false,
+     "profileDay": null,
+     "ind": {}
+    },
+    {
+     "ticker": "TSLA",
+     "label": "TSLA",
+     "name": "",
+     "held": true,
+     "watched": false,
+     "option": false,
+     "shares": 3,
+     "avgCost": 236.66666666666666,
+     "price": 250,
+     "priceEstimated": false,
+     "value": 750,
+     "weight": 4.619364375461936,
+     "pl": 40,
+     "plPct": 5.633802816901409,
+     "dayChange": 15,
+     "dayPct": 2.0408163265306123,
+     "accountCount": 1,
+     "profiled": false,
+     "profileDay": null,
+     "ind": {}
+    },
+    {
+     "ticker": "SPY250117P00400000",
+     "label": "SPY $400 Put 1/17/25",
+     "name": "Put · $400.00 · Jan 17, 2025",
+     "held": true,
+     "watched": false,
+     "option": true,
+     "shares": 1,
+     "avgCost": 3.1,
+     "price": 0,
+     "priceEstimated": false,
+     "value": 0,
+     "weight": 0,
+     "pl": null,
+     "plPct": null,
+     "dayChange": null,
+     "dayPct": null,
+     "accountCount": 1,
+     "profiled": false,
+     "profileDay": null,
+     "ind": {}
+    },
+    {
+     "ticker": "GOOG",
+     "label": "GOOG",
+     "name": "",
+     "held": false,
+     "watched": true,
+     "option": false,
+     "shares": 0,
+     "avgCost": null,
+     "price": 170,
+     "priceEstimated": false,
+     "value": null,
+     "weight": null,
+     "pl": null,
+     "plPct": null,
+     "dayChange": 3,
+     "dayPct": 1.8,
+     "accountCount": 0,
+     "profiled": false,
+     "profileDay": null,
+     "ind": {}
+    },
+    {
+     "ticker": "AMD",
+     "label": "AMD",
+     "name": "",
+     "held": false,
+     "watched": true,
+     "option": false,
+     "shares": 0,
+     "avgCost": null,
+     "price": 0,
+     "priceEstimated": false,
+     "value": null,
+     "weight": null,
+     "pl": null,
+     "plPct": null,
+     "dayChange": null,
+     "dayPct": null,
+     "accountCount": 0,
+     "profiled": false,
+     "profileDay": null,
+     "ind": {}
+    }
+   ]
+  },
+  "acc-b": {
+   "pricesAsOf": 1789741800000,
+   "accountId": "acc-b",
+   "summary": {
+    "total": 5,
+    "held": 3,
+    "watched": 3,
+    "both": 1,
+    "options": 0,
+    "value": 6063.4,
+    "dayChange": 15,
+    "pl": 1723.3999999999996,
+    "accountCount": 1
+   },
+   "indicatorSummary": {
+    "total": 5,
+    "profiled": 0,
+    "today": 0,
+    "missing": 5
+   },
+   "specs": [],
+   "rows": [
+    {
+     "ticker": "VTI",
+     "label": "VTI",
+     "name": "Vanguard Total Stock Market Index Fund ETF Shares",
+     "held": true,
+     "watched": false,
+     "option": false,
+     "shares": 20,
+     "avgCost": 200,
+     "price": 280.12,
+     "priceEstimated": false,
+     "value": 5602.4,
+     "weight": 77.12608153965817,
+     "pl": 1602.3999999999996,
+     "plPct": 40.05999999999999,
+     "dayChange": 10,
+     "dayPct": 0.1788141048565911,
+     "accountCount": 1,
+     "profiled": false,
+     "profileDay": null,
+     "ind": {}
+    },
+    {
+     "ticker": "AAPL",
+     "label": "AAPL",
+     "name": "Apple Inc.",
+     "held": true,
+     "watched": true,
+     "option": false,
+     "shares": 2,
+     "avgCost": 170,
+     "price": 230.5,
+     "priceEstimated": false,
+     "value": 461,
+     "weight": 6.346409322751395,
+     "pl": 121,
+     "plPct": 35.588235294117645,
+     "dayChange": 5,
+     "dayPct": 1.0964912280701753,
+     "accountCount": 1,
+     "profiled": false,
+     "profileDay": null,
+     "ind": {}
+    },
+    {
+     "ticker": "BRK.B",
+     "label": "BRK.B",
+     "name": "",
+     "held": true,
+     "watched": false,
+     "option": false,
+     "shares": 3,
+     "avgCost": 400,
+     "price": 0,
+     "priceEstimated": false,
+     "value": 0,
+     "weight": 0,
+     "pl": null,
+     "plPct": null,
+     "dayChange": null,
+     "dayPct": null,
+     "accountCount": 1,
+     "profiled": false,
+     "profileDay": null,
+     "ind": {}
+    },
+    {
+     "ticker": "GOOG",
+     "label": "GOOG",
+     "name": "",
+     "held": false,
+     "watched": true,
+     "option": false,
+     "shares": 0,
+     "avgCost": null,
+     "price": 170,
+     "priceEstimated": false,
+     "value": null,
+     "weight": null,
+     "pl": null,
+     "plPct": null,
+     "dayChange": 3,
+     "dayPct": 1.8,
+     "accountCount": 0,
+     "profiled": false,
+     "profileDay": null,
+     "ind": {}
+    },
+    {
+     "ticker": "AMD",
+     "label": "AMD",
+     "name": "",
+     "held": false,
+     "watched": true,
+     "option": false,
+     "shares": 0,
+     "avgCost": null,
+     "price": 0,
+     "priceEstimated": false,
+     "value": null,
+     "weight": null,
+     "pl": null,
+     "plPct": null,
+     "dayChange": null,
+     "dayPct": null,
+     "accountCount": 0,
+     "profiled": false,
+     "profileDay": null,
+     "ind": {}
+    }
+   ]
+  }
+ },
+ "ticker": {
+  "AAPL|1y": {
+   "ticker": "AAPL",
+   "label": "AAPL",
+   "subject": "AAPL",
+   "watched": true,
+   "option": null,
+   "company": {
+    "name": "Apple Inc.",
+    "type": "EQUITY",
+    "sector": "",
+    "industry": "",
+    "description": "",
+    "website": "",
+    "country": "",
+    "employees": null
+   },
+   "quote": {
+    "price": 230.5,
+    "change": 2.5,
+    "changePercent": 1.0965,
+    "estimated": false,
+    "updatedAt": 1789741800000,
+    "after": {
+     "price": 231,
+     "change": 0.5,
+     "changePercent": 0.2169,
+     "session": "post"
+    }
+   },
+   "holding": {
+    "ticker": "AAPL",
+    "label": "AAPL",
+    "name": "Apple Inc.",
+    "option": null,
+    "shares": 14,
+    "avgCost": 161.25,
+    "costBasis": 2257.5,
+    "price": 230.5,
+    "priceEstimated": false,
+    "value": 3227,
+    "weight": 8.381829067310475,
+    "pl": 969.5,
+    "plPercent": 42.945736434108525,
+    "dayChange": 35,
+    "dayPercent": 1.0964912280701753,
+    "after": {
+     "price": 231,
+     "change": 0.5,
+     "changePercent": 0.2169,
+     "session": "post"
+    },
+    "accounts": [
+     "acc-a",
+     "acc-b"
+    ]
+   },
+   "byAccount": [
+    {
+     "accountId": "acc-a",
+     "accountName": "Fidelity Individual",
+     "typeLabel": "Brokerage",
+     "shares": 12,
+     "avgCost": 160.08333333333334,
+     "costBasis": 1921,
+     "value": 2766,
+     "pl": 845,
+     "plPercent": 43.98750650702759
+    },
+    {
+     "accountId": "acc-b",
+     "accountName": "Roth",
+     "typeLabel": "Roth IRA",
+     "shares": 2,
+     "avgCost": 170,
+     "costBasis": 340,
+     "value": 461,
+     "pl": 121,
+     "plPercent": 35.588235294117645
+    }
+   ],
+   "range": "1y",
+   "marketHistory": [
+    {
+     "date": "2026-09-16",
+     "price": 225.1
+    },
+    {
+     "date": "2026-09-17",
+     "price": 228
+    }
+   ],
+   "valueHistory": [
+    {
+     "date": "2026-09-15",
+     "price": 220,
+     "value": 3740
+    },
+    {
+     "date": "2026-09-16",
+     "price": 225,
+     "value": 3825
+    }
+   ],
+   "transactions": [
+    {
+     "id": "t3",
+     "type": "sell",
+     "date": "2026-06-01",
+     "quantity": 3,
+     "pricePerShare": 200,
+     "amount": 600,
+     "accountId": "acc-a",
+     "notes": ""
+    },
+    {
+     "id": "t2",
+     "type": "buy",
+     "date": "2026-03-01",
+     "quantity": 5,
+     "pricePerShare": 180.25,
+     "amount": 901.25,
+     "accountId": "acc-a",
+     "notes": "added on dip"
+    },
+    {
+     "id": "t10",
+     "type": "buy",
+     "date": "2025-09-09",
+     "quantity": 2,
+     "pricePerShare": 170,
+     "amount": 340,
+     "accountId": "acc-b",
+     "notes": ""
+    },
+    {
+     "id": "t1",
+     "type": "buy",
+     "date": "2025-01-10",
+     "quantity": 10,
+     "pricePerShare": 150,
+     "amount": 1500,
+     "accountId": "acc-a",
+     "notes": ""
+    }
+   ],
+   "profile": null,
+   "profileAvailable": false,
+   "profileDestination": "",
+   "decisions": [],
+   "sites": [
+    {
+     "action": "perplexity",
+     "label": "Perplexity Finance",
+     "url": "https://www.perplexity.ai/finance/AAPL"
+    },
+    {
+     "action": "robinhood",
+     "label": "Robinhood",
+     "url": "https://robinhood.com/stocks/AAPL"
+    },
+    {
+     "action": "tradingview",
+     "label": "TradingView",
+     "url": "https://www.tradingview.com/symbols/AAPL/"
+    },
+    {
+     "action": "yahoo",
+     "label": "Yahoo Finance",
+     "url": "https://finance.yahoo.com/quote/AAPL"
+    },
+    {
+     "action": "finviz",
+     "label": "Finviz",
+     "url": "https://finviz.com/quote.ashx?t=AAPL"
+    }
+   ]
+  },
+  "AAPL|5y": {
+   "ticker": "AAPL",
+   "label": "AAPL",
+   "subject": "AAPL",
+   "watched": true,
+   "option": null,
+   "company": {
+    "name": "Apple Inc.",
+    "type": "EQUITY",
+    "sector": "",
+    "industry": "",
+    "description": "",
+    "website": "",
+    "country": "",
+    "employees": null
+   },
+   "quote": {
+    "price": 230.5,
+    "change": 2.5,
+    "changePercent": 1.0965,
+    "estimated": false,
+    "updatedAt": 1789741800000,
+    "after": {
+     "price": 231,
+     "change": 0.5,
+     "changePercent": 0.2169,
+     "session": "post"
+    }
+   },
+   "holding": {
+    "ticker": "AAPL",
+    "label": "AAPL",
+    "name": "Apple Inc.",
+    "option": null,
+    "shares": 14,
+    "avgCost": 161.25,
+    "costBasis": 2257.5,
+    "price": 230.5,
+    "priceEstimated": false,
+    "value": 3227,
+    "weight": 8.381829067310475,
+    "pl": 969.5,
+    "plPercent": 42.945736434108525,
+    "dayChange": 35,
+    "dayPercent": 1.0964912280701753,
+    "after": {
+     "price": 231,
+     "change": 0.5,
+     "changePercent": 0.2169,
+     "session": "post"
+    },
+    "accounts": [
+     "acc-a",
+     "acc-b"
+    ]
+   },
+   "byAccount": [
+    {
+     "accountId": "acc-a",
+     "accountName": "Fidelity Individual",
+     "typeLabel": "Brokerage",
+     "shares": 12,
+     "avgCost": 160.08333333333334,
+     "costBasis": 1921,
+     "value": 2766,
+     "pl": 845,
+     "plPercent": 43.98750650702759
+    },
+    {
+     "accountId": "acc-b",
+     "accountName": "Roth",
+     "typeLabel": "Roth IRA",
+     "shares": 2,
+     "avgCost": 170,
+     "costBasis": 340,
+     "value": 461,
+     "pl": 121,
+     "plPercent": 35.588235294117645
+    }
+   ],
+   "range": "5y",
+   "marketHistory": null,
+   "valueHistory": [
+    {
+     "date": "2026-09-15",
+     "price": 220,
+     "value": 3740
+    },
+    {
+     "date": "2026-09-16",
+     "price": 225,
+     "value": 3825
+    }
+   ],
+   "transactions": [
+    {
+     "id": "t3",
+     "type": "sell",
+     "date": "2026-06-01",
+     "quantity": 3,
+     "pricePerShare": 200,
+     "amount": 600,
+     "accountId": "acc-a",
+     "notes": ""
+    },
+    {
+     "id": "t2",
+     "type": "buy",
+     "date": "2026-03-01",
+     "quantity": 5,
+     "pricePerShare": 180.25,
+     "amount": 901.25,
+     "accountId": "acc-a",
+     "notes": "added on dip"
+    },
+    {
+     "id": "t10",
+     "type": "buy",
+     "date": "2025-09-09",
+     "quantity": 2,
+     "pricePerShare": 170,
+     "amount": 340,
+     "accountId": "acc-b",
+     "notes": ""
+    },
+    {
+     "id": "t1",
+     "type": "buy",
+     "date": "2025-01-10",
+     "quantity": 10,
+     "pricePerShare": 150,
+     "amount": 1500,
+     "accountId": "acc-a",
+     "notes": ""
+    }
+   ],
+   "profile": null,
+   "profileAvailable": false,
+   "profileDestination": "",
+   "decisions": [],
+   "sites": [
+    {
+     "action": "perplexity",
+     "label": "Perplexity Finance",
+     "url": "https://www.perplexity.ai/finance/AAPL"
+    },
+    {
+     "action": "robinhood",
+     "label": "Robinhood",
+     "url": "https://robinhood.com/stocks/AAPL"
+    },
+    {
+     "action": "tradingview",
+     "label": "TradingView",
+     "url": "https://www.tradingview.com/symbols/AAPL/"
+    },
+    {
+     "action": "yahoo",
+     "label": "Yahoo Finance",
+     "url": "https://finance.yahoo.com/quote/AAPL"
+    },
+    {
+     "action": "finviz",
+     "label": "Finviz",
+     "url": "https://finviz.com/quote.ashx?t=AAPL"
+    }
+   ]
+  },
+  "NVDA270115C00150000|1y": {
+   "ticker": "NVDA270115C00150000",
+   "label": "NVDA $150 Call 1/15/27",
+   "subject": "NVDA",
+   "watched": false,
+   "option": {
+    "underlying": "NVDA",
+    "expiration": "2027-01-15",
+    "optionType": "call",
+    "strike": 150,
+    "daysToExpiry": 119
+   },
+   "company": null,
+   "quote": {
+    "price": 30.4,
+    "change": 1.2,
+    "changePercent": 4.1,
+    "estimated": true,
+    "updatedAt": 1789741800000,
+    "after": null
+   },
+   "holding": {
+    "ticker": "NVDA270115C00150000",
+    "label": "NVDA $150 Call 1/15/27",
+    "name": "Call · $150.00 · Jan 15, 2027",
+    "option": {
+     "underlying": "NVDA",
+     "expiration": "2027-01-15",
+     "optionType": "call",
+     "strike": 150,
+     "daysToExpiry": 119
+    },
+    "shares": 2,
+    "avgCost": 12.5,
+    "costBasis": 2500,
+    "price": 30.4,
+    "priceEstimated": true,
+    "value": 6080,
+    "weight": 15.792228301595197,
+    "pl": 3580,
+    "plPercent": 143.2,
+    "dayChange": 240,
+    "dayPercent": 4.10958904109589,
+    "after": null,
+    "accounts": [
+     "acc-a"
+    ]
+   },
+   "byAccount": [
+    {
+     "accountId": "acc-a",
+     "accountName": "Fidelity Individual",
+     "typeLabel": "Brokerage",
+     "shares": 2,
+     "avgCost": 12.5,
+     "costBasis": 2500,
+     "value": 6080,
+     "pl": 3580,
+     "plPercent": 143.2
+    }
+   ],
+   "range": "1y",
+   "marketHistory": null,
+   "valueHistory": [],
+   "transactions": [
+    {
+     "id": "t6",
+     "type": "buy",
+     "date": "2026-07-01",
+     "quantity": 2,
+     "pricePerShare": 12.5,
+     "amount": 2500,
+     "accountId": "acc-a",
+     "notes": ""
+    }
+   ],
+   "profile": null,
+   "profileAvailable": false,
+   "profileDestination": "",
+   "decisions": [],
+   "sites": [
+    {
+     "action": "perplexity",
+     "label": "Perplexity Finance",
+     "url": "https://www.perplexity.ai/finance/NVDA"
+    },
+    {
+     "action": "robinhood",
+     "label": "Robinhood",
+     "url": "https://robinhood.com/stocks/NVDA"
+    },
+    {
+     "action": "tradingview",
+     "label": "TradingView",
+     "url": "https://www.tradingview.com/symbols/NVDA/"
+    },
+    {
+     "action": "yahoo",
+     "label": "Yahoo Finance",
+     "url": "https://finance.yahoo.com/quote/NVDA"
+    },
+    {
+     "action": "finviz",
+     "label": "Finviz",
+     "url": "https://finviz.com/quote.ashx?t=NVDA"
+    }
+   ]
+  },
+  "GOOG|1y": {
+   "ticker": "GOOG",
+   "label": "GOOG",
+   "subject": "GOOG",
+   "watched": true,
+   "option": null,
+   "company": null,
+   "quote": {
+    "price": 170,
+    "change": 3,
+    "changePercent": 1.8,
+    "estimated": false,
+    "updatedAt": 1789741800000,
+    "after": null
+   },
+   "holding": null,
+   "byAccount": [],
+   "range": "1y",
+   "marketHistory": null,
+   "valueHistory": [],
+   "transactions": [],
+   "profile": null,
+   "profileAvailable": false,
+   "profileDestination": "",
+   "decisions": [],
+   "sites": [
+    {
+     "action": "perplexity",
+     "label": "Perplexity Finance",
+     "url": "https://www.perplexity.ai/finance/GOOG"
+    },
+    {
+     "action": "robinhood",
+     "label": "Robinhood",
+     "url": "https://robinhood.com/stocks/GOOG"
+    },
+    {
+     "action": "tradingview",
+     "label": "TradingView",
+     "url": "https://www.tradingview.com/symbols/GOOG/"
+    },
+    {
+     "action": "yahoo",
+     "label": "Yahoo Finance",
+     "url": "https://finance.yahoo.com/quote/GOOG"
+    },
+    {
+     "action": "finviz",
+     "label": "Finviz",
+     "url": "https://finviz.com/quote.ashx?t=GOOG"
+    }
+   ]
+  },
+  "BRK.B|1y": {
+   "ticker": "BRK.B",
+   "label": "BRK.B",
+   "subject": "BRK.B",
+   "watched": false,
+   "option": null,
+   "company": null,
+   "quote": {
+    "price": null,
+    "change": 0,
+    "changePercent": 0,
+    "estimated": false,
+    "updatedAt": 1789741800000,
+    "after": null
+   },
+   "holding": {
+    "ticker": "BRK.B",
+    "label": "BRK.B",
+    "name": "",
+    "option": null,
+    "shares": 3,
+    "avgCost": 400,
+    "costBasis": 1200,
+    "price": 0,
+    "priceEstimated": false,
+    "value": 0,
+    "weight": 0,
+    "pl": -1200,
+    "plPercent": -100,
+    "dayChange": 0,
+    "dayPercent": 0,
+    "after": null,
+    "accounts": [
+     "acc-b"
+    ]
+   },
+   "byAccount": [
+    {
+     "accountId": "acc-b",
+     "accountName": "Roth",
+     "typeLabel": "Roth IRA",
+     "shares": 3,
+     "avgCost": 400,
+     "costBasis": 1200,
+     "value": 0,
+     "pl": -1200,
+     "plPercent": -100
+    }
+   ],
+   "range": "1y",
+   "marketHistory": null,
+   "valueHistory": [],
+   "transactions": [
+    {
+     "id": "t9",
+     "type": "buy",
+     "date": "2025-08-08",
+     "quantity": 3,
+     "pricePerShare": 400,
+     "amount": 1200,
+     "accountId": "acc-b",
+     "notes": ""
+    }
+   ],
+   "profile": null,
+   "profileAvailable": false,
+   "profileDestination": "",
+   "decisions": [],
+   "sites": [
+    {
+     "action": "perplexity",
+     "label": "Perplexity Finance",
+     "url": "https://www.perplexity.ai/finance/BRK.B"
+    },
+    {
+     "action": "robinhood",
+     "label": "Robinhood",
+     "url": "https://robinhood.com/stocks/BRK.B"
+    },
+    {
+     "action": "tradingview",
+     "label": "TradingView",
+     "url": "https://www.tradingview.com/symbols/BRK.B/"
+    },
+    {
+     "action": "yahoo",
+     "label": "Yahoo Finance",
+     "url": "https://finance.yahoo.com/quote/BRK-B"
+    },
+    {
+     "action": "finviz",
+     "label": "Finviz",
+     "url": "https://finviz.com/quote.ashx?t=BRK-B"
+    }
+   ]
+  },
+  "VTI|max": {
+   "ticker": "VTI",
+   "label": "VTI",
+   "subject": "VTI",
+   "watched": false,
+   "option": null,
+   "company": {
+    "name": "Vanguard Total Stock Market Index Fund ETF Shares",
+    "type": "ETF",
+    "sector": "",
+    "industry": "",
+    "description": "",
+    "website": "",
+    "country": "",
+    "employees": null
+   },
+   "quote": {
+    "price": 280.12,
+    "change": 0.5,
+    "changePercent": 0.1788,
+    "estimated": false,
+    "updatedAt": 1789675200000,
+    "after": null
+   },
+   "holding": {
+    "ticker": "VTI",
+    "label": "VTI",
+    "name": "Vanguard Total Stock Market Index Fund ETF Shares",
+    "option": null,
+    "shares": 20,
+    "avgCost": 200,
+    "costBasis": 4000,
+    "price": 280.12,
+    "priceEstimated": false,
+    "value": 5602.4,
+    "weight": 14.55170721000936,
+    "pl": 1602.3999999999996,
+    "plPercent": 40.05999999999999,
+    "dayChange": 10,
+    "dayPercent": 0.1788141048565911,
+    "after": null,
+    "accounts": [
+     "acc-b"
+    ]
+   },
+   "byAccount": [
+    {
+     "accountId": "acc-b",
+     "accountName": "Roth",
+     "typeLabel": "Roth IRA",
+     "shares": 20,
+     "avgCost": 200,
+     "costBasis": 4000,
+     "value": 5602.4,
+     "pl": 1602.3999999999996,
+     "plPercent": 40.05999999999999
+    }
+   ],
+   "range": "max",
+   "marketHistory": null,
+   "valueHistory": [
+    {
+     "date": "2026-09-15",
+     "price": 275,
+     "value": 5500
+    }
+   ],
+   "transactions": [
+    {
+     "id": "t5",
+     "type": "holding",
+     "date": "2024-12-01",
+     "quantity": 20,
+     "pricePerShare": 200,
+     "amount": 4000,
+     "accountId": "acc-b",
+     "notes": ""
+    }
+   ],
+   "profile": null,
+   "profileAvailable": false,
+   "profileDestination": "",
+   "decisions": [],
+   "sites": [
+    {
+     "action": "perplexity",
+     "label": "Perplexity Finance",
+     "url": "https://www.perplexity.ai/finance/VTI"
+    },
+    {
+     "action": "robinhood",
+     "label": "Robinhood",
+     "url": "https://robinhood.com/stocks/VTI"
+    },
+    {
+     "action": "tradingview",
+     "label": "TradingView",
+     "url": "https://www.tradingview.com/symbols/VTI/"
+    },
+    {
+     "action": "yahoo",
+     "label": "Yahoo Finance",
+     "url": "https://finance.yahoo.com/quote/VTI"
+    },
+    {
+     "action": "finviz",
+     "label": "Finviz",
+     "url": "https://finviz.com/quote.ashx?t=VTI"
+    }
+   ]
+  },
+  "ZZZ|1y": {
+   "ticker": "ZZZ",
+   "label": "ZZZ",
+   "subject": "ZZZ",
+   "watched": false,
+   "option": null,
+   "company": null,
+   "quote": {
+    "price": null,
+    "change": null,
+    "changePercent": null,
+    "estimated": false,
+    "updatedAt": null,
+    "after": null
+   },
+   "holding": null,
+   "byAccount": [],
+   "range": "1y",
+   "marketHistory": null,
+   "valueHistory": [],
+   "transactions": [],
+   "profile": null,
+   "profileAvailable": false,
+   "profileDestination": "",
+   "decisions": [],
+   "sites": [
+    {
+     "action": "perplexity",
+     "label": "Perplexity Finance",
+     "url": "https://www.perplexity.ai/finance/ZZZ"
+    },
+    {
+     "action": "robinhood",
+     "label": "Robinhood",
+     "url": "https://robinhood.com/stocks/ZZZ"
+    },
+    {
+     "action": "tradingview",
+     "label": "TradingView",
+     "url": "https://www.tradingview.com/symbols/ZZZ/"
+    },
+    {
+     "action": "yahoo",
+     "label": "Yahoo Finance",
+     "url": "https://finance.yahoo.com/quote/ZZZ"
+    },
+    {
+     "action": "finviz",
+     "label": "Finviz",
+     "url": "https://finviz.com/quote.ashx?t=ZZZ"
+    }
+   ]
+  },
+  "aapl|bogus": {
+   "ticker": "AAPL",
+   "label": "AAPL",
+   "subject": "AAPL",
+   "watched": true,
+   "option": null,
+   "company": {
+    "name": "Apple Inc.",
+    "type": "EQUITY",
+    "sector": "",
+    "industry": "",
+    "description": "",
+    "website": "",
+    "country": "",
+    "employees": null
+   },
+   "quote": {
+    "price": 230.5,
+    "change": 2.5,
+    "changePercent": 1.0965,
+    "estimated": false,
+    "updatedAt": 1789741800000,
+    "after": {
+     "price": 231,
+     "change": 0.5,
+     "changePercent": 0.2169,
+     "session": "post"
+    }
+   },
+   "holding": {
+    "ticker": "AAPL",
+    "label": "AAPL",
+    "name": "Apple Inc.",
+    "option": null,
+    "shares": 14,
+    "avgCost": 161.25,
+    "costBasis": 2257.5,
+    "price": 230.5,
+    "priceEstimated": false,
+    "value": 3227,
+    "weight": 8.381829067310475,
+    "pl": 969.5,
+    "plPercent": 42.945736434108525,
+    "dayChange": 35,
+    "dayPercent": 1.0964912280701753,
+    "after": {
+     "price": 231,
+     "change": 0.5,
+     "changePercent": 0.2169,
+     "session": "post"
+    },
+    "accounts": [
+     "acc-a",
+     "acc-b"
+    ]
+   },
+   "byAccount": [
+    {
+     "accountId": "acc-a",
+     "accountName": "Fidelity Individual",
+     "typeLabel": "Brokerage",
+     "shares": 12,
+     "avgCost": 160.08333333333334,
+     "costBasis": 1921,
+     "value": 2766,
+     "pl": 845,
+     "plPercent": 43.98750650702759
+    },
+    {
+     "accountId": "acc-b",
+     "accountName": "Roth",
+     "typeLabel": "Roth IRA",
+     "shares": 2,
+     "avgCost": 170,
+     "costBasis": 340,
+     "value": 461,
+     "pl": 121,
+     "plPercent": 35.588235294117645
+    }
+   ],
+   "range": "1y",
+   "marketHistory": [
+    {
+     "date": "2026-09-16",
+     "price": 225.1
+    },
+    {
+     "date": "2026-09-17",
+     "price": 228
+    }
+   ],
+   "valueHistory": [
+    {
+     "date": "2026-09-15",
+     "price": 220,
+     "value": 3740
+    },
+    {
+     "date": "2026-09-16",
+     "price": 225,
+     "value": 3825
+    }
+   ],
+   "transactions": [
+    {
+     "id": "t3",
+     "type": "sell",
+     "date": "2026-06-01",
+     "quantity": 3,
+     "pricePerShare": 200,
+     "amount": 600,
+     "accountId": "acc-a",
+     "notes": ""
+    },
+    {
+     "id": "t2",
+     "type": "buy",
+     "date": "2026-03-01",
+     "quantity": 5,
+     "pricePerShare": 180.25,
+     "amount": 901.25,
+     "accountId": "acc-a",
+     "notes": "added on dip"
+    },
+    {
+     "id": "t10",
+     "type": "buy",
+     "date": "2025-09-09",
+     "quantity": 2,
+     "pricePerShare": 170,
+     "amount": 340,
+     "accountId": "acc-b",
+     "notes": ""
+    },
+    {
+     "id": "t1",
+     "type": "buy",
+     "date": "2025-01-10",
+     "quantity": 10,
+     "pricePerShare": 150,
+     "amount": 1500,
+     "accountId": "acc-a",
+     "notes": ""
+    }
+   ],
+   "profile": null,
+   "profileAvailable": false,
+   "profileDestination": "",
+   "decisions": [],
+   "sites": [
+    {
+     "action": "perplexity",
+     "label": "Perplexity Finance",
+     "url": "https://www.perplexity.ai/finance/AAPL"
+    },
+    {
+     "action": "robinhood",
+     "label": "Robinhood",
+     "url": "https://robinhood.com/stocks/AAPL"
+    },
+    {
+     "action": "tradingview",
+     "label": "TradingView",
+     "url": "https://www.tradingview.com/symbols/AAPL/"
+    },
+    {
+     "action": "yahoo",
+     "label": "Yahoo Finance",
+     "url": "https://finance.yahoo.com/quote/AAPL"
+    },
+    {
+     "action": "finviz",
+     "label": "Finviz",
+     "url": "https://finviz.com/quote.ashx?t=AAPL"
+    }
+   ]
+  }
+ },
+ "strategy": {
+  "list": {
+   "strategies": [
+    {
+     "id": "strat-1",
+     "name": "Core Growth",
+     "objective": "Retirement",
+     "horizon": "20+ years",
+     "riskLevel": "moderate",
+     "status": "active",
+     "isDefault": true,
+     "thesis": "Index core, a few conviction picks",
+     "coverage": "Everything",
+     "reviewCadence": "Quarterly",
+     "report": {
+      "status": "breach",
+      "headline": "BTC-USD is 39%, NVDA $150 Call 1/15/27 is 16% against a 15% cap.",
+      "empty": false,
+      "total": 38499.950000000004,
+      "cash": 6200.55,
+      "counts": {
+       "drifted": 2,
+       "breaches": 2,
+       "needsJudgment": 1
+      },
+      "targets": [
+       {
+        "label": "US index",
+        "tickers": [
+         "VTI"
+        ],
+        "includeCash": false,
+        "targetPct": 40,
+        "minPct": 35,
+        "maxPct": 45,
+        "actualPct": 14.55170721000936,
+        "value": 5602.4,
+        "status": "under",
+        "deltaValue": 9797.580000000004,
+        "driftPct": -25.44829278999064
+       },
+       {
+        "label": "Big tech",
+        "tickers": [
+         "AAPL",
+         "MSFT",
+         "NVDA"
+        ],
+        "includeCash": false,
+        "targetPct": 30,
+        "minPct": 25,
+        "maxPct": 50,
+        "actualPct": 28.43380316078332,
+        "value": 10947,
+        "status": "ok",
+        "deltaValue": 602.9850000000006,
+        "driftPct": -1.5661968392166798
+       },
+       {
+        "label": "Cash",
+        "tickers": [],
+        "includeCash": true,
+        "targetPct": 10,
+        "minPct": 5,
+        "maxPct": 15,
+        "actualPct": 16.10534559135791,
+        "value": 6200.55,
+        "status": "over",
+        "deltaValue": -2350.5549999999994,
+        "driftPct": 6.10534559135791
+       }
+      ],
+      "rules": [
+       {
+        "kind": "max_position",
+        "text": "No single stock over 15%",
+        "label": "No position over 15% (excluding VTI)",
+        "status": "breach",
+        "detail": "BTC-USD is 39%, NVDA $150 Call 1/15/27 is 16% against a 15% cap."
+       },
+       {
+        "kind": "min_cash",
+        "text": "",
+        "label": "At least 5% cash",
+        "status": "ok",
+        "detail": "Cash is 16% against a 5% floor."
+       },
+       {
+        "kind": "avoid",
+        "text": "No Musk",
+        "label": "Stay away from TSLA",
+        "status": "breach",
+        "detail": "Holding TSLA."
+       },
+       {
+        "kind": "custom",
+        "text": "Nothing I would be embarrassed to explain",
+        "label": "Nothing I would be embarrassed to explain",
+        "status": "judgment",
+        "detail": "Stated in words. Check this against the holdings yourself."
+       }
+      ],
+      "unclassified": {
+       "pct": 40.909144037849394,
+       "value": 15750,
+       "tickers": [
+        "BTC-USD",
+        "TSLA",
+        "SPY $400 Put 1/17/25",
+        "BRK.B"
+       ],
+       "includesCash": false
+      },
+      "unpriced": [
+       "SPY $400 Put 1/17/25",
+       "BRK.B"
+      ]
+     }
+    },
+    {
+     "id": "strat-2",
+     "name": "Roth plan",
+     "objective": "",
+     "horizon": "",
+     "riskLevel": "",
+     "status": "draft",
+     "isDefault": false,
+     "thesis": "",
+     "coverage": "",
+     "reviewCadence": "",
+     "report": {
+      "status": "on-track",
+      "headline": "Holdings match the plan.",
+      "empty": false,
+      "total": 38499.950000000004,
+      "cash": 6200.55,
+      "counts": {
+       "drifted": 0,
+       "breaches": 0,
+       "needsJudgment": 0
+      },
+      "targets": [],
+      "rules": [
+       {
+        "kind": "max_cash",
+        "text": "",
+        "label": "At most 20% cash",
+        "status": "ok",
+        "detail": "Cash is 16% against a 20% ceiling."
+       }
+      ],
+      "unclassified": null,
+      "unpriced": [
+       "SPY $400 Put 1/17/25",
+       "BRK.B"
+      ]
+     }
+    }
+   ],
+   "agenda": [
+    {
+     "id": "purpose",
+     "question": "What is this money for?"
+    },
+    {
+     "id": "horizon",
+     "question": "When do you expect to need it?"
+    },
+    {
+     "id": "risk",
+     "question": "How big a drop could you sit through without selling?"
+    },
+    {
+     "id": "approach",
+     "question": "How do you want it invested, and what do you believe that makes you pick that?"
+    },
+    {
+     "id": "allocation",
+     "question": "What mix are you aiming for?"
+    },
+    {
+     "id": "guardrails",
+     "question": "What limits do you want to hold yourself to?"
+    },
+    {
+     "id": "review",
+     "question": "How often do you want to revisit this?"
+    },
+    {
+     "id": "coverage",
+     "question": "Does this cover everything, or only some accounts? And what should it be called?"
+    }
+   ]
+  },
+  "strat-1": {
+   "strategy": {
+    "id": "strat-1",
+    "name": "Core Growth",
+    "objective": "Retirement",
+    "horizon": "20+ years",
+    "riskLevel": "moderate",
+    "status": "active",
+    "isDefault": true,
+    "thesis": "Index core, a few conviction picks",
+    "coverage": "Everything",
+    "reviewCadence": "Quarterly",
+    "report": {
+     "status": "breach",
+     "headline": "BTC-USD is 39%, NVDA $150 Call 1/15/27 is 16% against a 15% cap.",
+     "empty": false,
+     "total": 38499.950000000004,
+     "cash": 6200.55,
+     "counts": {
+      "drifted": 2,
+      "breaches": 2,
+      "needsJudgment": 1
+     },
+     "targets": [
+      {
+       "label": "US index",
+       "tickers": [
+        "VTI"
+       ],
+       "includeCash": false,
+       "targetPct": 40,
+       "minPct": 35,
+       "maxPct": 45,
+       "actualPct": 14.55170721000936,
+       "value": 5602.4,
+       "status": "under",
+       "deltaValue": 9797.580000000004,
+       "driftPct": -25.44829278999064
+      },
+      {
+       "label": "Big tech",
+       "tickers": [
+        "AAPL",
+        "MSFT",
+        "NVDA"
+       ],
+       "includeCash": false,
+       "targetPct": 30,
+       "minPct": 25,
+       "maxPct": 50,
+       "actualPct": 28.43380316078332,
+       "value": 10947,
+       "status": "ok",
+       "deltaValue": 602.9850000000006,
+       "driftPct": -1.5661968392166798
+      },
+      {
+       "label": "Cash",
+       "tickers": [],
+       "includeCash": true,
+       "targetPct": 10,
+       "minPct": 5,
+       "maxPct": 15,
+       "actualPct": 16.10534559135791,
+       "value": 6200.55,
+       "status": "over",
+       "deltaValue": -2350.5549999999994,
+       "driftPct": 6.10534559135791
+      }
+     ],
+     "rules": [
+      {
+       "kind": "max_position",
+       "text": "No single stock over 15%",
+       "label": "No position over 15% (excluding VTI)",
+       "status": "breach",
+       "detail": "BTC-USD is 39%, NVDA $150 Call 1/15/27 is 16% against a 15% cap."
+      },
+      {
+       "kind": "min_cash",
+       "text": "",
+       "label": "At least 5% cash",
+       "status": "ok",
+       "detail": "Cash is 16% against a 5% floor."
+      },
+      {
+       "kind": "avoid",
+       "text": "No Musk",
+       "label": "Stay away from TSLA",
+       "status": "breach",
+       "detail": "Holding TSLA."
+      },
+      {
+       "kind": "custom",
+       "text": "Nothing I would be embarrassed to explain",
+       "label": "Nothing I would be embarrassed to explain",
+       "status": "judgment",
+       "detail": "Stated in words. Check this against the holdings yourself."
+      }
+     ],
+     "unclassified": {
+      "pct": 40.909144037849394,
+      "value": 15750,
+      "tickers": [
+       "BTC-USD",
+       "TSLA",
+       "SPY $400 Put 1/17/25",
+       "BRK.B"
+      ],
+      "includesCash": false
+     },
+     "unpriced": [
+      "SPY $400 Put 1/17/25",
+      "BRK.B"
+     ]
+    },
+    "followers": [
+     {
+      "id": "acc-a",
+      "name": "Fidelity Individual",
+      "own": false
+     },
+     {
+      "id": "acc-c",
+      "name": "Coinbase",
+      "own": false
+     }
+    ],
+    "accountsWithNoPlan": 2,
+    "history": [
+     {
+      "at": "2026-09-01T00:00:00Z",
+      "summary": "Updated targets"
+     },
+     {
+      "at": "2026-08-01T00:00:00Z",
+      "summary": "Created"
+     }
+    ],
+    "missingTopics": []
+   }
+  },
+  "strat-2": {
+   "strategy": {
+    "id": "strat-2",
+    "name": "Roth plan",
+    "objective": "",
+    "horizon": "",
+    "riskLevel": "",
+    "status": "draft",
+    "isDefault": false,
+    "thesis": "",
+    "coverage": "",
+    "reviewCadence": "",
+    "report": {
+     "status": "on-track",
+     "headline": "Holdings match the plan.",
+     "empty": false,
+     "total": 38499.950000000004,
+     "cash": 6200.55,
+     "counts": {
+      "drifted": 0,
+      "breaches": 0,
+      "needsJudgment": 0
+     },
+     "targets": [],
+     "rules": [
+      {
+       "kind": "max_cash",
+       "text": "",
+       "label": "At most 20% cash",
+       "status": "ok",
+       "detail": "Cash is 16% against a 20% ceiling."
+      }
+     ],
+     "unclassified": null,
+     "unpriced": [
+      "SPY $400 Put 1/17/25",
+      "BRK.B"
+     ]
+    },
+    "followers": [
+     {
+      "id": "acc-b",
+      "name": "Roth",
+      "own": true
+     }
+    ],
+    "accountsWithNoPlan": 2,
+    "history": [],
+    "missingTopics": [
+     "purpose",
+     "horizon",
+     "risk",
+     "approach",
+     "allocation",
+     "coverage"
+    ]
+   }
+  },
+  "gone": {
+   "error": "That plan is no longer on your Mac."
+  }
+ },
+ "news": {
+  "all": {
+   "tickers": [
+    "BTC-USD",
+    "NVDA",
+    "AAPL",
+    "MSFT",
+    "TSLA",
+    "BRK.B",
+    "GOOG",
+    "amd"
+   ],
+   "fetchError": "nenva Connect could not fetch headlines right now.",
+   "items": [
+    {
+     "ticker": "BTC-USD",
+     "title": "Bitcoin rallies",
+     "url": "https://n.example/b1",
+     "source": "CoinDesk",
+     "publishedAt": 1789696800000
+    },
+    {
+     "ticker": "NVDA",
+     "title": "Nvidia chips",
+     "url": "https://n.example/n1",
+     "source": "Reuters",
+     "publishedAt": 1789693200000
+    },
+    {
+     "ticker": "AAPL",
+     "title": "Apple unveils new iPhone",
+     "url": "https://n.example/a1",
+     "source": "Verge",
+     "publishedAt": 1789725600000
+    },
+    {
+     "ticker": "TSLA",
+     "title": "Tesla recall",
+     "url": "https://n.example/t1",
+     "source": "AP",
+     "publishedAt": 1789434000000
+    },
+    {
+     "ticker": "GOOG",
+     "title": "Google antitrust",
+     "url": "https://n.example/g1",
+     "source": "WSJ",
+     "publishedAt": 1789351200000
+    },
+    {
+     "ticker": "AAPL",
+     "title": "Apple supplier deal",
+     "url": "https://n.example/a3",
+     "source": "FT",
+     "publishedAt": 1789635600000
+    }
+   ]
+  },
+  "acc-a": {
+   "tickers": [
+    "NVDA",
+    "AAPL",
+    "MSFT",
+    "TSLA"
+   ],
+   "fetchError": "nenva Connect could not fetch headlines right now.",
+   "items": [
+    {
+     "ticker": "NVDA",
+     "title": "Nvidia chips",
+     "url": "https://n.example/n1",
+     "source": "Reuters",
+     "publishedAt": 1789693200000
+    },
+    {
+     "ticker": "AAPL",
+     "title": "Apple unveils new iPhone",
+     "url": "https://n.example/a1",
+     "source": "Verge",
+     "publishedAt": 1789725600000
+    },
+    {
+     "ticker": "TSLA",
+     "title": "Tesla recall",
+     "url": "https://n.example/t1",
+     "source": "AP",
+     "publishedAt": 1789434000000
+    }
+   ]
+  },
+  "AAPL": {
+   "tickers": [
+    "AAPL"
+   ],
+   "fetchError": null,
+   "items": [
+    {
+     "ticker": "AAPL",
+     "title": "Apple unveils new iPhone",
+     "url": "https://n.example/a1",
+     "source": "Verge",
+     "publishedAt": 1789725600000
+    },
+    {
+     "ticker": "AAPL",
+     "title": "Apple supplier deal",
+     "url": "https://n.example/a3",
+     "source": "FT",
+     "publishedAt": 1789635600000
+    }
+   ]
+  },
+  "NVDA-option": {
+   "tickers": [
+    "NVDA"
+   ],
+   "fetchError": null,
+   "items": [
+    {
+     "ticker": "NVDA",
+     "title": "Nvidia chips",
+     "url": "https://n.example/n1",
+     "source": "Reuters",
+     "publishedAt": 1789693200000
+    }
+   ]
+  }
+ },
+ "newsTopics": [
+  [
+   "BTC-USD stock",
+   "NVIDIA NVDA",
+   "Apple AAPL",
+   "MSFT stock",
+   "Tesla TSLA",
+   "Berkshire Hathaway Inc. New BRK.B",
+   "Alphabet GOOG",
+   "amd stock"
+  ],
+  [
+   "NVIDIA NVDA",
+   "Apple AAPL",
+   "MSFT stock",
+   "Tesla TSLA"
+  ],
+  [
+   "Apple AAPL"
+  ],
+  [
+   "NVIDIA NVDA"
+  ]
+ ]
+}
