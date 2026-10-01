@@ -1,0 +1,547 @@
+/* ============================================================
+   Pomodoro — the focus page (redesign 2026-09-10).
+   One lifted STAGE sheet (modes + set progress, the ring, the task
+   hero, controls, the parking lot) and a quiet right rail (today,
+   recent, a thought). Colour is state only: the kit's indigo accent
+   for a running focus phase, green for a break, ink otherwise. While
+   body.is-focusing the rail and the page chrome step back so the
+   stage is the only thing with any weight.
+   ============================================================ */
+
+#pomodoro-content { padding: var(--space-lg) 0 var(--space-2xl); }
+
+.pomo {
+    --pomo-accent: var(--color-accent);
+    --pomo-break: var(--color-green);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: var(--space-xl);
+    align-items: start;
+}
+@media (max-width: 1060px) { .pomo { grid-template-columns: 1fr; } }
+
+/* ---------- Stage ---------- */
+
+.pomo-stage {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-lg);
+    padding: var(--space-lg) var(--space-xl) var(--space-xl);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-bg);
+    box-shadow: var(--shadow-sm);
+}
+[data-theme="dark"] .pomo-stage { box-shadow: none; }
+/* A soft wash behind the ring in the phase colour, only while running. */
+.pomo-stage::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(60% 45% at 50% 34%, color-mix(in srgb, var(--pomo-tone, transparent) 10%, transparent), transparent 70%);
+    opacity: 0;
+    transition: opacity var(--transition-slow);
+}
+.pomo-stage[data-running="1"]::before { opacity: 1; }
+.pomo-stage[data-phase="focus"] { --pomo-tone: var(--pomo-accent); }
+.pomo-stage[data-phase="short"], .pomo-stage[data-phase="long"] { --pomo-tone: var(--pomo-break); }
+.pomo-stage > * { position: relative; }
+
+.pomo-stage-head {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-md);
+    flex-wrap: wrap;
+}
+
+/* Segmented mode control */
+.pomo-modes {
+    display: inline-flex;
+    gap: 2px;
+    padding: 3px;
+    border: 1px solid var(--color-border-light);
+    border-radius: 999px;
+    background: var(--color-surface);
+}
+.pomo-mode {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 6px 14px;
+    border: none;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--color-text-secondary);
+    font-family: var(--font-sans);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    cursor: pointer;
+    transition: background var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast);
+}
+.pomo-mode:hover { color: var(--color-text); }
+.pomo-mode.is-active {
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-weight: 600;
+    box-shadow: 0 0 0 1px var(--color-border), 0 1px 2px rgba(0,0,0,.05);
+}
+.pomo-mode-sub { font-size: 11px; color: var(--color-text-tertiary); font-variant-numeric: tabular-nums; }
+.pomo-mode.is-active .pomo-mode-sub { color: var(--color-text-secondary); }
+
+/* Set progress: one segment per session */
+.pomo-set { display: inline-flex; align-items: center; gap: 10px; }
+.pomo-set-segs { display: inline-flex; gap: 4px; }
+.pomo-set-seg {
+    width: 18px; height: 4px; border-radius: 2px;
+    background: var(--color-border);
+    transition: background var(--transition-fast);
+}
+.pomo-set-seg.is-filled { background: var(--color-text); }
+.pomo-set-seg.is-current { background: color-mix(in srgb, var(--pomo-accent) 55%, var(--color-border)); }
+.pomo-stage[data-running="1"][data-phase="focus"] .pomo-set-seg.is-current { background: var(--pomo-accent); }
+.pomo-set-label { font-size: 11px; font-weight: 600; letter-spacing: 0.04em; color: var(--color-text-tertiary); font-variant-numeric: tabular-nums; }
+
+/* Ring */
+.pomo-ring-wrap { position: relative; width: 300px; height: 300px; margin-top: var(--space-xs); }
+@media (max-width: 480px) { .pomo-ring-wrap { width: 240px; height: 240px; } }
+.pomo-ring { width: 100%; height: 100%; transform: rotate(-90deg); display: block; }
+.pomo-ring-track { fill: none; stroke: var(--color-border-light); stroke-width: 6; }
+.pomo-ring-progress {
+    fill: none;
+    stroke: var(--color-text);
+    stroke-width: 6;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 250ms linear, stroke var(--transition-slow);
+}
+.pomo-stage[data-running="1"][data-phase="focus"] .pomo-ring-progress { stroke: var(--pomo-accent); }
+.pomo-stage[data-running="1"][data-phase="short"] .pomo-ring-progress,
+.pomo-stage[data-running="1"][data-phase="long"] .pomo-ring-progress { stroke: var(--pomo-break); }
+
+.pomo-time-stack {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 6px;
+}
+.pomo-phase {
+    font-family: var(--font-sans);
+    font-size: 10px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--color-text-tertiary);
+}
+.pomo-time {
+    font-family: var(--font-serif);
+    font-size: 72px; font-weight: 400; letter-spacing: -0.012em; line-height: 1;
+    color: var(--color-text);
+    font-variant-numeric: tabular-nums;
+}
+@media (max-width: 480px) { .pomo-time { font-size: 56px; } }
+.pomo-time.is-editable { cursor: text; border-bottom: 1px dashed transparent; transition: border-color var(--transition-fast); }
+.pomo-time.is-editable:hover { border-bottom-color: var(--color-border-hover); }
+.pomodoro-time-edit {
+    width: 4.2ch; text-align: center;
+    font: inherit; letter-spacing: inherit; color: inherit;
+    background: transparent; border: none; border-bottom: 1px solid var(--color-text); outline: none;
+}
+.pomo-state { font-size: var(--text-sm); color: var(--color-text-secondary); }
+.pomo-stage[data-running="1"] .pomo-state { color: var(--color-text-tertiary); }
+
+/* ---------- Task hero ---------- */
+
+.pomo-task { width: 100%; max-width: 560px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.pomo-task-eyebrow {
+    font-family: var(--font-sans);
+    font-size: 10px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--color-text-tertiary);
+    max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.pomo-task-title {
+    appearance: none; background: none; border: none; padding: 0; cursor: pointer;
+    font-family: var(--font-serif);
+    font-size: var(--text-xl); font-weight: 400; letter-spacing: -0.012em; line-height: 1.3;
+    color: var(--color-text);
+    text-align: center;
+    border-bottom: 1px solid transparent;
+    transition: border-color var(--transition-fast);
+}
+.pomo-task-title:hover { border-bottom-color: var(--color-border-hover); }
+.pomo-task-desc {
+    margin: 2px 0 0;
+    font-size: var(--text-sm); line-height: 1.55; color: var(--color-text-secondary);
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.pomo-task-meta {
+    display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: center;
+    font-size: var(--text-xs); color: var(--color-text-tertiary); font-variant-numeric: tabular-nums;
+}
+.pomo-task-meta-sep { opacity: .6; }
+.pomo-link-btn {
+    appearance: none; background: var(--color-bg); border: 1px solid var(--color-border);
+    border-radius: 999px; padding: 3px 10px; cursor: pointer;
+    font-family: var(--font-sans); font-size: 11px; font-weight: 500; color: var(--color-text-secondary);
+    transition: border-color var(--transition-fast), color var(--transition-fast);
+}
+.pomo-link-btn:hover { border-color: var(--color-border-hover); color: var(--color-text); }
+.pomo-break-copy { margin: 0; font-family: var(--font-serif); font-size: var(--text-lg); color: var(--color-text-secondary); }
+
+/* Free-text task: one pill field with the picker inside its right edge */
+.pomo-task-field {
+    width: 100%; display: flex; align-items: center; gap: 6px;
+    padding: 5px 6px 5px 16px;
+    border: 1px solid var(--color-border); border-radius: 999px; background: var(--color-bg);
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+.pomo-task-field:focus-within { border-color: var(--pomo-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--pomo-accent) 14%, transparent); }
+.pomo-task-input {
+    flex: 1; min-width: 0; border: none; background: transparent; outline: none;
+    font-family: var(--font-sans); font-size: var(--text-base); color: var(--color-text); padding: 6px 0;
+}
+.pomo-task-input::placeholder { color: var(--color-text-tertiary); }
+
+/* ---------- Controls ---------- */
+
+.pomo-controls { display: flex; align-items: center; gap: var(--space-sm); }
+.pomo-btn {
+    appearance: none; background: var(--color-bg); border: 1px solid var(--color-border);
+    color: var(--color-text); border-radius: 999px; padding: 9px 20px; min-width: 88px; cursor: pointer;
+    font-family: var(--font-sans); font-size: var(--text-sm); font-weight: 500;
+    transition: background var(--transition-fast), border-color var(--transition-fast), opacity var(--transition-fast);
+}
+.pomo-btn:hover { background: var(--color-surface-hover); border-color: var(--color-border-hover); }
+.pomo-btn:disabled { opacity: .45; cursor: default; }
+.pomo-btn:disabled:hover { background: var(--color-bg); border-color: var(--color-border); }
+.pomo-btn-primary {
+    background: var(--color-text); color: var(--color-bg); border-color: var(--color-text);
+    min-width: 132px; padding: 11px 26px; font-weight: 600;
+}
+.pomo-btn-primary:hover { background: var(--color-text); color: var(--color-bg); opacity: .88; }
+.pomo-stage[data-running="1"] .pomo-btn-primary { background: var(--color-bg); color: var(--color-text); border-color: var(--color-border); }
+.pomo-stage[data-running="1"] .pomo-btn-primary:hover { opacity: 1; background: var(--color-surface-hover); border-color: var(--color-border-hover); }
+
+/* ---------- Parking lot ---------- */
+
+.pomo-park { width: 100%; max-width: 560px; display: flex; flex-direction: column; gap: var(--space-sm); }
+.pomo-park-form {
+    display: flex; align-items: center; gap: 6px;
+    padding: 4px 4px 4px 14px;
+    border: 1px dashed var(--color-border); border-radius: 999px; background: var(--color-surface);
+    transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+.pomo-park-form:focus-within { border-style: solid; border-color: var(--color-border-hover); background: var(--color-bg); }
+.pomo-park-input {
+    flex: 1; min-width: 0; border: none; background: transparent; outline: none;
+    font-family: var(--font-sans); font-size: var(--text-sm); color: var(--color-text); padding: 6px 0;
+}
+.pomo-park-input::placeholder { color: var(--color-text-tertiary); }
+.pomo-mini-btn {
+    appearance: none; background: var(--color-bg); border: 1px solid var(--color-border);
+    border-radius: 999px; padding: 5px 12px; cursor: pointer; white-space: nowrap;
+    font-family: var(--font-sans); font-size: 11px; font-weight: 500; color: var(--color-text);
+    transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+.pomo-mini-btn:hover { border-color: var(--color-border-hover); background: var(--color-surface-hover); }
+.pomo-mini-btn.is-ghost { border-color: transparent; color: var(--color-text-secondary); }
+.pomo-park-chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.pomo-park-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 6px 4px 10px; border-radius: 999px;
+    background: var(--color-surface); border: 1px solid var(--color-border-light);
+    font-size: var(--text-xs); color: var(--color-text-secondary); max-width: 100%;
+}
+.pomo-park-chip-x {
+    appearance: none; border: none; background: transparent; cursor: pointer;
+    width: 18px; height: 18px; border-radius: 50%; line-height: 1; font-size: 13px;
+    color: var(--color-text-tertiary);
+}
+.pomo-park-chip-x:hover { background: var(--color-surface-hover); color: var(--color-text); }
+.pomo-park.is-break { text-align: left; }
+.pomo-park-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.pomo-park-row {
+    display: flex; align-items: center; justify-content: space-between; gap: var(--space-md);
+    padding: 8px 0; border-bottom: 1px solid var(--color-border-light); font-size: var(--text-sm);
+}
+.pomo-park-row:last-child { border-bottom: none; }
+.pomo-park-text { flex: 1; min-width: 0; color: var(--color-text); }
+.pomo-park-actions { display: inline-flex; gap: 4px; flex: none; }
+
+/* Held notifications (break only) */
+.pomo-held { width: 100%; max-width: 560px; }
+.pomo-held-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.pomo-held-row {
+    display: grid; grid-template-columns: 56px minmax(0, 1fr); column-gap: 10px; align-items: baseline;
+    padding: 7px 0; border-bottom: 1px solid var(--color-border-light); font-size: var(--text-sm);
+}
+.pomo-held-row:last-child { border-bottom: none; }
+.pomo-held-kind { font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--color-text-tertiary); }
+.pomo-held-title { color: var(--color-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pomo-held-body { grid-column: 2; font-size: var(--text-xs); color: var(--color-text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pomo-held-more { padding: 6px 0; font-size: var(--text-xs); color: var(--color-text-tertiary); }
+
+.pomo-section-head {
+    display: flex; align-items: center; gap: 8px;
+    font-family: var(--font-sans);
+    font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--color-text-tertiary);
+    margin-bottom: var(--space-sm);
+}
+.pomo-count {
+    font-size: 10px; font-weight: 600; letter-spacing: 0; padding: 1px 7px; border-radius: 999px;
+    background: var(--color-surface); border: 1px solid var(--color-border-light); color: var(--color-text-secondary);
+}
+
+.pomo-hint { margin: 0; font-size: var(--text-xs); color: var(--color-text-tertiary); }
+.pomo-hint kbd {
+    font-family: var(--font-sans); font-size: 10px; padding: 1px 6px; margin-right: 3px;
+    border: 1px solid var(--color-border); border-bottom-width: 2px; border-radius: 4px;
+    background: var(--color-surface); color: var(--color-text-secondary);
+}
+
+/* ---------- Rail ---------- */
+
+.pomo-rail { display: flex; flex-direction: column; gap: var(--space-md); transition: opacity var(--transition-slow); }
+.pomo-card {
+    border: 1px solid var(--color-border); border-radius: var(--radius-lg);
+    padding: var(--space-md) var(--space-lg); background: var(--color-bg);
+    box-shadow: var(--shadow-sm);
+}
+[data-theme="dark"] .pomo-card { box-shadow: none; }
+.pomo-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-sm); }
+.pomo-stat { display: flex; flex-direction: column; gap: 3px; }
+.pomo-stat-num { font-family: var(--font-serif); font-size: var(--text-2xl); font-weight: 400; letter-spacing: -0.012em; line-height: 1; color: var(--color-text); font-variant-numeric: tabular-nums; }
+.pomo-stat-label { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-text-tertiary); }
+
+.pomo-recent { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.pomo-recent-row {
+    display: flex; align-items: center; gap: 8px; padding: 7px 0;
+    border-bottom: 1px solid var(--color-border-light); font-size: var(--text-sm);
+}
+.pomo-recent-row:last-child { border-bottom: none; }
+.pomo-recent-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--color-text); flex: none; }
+.pomo-recent-row.is-break .pomo-recent-dot { background: var(--pomo-break); }
+.pomo-recent-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-text); }
+.pomo-recent-row.is-break .pomo-recent-label { color: var(--color-text-secondary); }
+.pomo-recent-meta { flex: none; font-size: var(--text-xs); color: var(--color-text-tertiary); font-variant-numeric: tabular-nums; }
+.pomo-recent-empty { font-style: italic; color: var(--color-text-tertiary); font-size: var(--text-sm); padding: 4px 0; }
+
+.pomo-quote .pomo-section-head { justify-content: space-between; }
+.pomo-icon-btn {
+    appearance: none; background: transparent; border: 1px solid var(--color-border-light); border-radius: 50%;
+    width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center;
+    color: var(--color-text-tertiary); cursor: pointer; transition: color var(--transition-fast), transform var(--transition-base);
+}
+.pomo-icon-btn:hover { color: var(--color-text); transform: rotate(180deg); }
+.pomo-quote-text { margin: 0 0 6px; font-family: var(--font-serif); font-size: var(--text-base); font-style: italic; line-height: 1.55; color: var(--color-text); }
+.pomo-quote-author { margin: 0; font-size: var(--text-xs); color: var(--color-text-tertiary); }
+
+/* ---------- Settings ---------- */
+
+.pomo-settings {
+    display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-lg);
+    padding: var(--space-md) var(--space-lg);
+    border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-bg);
+    margin-bottom: var(--space-lg);
+    box-shadow: var(--shadow-sm);
+}
+[data-theme="dark"] .pomo-settings { box-shadow: none; }
+.pomo-settings[hidden] { display: none; }
+@media (max-width: 720px) { .pomo-settings { grid-template-columns: 1fr; } }
+.pomo-settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-sm) var(--space-md); }
+.pomo-settings-grid label { display: flex; flex-direction: column; gap: 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-text-tertiary); }
+.pomo-input-row {
+    display: inline-flex; align-items: center; gap: 6px;
+    border: 1px solid var(--color-border); border-radius: 999px; background: var(--color-bg); padding: 4px 12px;
+}
+.pomo-input-row:focus-within { border-color: var(--pomo-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--pomo-accent) 14%, transparent); }
+.pomo-input-row input { border: none; background: transparent; color: var(--color-text); font-family: var(--font-sans); font-size: var(--text-sm); width: 48px; letter-spacing: 0; text-transform: none; font-variant-numeric: tabular-nums; outline: none; }
+.pomo-input-suffix { color: var(--color-text-tertiary); font-size: 11px; text-transform: lowercase; letter-spacing: 0; font-weight: 500; }
+.pomo-settings-checks { display: flex; flex-direction: column; gap: 6px; }
+.pomo-check { display: flex; align-items: center; gap: 8px; font-size: var(--text-sm); color: var(--color-text); cursor: pointer; }
+.pomo-check input[type="checkbox"] { accent-color: var(--color-text); }
+
+/* ---------- While focusing ---------- */
+/* Everything but the stage steps back: the rail, the page heading and
+   the header buttons. Hover brings the rail back for a glance. */
+body.is-focusing #pomodoro-view .pomo-rail { opacity: .42; }
+body.is-focusing #pomodoro-view .pomo-rail:hover { opacity: 1; }
+body.is-focusing #pomodoro-view .app-header-bar { opacity: .55; }
+body.is-focusing #pomodoro-view .app-header-bar:hover { opacity: 1; }
+
+/* ---------- Modals (unchanged) ---------- */
+
+dialog.modal.pomodoro-help-modal {
+    width: min(680px, 94vw);
+    max-width: 680px;
+}
+
+.pomodoro-help-modal .modal-body {
+    max-height: min(640px, 75vh);
+    overflow-y: auto;
+}
+
+.pomodoro-help-lede {
+    margin: 0 0 var(--space-md);
+    font-family: var(--font-serif);
+    font-size: var(--text-base);
+    color: var(--color-text);
+    line-height: 1.6;
+}
+
+.pomodoro-help-heading {
+    margin: var(--space-lg) 0 var(--space-sm);
+    font-family: var(--font-sans);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-text-secondary);
+}
+
+.pomodoro-help-list {
+    margin: 0;
+    padding-left: var(--space-lg);
+    color: var(--color-text);
+    font-family: var(--font-sans);
+    font-size: var(--text-sm);
+    line-height: 1.6;
+}
+
+.pomodoro-help-list li {
+    margin-bottom: var(--space-xs);
+}
+
+.pomodoro-help-list li:last-child {
+    margin-bottom: 0;
+}
+
+.pomodoro-help-list strong {
+    color: var(--color-text);
+    font-weight: 600;
+}
+
+.pomodoro-help-list em {
+    font-style: italic;
+    color: var(--color-text);
+}
+
+/* ---------- Task picker modal ---------- */
+
+/* dialog.modal has max-width: 500px in components.css — match its
+   specificity (dialog.modal.pomodoro-task-modal) to override it. */
+dialog.modal.pomodoro-task-modal {
+    width: min(820px, 94vw);
+    max-width: 820px;
+}
+
+.pomodoro-task-modal .modal-body {
+    max-height: min(620px, 72vh);
+    overflow-y: auto;
+}
+
+.pomodoro-task-modal-item {
+    align-items: flex-start;
+}
+
+.pomodoro-task-modal-intro {
+    margin: 0 0 var(--space-md);
+    color: var(--color-text-secondary);
+    font-family: var(--font-sans);
+    font-size: var(--text-sm);
+    line-height: 1.5;
+}
+
+.pomodoro-task-modal-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.pomodoro-task-modal-item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-sm) var(--space-md);
+    background: transparent;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    text-align: left;
+    color: var(--color-text);
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    cursor: pointer;
+    transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.pomodoro-task-modal-item:hover {
+    background: var(--color-surface-hover);
+    border-color: var(--color-border-hover);
+}
+
+.pomodoro-task-modal-item.is-current {
+    background: var(--color-surface);
+    border-color: var(--color-text);
+}
+
+.pomodoro-task-modal-time {
+    flex-shrink: 0;
+    width: 84px;
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+}
+
+.pomodoro-task-modal-time-empty {
+    color: var(--color-text-tertiary);
+}
+
+.pomodoro-task-modal-title {
+    flex: 1;
+    min-width: 0;
+    color: var(--color-text);
+    word-break: break-word;
+    line-height: 1.4;
+}
+
+.pomodoro-task-modal-current-badge {
+    flex-shrink: 0;
+    font-size: var(--text-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-bg);
+    background: var(--color-text);
+    padding: 2px 8px;
+    border-radius: var(--radius-sm);
+}
+
+.pomodoro-task-modal-empty {
+    padding: var(--space-xl) var(--space-md);
+    text-align: center;
+    border: 1px dashed var(--color-border);
+    border-radius: var(--radius-md);
+    color: var(--color-text-secondary);
+}
+
+.pomodoro-task-modal-empty p {
+    margin: 0 0 var(--space-xs);
+    font-size: var(--text-base);
+}
+
+.pomodoro-task-modal-empty-hint {
+    color: var(--color-text-tertiary);
+    font-size: var(--text-sm);
+    font-style: italic;
+}
+
+
+/* Home widget: the sub-line after the task. */
+.pomo-widget-sub { color: var(--color-text-tertiary); }
