@@ -1,0 +1,913 @@
+/* Alternate shell; all selectors gated so the full experience stays intact. */
+/* Two constants; the rest of the app follows them. --simple-col is this
+   shell's reading column (home, Updates, History). --app-band is how wide a
+   full APP page may get here, narrowed from the full shell's 1900px because
+   this shell is built around one quiet centred column and a Portfolio that
+   sprawled to 2112px beside a 760px home belonged to a different product.
+   The band is both what core.css's wide-monitor rule caps #app-views at and
+   what the titlebar's insets aim for, so page and chrome cannot disagree —
+   and the inset formula itself lives in core.css, shared with the full
+   shell. Setup needs no exception: it owns the window and that rule
+   excludes it. */
+body.simple-experience {
+    --sidenav-w: 220px;
+    --simple-col: 760px;
+    --app-band: 1400px;
+}
+/* Flow layout keeps the brand and navigation apart even when status pills
+   appear mid-session or the window is narrow. Leave room for traffic lights. */
+body.simple-experience .app-titlebar { justify-content: flex-start; padding: 0 var(--chrome-inset-right) 0 var(--chrome-inset-left); gap: 4px; }
+body.simple-experience .titlebar-actions { position: relative; right: auto; top: auto; transform: none; margin-left: auto; }
+body.simple-experience .titlebar-home-btn { position: relative; left: auto; top: auto; transform: none; max-width: 140px; }
+body.simple-experience .titlebar-home-btn span { overflow: hidden; text-overflow: ellipsis; }
+/* The quiet bar. AI Activity is deliberately NOT in this list (2026-09-20,
+   by request): the model chip and readiness dot say what the brain IS, which
+   Settings answers, but the activity icon says what it is DOING right now —
+   it pulses while a call runs, and that is the one thing a shell built
+   around the AI should not hide. */
+body.simple-experience #app-sidenav,
+body.simple-experience .titlebar-model-select,
+body.simple-experience #titlebar-readiness,
+body.simple-experience .titlebar-divider,
+body.simple-experience #dashboard-view .dash-header,
+body.simple-experience #dashboard-view #dash-journal-nudge,
+body.simple-experience #agent-app-memory-btn,
+body.simple-experience #agent-view .app-help-btn { display: none !important; }
+/* The AI Assistant's settings gear stays (2026-09-22, by request): every
+   other app's page carries its gear to its own Settings panel, and this one
+   leads to Settings › AI Assistant, the models and what they answer. */
+body.simple-experience.in-setup .simple-nav { display: none; }
+body.simple-experience #titlebar-apps-btn { width: auto; gap: 5px; padding: 0 8px; font: inherit; }
+body.simple-experience .simple-nav { display: flex; gap: 4px; -webkit-app-region: no-drag; }
+body.simple-experience .simple-nav button { height: 26px; padding: 0 8px; }
+body.simple-experience .simple-nav button,
+body.simple-experience .simple-section-head > button {
+    border: 0; background: transparent; color: var(--color-text-secondary);
+    font: inherit; font-size: var(--text-sm); cursor: pointer; border-radius: var(--radius-sm);
+}
+body.simple-experience .simple-nav button:hover,
+body.simple-experience .simple-section-head > button:hover { color: var(--color-text); background: var(--color-surface-hover); }
+body.simple-experience #dashboard-view .dashboard-container { max-width: var(--simple-col); width: 100%; margin: 0 auto; padding: 32px 24px 64px; }
+body.simple-experience .simple-intro { text-align: center; padding: clamp(20px, 6vh, 70px) 0 24px; }
+body.simple-experience .simple-intro p { font-size: var(--text-sm); color: var(--color-text-tertiary); margin: 0 0 12px; }
+body.simple-experience .simple-intro h1 { font: 400 var(--text-4xl)/1.2 var(--font-serif); letter-spacing: -.012em; margin: 0; }
+body.simple-experience .dash-agent-hero { margin-bottom: 32px; }
+/* The shared home entrance fades from zero; keep this mode's focal control
+   readable immediately, including when the Electron window is occluded. */
+body.simple-experience #dashboard-view.active .dash-agent-hero { animation: none; }
+body.simple-experience #dash-agent-input { min-height: 76px; }
+body.simple-experience #simple-home-sections { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; align-items: start; }
+body.simple-experience #simple-home-sections > :only-child { grid-column: 1 / -1; }
+body.simple-experience .simple-section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+body.simple-experience .simple-section-head h2 { margin: 0; font: 600 var(--text-sm)/1.5 var(--font-sans); }
+body.simple-experience .simple-sheet { border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); overflow: hidden; }
+body.simple-experience .simple-row { display: flex; align-items: center; justify-content: space-between; gap: 20px; width: 100%; text-align: left; padding: 15px 18px; border: 0; border-radius: 0; background: transparent; color: var(--color-text); font: inherit; font-size: var(--text-sm); cursor: pointer; }
+body.simple-experience .simple-row + .simple-row { border-top: 1px solid var(--color-border); }
+body.simple-experience .simple-row:hover { background: var(--color-surface-hover); }
+body.simple-experience .simple-row > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body.simple-experience .simple-row-meta { flex-shrink: 0; color: var(--color-text-tertiary); font-size: var(--text-xs); }
+body.simple-experience .simple-more { margin-top: 8px; padding: 6px 0; border: 0; background: transparent; color: var(--color-text-secondary); font: inherit; font-size: var(--text-sm); cursor: pointer; }
+body.simple-experience .simple-empty { text-align: center; color: var(--color-text-secondary); font-size: var(--text-sm); padding: 12px 0; }
+body.simple-experience .simple-updates { margin-top: 24px; }
+body.simple-experience .simple-section-link { display: grid; place-items: center; width: 28px; height: 28px; }
+body.simple-experience .simple-section-link svg,
+body.simple-experience .simple-updates-link svg,
+body.simple-experience .simple-connect > svg { width: 16px; height: 16px; flex-shrink: 0; }
+body.simple-experience #simple-home-sections .simple-home-row { justify-content: flex-start; gap: 12px; padding: 14px; min-height: 74px; }
+body.simple-experience .simple-home-icon { display: grid; place-items: center; width: 30px; height: 30px; flex: 0 0 30px; color: var(--color-text-secondary); background: var(--color-bg); border-radius: var(--radius-sm); }
+body.simple-experience .simple-home-icon svg { width: 18px; height: 18px; }
+body.simple-experience .simple-home-copy { display: grid; gap: 4px; flex: 1; min-width: 0; }
+body.simple-experience .simple-home-title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; line-height: 1.45; }
+body.simple-experience .simple-home-row > svg { width: 14px; height: 14px; flex: 0 0 14px; color: var(--color-text-tertiary); }
+body.simple-experience .simple-connect { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; padding: 16px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); color: var(--color-text); font: inherit; font-size: var(--text-sm); text-align: left; cursor: pointer; }
+body.simple-experience .simple-connect > svg { margin-left: auto; }
+body.simple-experience .simple-updates-link { display: flex; align-items: center; gap: 8px; border: 0; background: transparent; color: var(--color-text-secondary); font: inherit; font-size: var(--text-sm); padding: 8px 0; cursor: pointer; }
+body.simple-experience .simple-updates-link:hover { color: var(--color-text); }
+body.simple-experience .simple-connect:hover { background: var(--color-surface-hover); }
+body.simple-experience #updates-view { height: calc(100vh - 38px); }
+/* History is a normal routed page: the same ground, heading and reading
+   sheets as the other app pages. It owns its scroll position for Back. */
+body.simple-experience #conversations-view { --view-content-max: var(--simple-col); height: calc(100vh - 38px); overflow-y: auto; padding: 40px 24px 64px; }
+body.simple-experience .simple-history-header { margin-bottom: 24px; }
+body.simple-experience .simple-history-header h1 { margin: 0 0 8px; font: 400 var(--text-3xl)/1.2 var(--font-serif); letter-spacing: -.012em; }
+body.simple-experience .simple-history-header p { color: var(--color-text-secondary); font-size: var(--text-sm); }
+body.simple-experience .simple-history input[type="search"] { appearance: none; display: block; width: 100%; min-height: 40px; box-sizing: border-box; margin-bottom: 28px; padding: 9px 14px; border: 1px solid var(--color-border); border-radius: 999px; background: var(--color-surface); color: var(--color-text); font: inherit; font-size: var(--text-sm); }
+body.simple-experience .simple-history input[type="search"]::placeholder { color: var(--color-text-tertiary); }
+body.simple-experience .simple-history input[type="search"]:focus { outline: none; border-color: var(--color-accent); box-shadow: 0 0 0 3px var(--color-accent-soft); }
+body.simple-experience .simple-history-group { margin-bottom: 28px; }
+body.simple-experience .simple-history-group h2 { margin: 0 0 10px; font: 600 var(--text-sm)/1.5 var(--font-sans); }
+body.simple-experience .simple-history-copy { display: grid; gap: 5px; min-width: 0; }
+body.simple-experience .simple-history-title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
+body.simple-experience .simple-history-preview { overflow: hidden; text-overflow: ellipsis; color: var(--color-text-secondary); }
+body.simple-experience .simple-nav [aria-current="page"] { color: var(--color-text); background: var(--color-surface-hover); }
+@media (max-width: 700px) {
+    body.simple-experience #simple-home-sections { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+    body.simple-experience .titlebar-home-btn span,
+    body.simple-experience #whats-new-chip { display: none !important; }
+    body.simple-experience .titlebar-search-btn kbd { display: none; }
+    body.simple-experience #dashboard-view .dashboard-container { padding: 20px 16px 40px; }
+    body.simple-experience .simple-intro h1 { font-size: var(--text-3xl); }
+    body.simple-experience .simple-row { padding: 14px 12px; gap: 12px; }
+}
+/* Attention is a message asking for judgment, not a task-list row. */
+body.simple-experience #simple-home-sections { grid-template-columns: minmax(0, 1fr); }
+body.simple-experience .simple-attention-message { display: flex; gap: 12px; padding: 18px; }
+body.simple-experience .simple-attention-message + .simple-attention-message { border-top: 1px solid var(--color-border); }
+body.simple-experience .simple-attention-copy { min-width: 0; flex: 1; }
+body.simple-experience .simple-attention-copy h3 { margin: 0 0 6px; font: 600 var(--text-sm)/1.5 var(--font-sans); overflow-wrap: anywhere; }
+body.simple-experience .simple-attention-copy p { margin: 0 0 12px; font-size: var(--text-sm); color: var(--color-text-secondary); overflow-wrap: anywhere; }
+body.simple-experience .simple-message-actions { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+body.simple-experience .simple-message-actions button { font: inherit; font-size: var(--text-sm); padding: 0; border: 0; background: transparent; color: var(--color-text); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+body.simple-experience .simple-message-actions button + button { color: var(--color-text-secondary); }
+body.simple-experience .simple-working summary { cursor: pointer; font-size: var(--text-sm); color: var(--color-text-secondary); margin-bottom: 10px; }
+body.simple-experience .simple-working summary span { margin-left: 6px; }
+body.simple-experience .simple-attention-copy .simple-reminder-time { font-size: var(--text-xs); color: var(--color-text-tertiary); }
+body.simple-experience .simple-app-shortcuts { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: -8px 0 28px; }
+body.simple-experience .simple-app-shortcuts button { padding: 6px 14px; border: 1px solid var(--color-border); border-radius: 999px; background: var(--color-surface); color: var(--color-text-secondary); font: inherit; font-size: var(--text-sm); cursor: pointer; }
+body.simple-experience .simple-app-shortcuts button:hover { color: var(--color-text); background: var(--color-surface-hover); }
+body.simple-experience #simple-home-sections .simple-home-copy .simple-row-meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body.simple-experience #simple-home-sections section[aria-labelledby="simple-day-title"] .simple-home-row { min-height: 58px; padding: 10px 14px; }
+
+/* From your routines (2026-09-20) — the home feed reduced to one row per
+   routine. The row wears the ordinary home-row shape; only the trailing
+   "when" is new, and it stays quiet because the summary is the content. */
+body.simple-experience .simple-routine-row .simple-row-when { flex: 0 0 auto; margin-left: auto; color: var(--color-text-tertiary); font-size: var(--text-xs); white-space: nowrap; }
+body.simple-experience #simple-home-sections .simple-routine-row { min-height: 58px; padding: 10px 14px; }
+
+/* ══ The Updates page wears the simple shell's clothes (2026-09-20) ══════
+   It is the ORIGINAL home content, moved whole (mountUpdates) — so it
+   arrived wearing the full shell's vocabulary: a 1040px two-column spread,
+   lifted cards at --radius-lg, a 16px panel title, an inverted pill toggle.
+   Beside the simple home's 760px column of flat hairline sheets it read as
+   a different app. Every rule below is scoped to #updates-view, so the
+   classic home keeps its own look exactly.
+
+   Copy is untouched, and so is one thing that looks like theme but is not:
+   a widget's TONE edge (components.css, 2026-08-04 — amber warn, green
+   good, red alert) says what the DATA means and stays. Only its coloured
+   cast goes, so a toned card sits in the same family as an untoned one. */
+body.simple-experience #updates-view .dashboard-container { max-width: var(--simple-col); width: 100%; margin: 0 auto; padding: 40px 24px 64px; }
+
+/* The masthead becomes the routed-page heading the History page uses:
+   the greeting stacked over its date, no rule under it. */
+body.simple-experience #updates-view .dash-header { display: block; padding: 0; margin-bottom: 24px; border-bottom: 0; }
+body.simple-experience #updates-view .dash-greeting { font-size: var(--text-3xl); margin: 0 0 8px; }
+body.simple-experience #updates-view .dash-header-sep { display: none; }
+body.simple-experience #updates-view .dash-date-line { font-size: var(--text-sm); color: var(--color-text-secondary); letter-spacing: 0; }
+
+/* One column in a 760px page: dissolve the wrappers so each card's inline
+   `order` (its priority) reads true — the ≤1100px mechanism, applied by
+   width of the COLUMN rather than of the window. */
+body.simple-experience #updates-view .dash-widgets { display: flex; flex-direction: column; align-items: stretch; }
+body.simple-experience #updates-view .dash-widgets-col { display: contents; }
+
+/* Widget cards and the feed sheet take the simple sheet's frame. */
+body.simple-experience #updates-view .widget-card,
+body.simple-experience #updates-view .prompt-feed-list:has(.feed-series) { border-radius: var(--radius-md); box-shadow: none; }
+body.simple-experience #updates-view .widget-card[data-tone] { box-shadow: none; }
+body.simple-experience #updates-view .widget-title { font-size: var(--text-sm); font-weight: 600; }
+body.simple-experience #updates-view .widget-row-text { font-size: var(--text-sm); }
+
+/* Section heads and their controls speak at the simple home's volume. */
+body.simple-experience #updates-view .dash-panel-title { font-size: var(--text-sm); letter-spacing: 0; }
+body.simple-experience #updates-view .dash-feed-actions .secondary-btn {
+    border: 0; background: transparent; color: var(--color-text-secondary);
+    font: inherit; font-size: var(--text-sm); border-radius: var(--radius-sm); padding: 4px 8px;
+}
+body.simple-experience #updates-view .dash-feed-actions .secondary-btn:hover { color: var(--color-text); background: var(--color-surface-hover); }
+/* The current scope was an inverted black pill — the one filled shape on a
+   page that otherwise has none. It becomes the hover wash the shell uses
+   for "this row is the one", with ink text carrying the weight. */
+body.simple-experience #updates-view .feed-scope-btn.is-current { background: var(--color-surface-hover); color: var(--color-text); font-weight: 600; }
+/* "Log journal" is a nudge, not a shortcut: the shell's one accent, as the
+   dot it uses everywhere else for something live. */
+body.simple-experience .simple-app-shortcuts button.is-nudge { color: var(--color-text); display: inline-flex; align-items: center; gap: 7px; }
+body.simple-experience .simple-nudge-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--color-accent); flex: 0 0 6px; }
+
+/* From your email (2026-10-01) — what the email read found, on the home a
+   new user actually sees. A row opens the insight; the quiet close button
+   beside it marks it read, like the "Needs a look" card's Dismiss. */
+body.simple-experience .simple-email-row { display: flex; align-items: center; }
+body.simple-experience .simple-email-row + .simple-email-row,
+body.simple-experience .simple-email-status + .simple-email-row,
+body.simple-experience .simple-email .simple-row + .simple-email-row { border-top: 1px solid var(--color-border); }
+body.simple-experience .simple-email-row > .simple-row { flex: 1; min-width: 0; }
+body.simple-experience #simple-home-sections .simple-email .simple-home-row { min-height: 58px; padding: 10px 14px; }
+body.simple-experience .simple-email-status { cursor: default; }
+body.simple-experience .simple-email-status:hover { background: transparent; }
+body.simple-experience .simple-email-dismiss { display: grid; place-items: center; width: 32px; height: 32px; margin-right: 10px; flex: 0 0 32px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--color-text-tertiary); cursor: pointer; opacity: 0; transition: opacity var(--transition-fast); }
+body.simple-experience .simple-email-row:hover .simple-email-dismiss,
+body.simple-experience .simple-email-dismiss:focus-visible { opacity: 1; }
+body.simple-experience .simple-email-dismiss:hover { color: var(--color-text); background: var(--color-surface-hover); }
+body.simple-experience .simple-email-dismiss svg { width: 14px; height: 14px; }
+
+/* A quieter titlebar (2026-10-01): the theme lives in Settings › Appearance
+   and AI Activity in Settings › Privacy, so the simple shell keeps only
+   search, What's new while it is new, and the assistant. The AI Activity
+   icon still appears WHILE AI work runs: its pulse is the honest "something
+   is working" signal, and only its idle presence was clutter. */
+body.simple-experience #theme-toggle-btn,
+body.simple-experience #titlebar-ai-activity-btn:not(.is-busy) { display: none; }
+
+/* No Apps switcher in the simple titlebar (2026-10-01, by request). */
+body.simple-experience #titlebar-apps-btn { display: none; }
+
+/* Your widgets (2026-10-01): one folded row on Home — chosen widgets are
+   painted only when it is opened. Cards wear the Updates page's flat
+   recipe: one column, --radius-md, no lift; a TONE edge stays (state). */
+body.simple-experience .simple-widgets { margin-top: 24px; }
+body.simple-experience .simple-widgets-bar { display: flex; align-items: center; gap: 12px; }
+body.simple-experience .simple-widgets-toggle { display: flex; align-items: center; gap: 8px; padding: 8px 0; border: 0; background: transparent; color: var(--color-text-secondary); font: inherit; font-size: var(--text-sm); cursor: pointer; }
+body.simple-experience .simple-widgets-toggle:hover { color: var(--color-text); }
+body.simple-experience .simple-widgets-toggle svg { width: 14px; height: 14px; transition: transform var(--transition-fast); }
+body.simple-experience .simple-widgets-toggle[aria-expanded="true"] svg { transform: rotate(90deg); }
+body.simple-experience .simple-widgets-count { color: var(--color-text-tertiary); }
+body.simple-experience .simple-widgets-edit { margin-left: auto; padding: 4px 8px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--color-text-secondary); font: inherit; font-size: var(--text-sm); cursor: pointer; }
+body.simple-experience .simple-widgets-edit:hover { color: var(--color-text); background: var(--color-surface-hover); }
+body.simple-experience .simple-widgets-body { margin-top: 10px; }
+body.simple-experience .simple-widgets-empty { margin: 0; padding: 12px 0; font-size: var(--text-sm); font-style: italic; color: var(--color-text-tertiary); }
+body.simple-experience #simple-widgets-host { display: flex; flex-direction: column; align-items: stretch; margin-bottom: 0; }
+body.simple-experience #simple-widgets-host .dash-widgets-col { display: contents; }
+body.simple-experience #simple-widgets-host .widget-card { border-radius: var(--radius-md); box-shadow: none; }
+body.simple-experience #simple-widgets-host .widget-title { font-size: var(--text-sm); font-weight: 600; }
+body.simple-experience #simple-widgets-host .widget-row-text { font-size: var(--text-sm); }
+
+/* The Widgets screen — a routed page like Chat History. */
+body.simple-experience #widgets-view { --view-content-max: var(--simple-col); height: calc(100vh - 38px); overflow-y: auto; padding: 40px 24px 64px; }
+body.simple-experience .simple-widget-pick { justify-content: flex-start; gap: 12px; cursor: pointer; }
+body.simple-experience .simple-widget-pick .simple-home-copy { flex: 1; }
+body.simple-experience .simple-widget-pick .settings-switch { flex: 0 0 auto; margin-left: auto; }
+body.simple-experience .simple-widget-pick .simple-home-icon svg { width: 18px; height: 18px; }
+
+
+/* ══ The nenva shell (2026-10-01) ═══════════════════════════════════════
+   Ported from nenva desktop (~/workspace/nenva/desktop/src/style.css):
+   a 220px left nav (brand, New chat, Now · Chats · Jobs · Settings, text
+   only) and a titlebar that holds only the name. The nav width rides
+   --sidenav-w, so #app-views and everything keyed to it move with it. */
+body.simple-experience.in-setup { --sidenav-w: 0px; }
+body.simple-experience .nv-nav { position: fixed; top: 38px; left: 0; bottom: 0; z-index: 95; width: 220px; box-sizing: border-box; padding: 22px 14px; display: flex; flex-direction: column; gap: 18px; border-right: 1px solid var(--color-border); background: var(--color-bg); }
+body.simple-experience.in-setup .nv-nav,
+body:not(.simple-experience) .nv-nav { display: none; }
+body.simple-experience .nv-brand { display: flex; align-items: center; gap: 10px; padding: 0 8px; border: 0; background: none; color: var(--color-text); font: 400 21px/1 var(--font-serif); cursor: pointer; text-align: left; }
+body.simple-experience .nv-brand svg { flex: 0 0 24px; }
+body.simple-experience .nv-new { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 9px 14px; border: 1px solid var(--color-border); border-radius: 999px; background: var(--color-surface); color: var(--color-text); font: 600 13.5px var(--font-sans); cursor: pointer; }
+body.simple-experience .nv-new:hover { border-color: var(--color-border-hover); box-shadow: var(--shadow-sm); }
+body.simple-experience .nv-items { display: flex; flex-direction: column; gap: 2px; }
+body.simple-experience .nv-items button { padding: 8px 10px; border: 0; border-radius: 8px; background: none; color: var(--color-text-secondary); font: 14px var(--font-sans); text-align: left; cursor: pointer; }
+body.simple-experience .nv-items button:hover { color: var(--color-text); }
+body.simple-experience .nv-items button.is-on { background: var(--color-surface); color: var(--color-text); font-weight: 600; box-shadow: 0 0 0 1px var(--color-border); }
+
+/* The titlebar holds the name and nothing else, like a plain macOS window.
+   The update pill (how updates are installed) and the focus pill (only
+   during a session) still appear when they apply; ⌘K and ⌘/ still work. */
+body.simple-experience .simple-nav,
+body.simple-experience #titlebar-search,
+body.simple-experience #whats-new-chip,
+body.simple-experience #titlebar-ai-activity-btn,
+body.simple-experience #theme-toggle-btn,
+body.simple-experience #agent-toggle-btn,
+body.simple-experience #titlebar-home-btn,
+body.simple-experience #titlebar-apps-btn,
+body.simple-experience .titlebar-divider { display: none !important; }
+body.simple-experience #titlebar-home { position: absolute; left: 50%; top: 6px; transform: translateX(-50%); cursor: default; }
+body.simple-experience #titlebar-home:hover { background: none; }
+
+/* The chat boxes KEEP their model dropdown (Ram, 2026-10-01: "we should
+   still show model selection dropdown we had before in the chatbox") —
+   the one place this shell departs from nenva desktop on purpose. */
+
+/* Jobs: one sheet of rows, title over a small time, status on the right. */
+body.simple-experience #jobs-view { --view-content-max: var(--simple-col); height: calc(100vh - 38px); overflow-y: auto; padding: 40px 24px 64px; }
+body.simple-experience .nv-job-row { align-items: center; }
+body.simple-experience .nv-job-copy { display: grid; gap: 3px; min-width: 0; }
+body.simple-experience .nv-job-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body.simple-experience .nv-job-copy small { font-size: var(--text-xs); color: var(--color-text-tertiary); }
+body.simple-experience .nv-job-status { flex: 0 0 auto; font-size: 12.5px; color: var(--color-text-tertiary); }
+body.simple-experience .nv-job-status.is-live { color: var(--color-accent); }
+body.simple-experience .nv-job-status.is-attn { font-weight: 600; }
+
+/* The chat page (nenva desktop's ChatPage): no app header furniture — the
+   nav has New chat and Chats; the Private switch stays, it is a privacy
+   choice. No suggestions or name nudge; one empty line. */
+body.simple-experience #agent-sidebar-toggle,
+body.simple-experience #agent-new-chat-btn,
+body.simple-experience #agent-breadcrumb,
+body.simple-experience #agent-view .app-settings-btn,
+body.simple-experience #agent-view .agent-history-sidebar,
+body.simple-experience #agent-view .agent-suggestions,
+body.simple-experience #agent-view .assistant-name-nudge { display: none !important; }
+body.simple-experience #agent-view .agent-empty-line { margin: 18vh 0 0; text-align: center; font-size: var(--text-base); color: var(--color-text-secondary); }
+
+/* ══ Now (2026-10-01, nenva desktop's calm Now) ══════════════════════════
+   A 700px column: a small line, one serif sentence, NEXT rows with one
+   pill each, JOBS lines, a TODAY line; the chat box docked at the bottom.
+   Lines, not cards: the only colour is the accent on what is live. */
+body.simple-experience #dashboard-view .dashboard-container { max-width: 700px; padding: 28px 32px 180px; }
+body.simple-experience .simple-intro.nv-lede { text-align: left; padding: 28px 0 0; display: flex; flex-direction: column; gap: 12px; }
+body.simple-experience .nv-lede-line { margin: 0; font-size: 13px; color: var(--color-text-secondary); }
+/* The status is moving (2026-10-05, by request): a small ring beside
+   "Reading your email". It only turns (transform), so a stalled animation
+   clock leaves it drawn; reduced motion gets it still. */
+body.simple-experience .nv-lede-busy { display: inline-block; width: 9px; height: 9px; margin-right: 6px; vertical-align: -0.5px; border: 1.5px solid var(--color-border); border-top-color: var(--color-accent); border-radius: 50%; box-sizing: border-box; }
+@media (prefers-reduced-motion: no-preference) {
+    body.simple-experience .nv-lede-busy { animation: spin 0.9s linear infinite; }
+}
+/* The note (2026-10-05, by request): a small serif greeting, then each fact
+   on its own line in body type, instead of one large run-on sentence. */
+body.simple-experience .nv-briefing { margin: 0; display: flex; flex-direction: column; gap: 4px; font: 400 var(--prose-size, 15px)/1.5 var(--font-sans); letter-spacing: 0; color: var(--color-text-secondary); }
+body.simple-experience .nv-hello { font: 400 var(--text-2xl)/1.3 var(--font-serif); letter-spacing: -0.01em; color: var(--color-text); margin-bottom: 2px; }
+body.simple-experience .nv-brief-line { display: block; overflow-wrap: anywhere; }
+body.simple-experience .nv-link { padding: 0; border: 0; background: none; color: var(--color-text-secondary); font: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+body.simple-experience .nv-link:hover { color: var(--color-text); }
+/* align-items: stretch undoes the old grid's `start` above, which in a flex
+   column shrank every section (and the card) to the width of its content. */
+body.simple-experience #simple-home-sections { display: flex; flex-direction: column; align-items: stretch; gap: 34px; margin-top: 34px; }
+body.simple-experience .nv-section { display: flex; flex-direction: column; }
+body.simple-experience .nv-eyebrow { padding-bottom: 8px; font-size: var(--text-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-text-secondary); }
+body.simple-experience .nv-nextrow { display: flex; align-items: center; gap: 14px; padding: 14px 0; border-top: 1px solid var(--color-border); }
+body.simple-experience .nv-dot { width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--color-text-tertiary); }
+body.simple-experience .nv-dot.is-attn { background: var(--color-accent); }
+body.simple-experience .nv-what { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; padding: 0; border: 0; background: none; color: var(--color-text); font: inherit; text-align: left; cursor: pointer; }
+body.simple-experience .nv-what .nv-t { font-size: 15.5px; font-weight: 500; }
+body.simple-experience .nv-what .nv-d { font-size: 13.5px; color: var(--color-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.simple-experience .nv-what:hover .nv-t { text-decoration: underline; text-decoration-color: var(--color-border-hover); text-underline-offset: 3px; }
+body.simple-experience .nv-pill { flex: none; padding: 8px 16px; border: 0; border-radius: 999px; background: var(--color-accent); color: #fff; font: 600 13.5px var(--font-sans); cursor: pointer; }
+body.simple-experience .nv-pill:hover { filter: brightness(1.06); }
+body.simple-experience .nv-more { align-self: flex-start; margin-top: 6px; font-size: var(--text-sm); }
+body.simple-experience .nv-jobline { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 7px 0; border: 0; background: none; color: var(--color-text); font: inherit; text-align: left; cursor: pointer; }
+body.simple-experience .nv-jobline .nv-t { flex: none; max-width: 72%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; }
+body.simple-experience .nv-jobline .nv-d { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; color: var(--color-text-secondary); }
+body.simple-experience .nv-ring { width: 8px; height: 8px; flex: none; box-sizing: border-box; border: 2px solid var(--color-accent); border-radius: 50%; animation: nvPulse 1.6s ease-in-out infinite; }
+/* transform only: an opacity pulse can stall invisible (CLAUDE.md
+   animation rule), a scale pulse cannot hide anything. */
+@keyframes nvPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(0.7); } }
+body.simple-experience .nv-tick { width: 8px; flex: none; font-size: 11px; color: var(--color-text-tertiary); }
+body.simple-experience .nv-tick.is-failed { color: var(--color-red); }
+body.simple-experience .nv-todayline { flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 6px 18px; font-size: 14px; color: var(--color-text-secondary); }
+body.simple-experience .nv-todayline .nv-eyebrow { padding: 0; }
+body.simple-experience .nv-todayline b { font-weight: 500; color: var(--color-text); }
+
+/* The dock: the chat box fixed at the bottom of Now, centred in the
+   content area beside the nav, over a fade, with Chats beside it. */
+body.simple-experience .nv-dock { position: fixed; z-index: 20; bottom: 0; left: var(--sidenav-w); right: 0; display: flex; align-items: flex-end; justify-content: center; gap: 8px; padding: 28px 32px 22px; background: linear-gradient(to top, var(--color-bg) 70%, transparent); pointer-events: none; }
+body.simple-experience .nv-dock > * { pointer-events: auto; }
+body.simple-experience .nv-dock-inner { position: relative; width: min(636px, 100%); }
+body.simple-experience .nv-dock .dash-agent-hero { width: 100%; margin: 0; }
+body.simple-experience .nv-dock #dash-agent-input { min-height: 0; }
+body.simple-experience .nv-dock .dash-agent-suggestions { display: none !important; }
+body.simple-experience .nv-history { position: absolute; left: calc(100% + 8px); bottom: 6px; display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; flex: none; border: 0; border-radius: 50%; background: none; color: var(--color-text-secondary); cursor: pointer; }
+body.simple-experience .nv-history:hover { color: var(--color-text); background: var(--color-surface-hover); }
+body:not(.simple-experience) .nv-dock,
+body.simple-experience:not(.simple-at-home) .nv-dock,
+body.simple-experience.in-setup .nv-dock { display: none; }
+body.simple-experience .nv-notnow { flex: none; font-size: var(--text-sm); }
+
+/* A job (nenva's job page): the way back and status on one line, a serif
+   title, what it ended on, its steps as a quiet list, the chat door. */
+body.simple-experience .nv-job-head { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+body.simple-experience .nv-job-head .nv-job-status { margin-left: auto; }
+body.simple-experience .nv-job-h1 { margin: 0 0 10px; font: 400 var(--text-3xl)/1.2 var(--font-serif); letter-spacing: -0.012em; }
+body.simple-experience .nv-job-note { margin: 0 0 22px; font-size: var(--text-sm); color: var(--color-text-secondary); }
+body.simple-experience .nv-steps { margin: 0 0 24px; padding: 0 0 0 14px; list-style: none; border-left: 2px solid var(--color-border); display: flex; flex-direction: column; gap: 10px; }
+body.simple-experience .nv-step { display: flex; gap: 10px; align-items: baseline; }
+body.simple-experience .nv-step-mark { width: 14px; flex: none; font-size: 12px; color: var(--color-text-tertiary); display: inline-flex; justify-content: center; }
+body.simple-experience .nv-step.is-done .nv-step-mark { color: var(--color-green); }
+body.simple-experience .nv-step.is-failed .nv-step-mark { color: var(--color-red); }
+body.simple-experience .nv-step-copy { display: grid; gap: 2px; font-size: var(--text-sm); }
+body.simple-experience .nv-step-copy small { color: var(--color-text-tertiary); font-size: var(--text-xs); }
+body.simple-experience .nv-step.is-pending .nv-step-copy > span { color: var(--color-text-secondary); }
+
+/* The Widgets page (2026-10-01, a nav item): title with Edit/Done beside
+   it, the switches while editing, the live cards otherwise. */
+body.simple-experience .nv-widgets-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+body.simple-experience .nv-widgets-lede { margin: -12px 0 16px; font-size: var(--text-sm); color: var(--color-text-secondary); }
+body.simple-experience #widgets-view #simple-widgets-host { margin-top: 0; }
+/* A TODAY meeting opens in the calendar it came from: plain text that
+   underlines on hover, never a button-shaped thing in a sentence. */
+body.simple-experience .nv-today-link { padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; text-align: left; }
+body.simple-experience .nv-today-link:hover { color: var(--color-text); text-decoration: underline; text-decoration-color: var(--color-border-hover); text-underline-offset: 3px; }
+
+/* ══ The chat page, one surface (2026-10-01, by request: "white block for
+   messages and then a white block for chatbox, everything else different
+   color is not sitting well") ═══════════════════════════════════════════
+   The conversation sits ON the page ground in one centred column: no
+   sheet. Your messages are soft borderless bubbles (a tint of ink on the
+   ground, never a hue), replies are plain prose, and the chat box is the
+   ONE white thing on the page, a rounded box floating at the bottom over a
+   fade, the same shape as Now's docked box. Spacing between turns is
+   tighter than the full shell's. */
+body.simple-experience {
+    --nv-col: 720px;
+    --nv-bubble: color-mix(in srgb, var(--color-text) 6%, var(--color-bg));
+    --nv-box-radius: 20px;
+    --nv-box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 28px rgba(0, 0, 0, 0.07);
+}
+[data-theme="dark"] body.simple-experience,
+body.simple-experience[data-theme="dark"] {
+    --nv-bubble: color-mix(in srgb, var(--color-text) 10%, var(--color-bg));
+    --nv-box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 28px rgba(0, 0, 0, 0.35);
+}
+body.simple-experience #agent-view #agent-app-messages {
+    max-width: var(--nv-col); margin: 0 auto; width: 100%; box-sizing: border-box;
+    padding: 24px 0 40px; background: transparent; border: 0; border-radius: 0; box-shadow: none;
+}
+body.simple-experience #agent-view .agent-message-user .agent-bubble {
+    background: var(--nv-bubble); border: 0; border-radius: 18px 18px 6px 18px;
+    padding: 10px 16px; margin-top: 28px;
+}
+body.simple-experience #agent-view .agent-message-assistant { margin-top: 14px; margin-right: 0; }
+body.simple-experience #agent-view .agent-message-assistant .agent-bubble { background: transparent; border: 0; padding: 0; }
+body.simple-experience #agent-view .agent-input-bar {
+    margin: 0 auto; max-width: calc(var(--nv-col) + 32px); width: 100%; box-sizing: border-box;
+    padding: 18px 16px 18px; background: linear-gradient(to top, var(--color-bg) 75%, transparent);
+}
+body.simple-experience #agent-view .agent-composer,
+body.simple-experience .nv-dock .dash-agent-hero .agent-composer,
+body.simple-experience .nv-dock .dash-agent-box {
+    border-radius: var(--nv-box-radius); box-shadow: var(--nv-box-shadow); border-color: var(--color-border-light);
+}
+/* Hover-only controls must not hold space between turns: the edit pencil
+   floats beside your bubble, Copy and Repeat share one quiet row. */
+body.simple-experience #agent-view .agent-message-user { position: relative; }
+body.simple-experience #agent-view .agent-message-user .agent-bubble { margin-top: 22px; margin-bottom: 0; }
+body.simple-experience #agent-view .agent-message-user .agent-edit-btn { position: absolute; right: calc(100% + 6px); bottom: 8px; margin: 0; }
+body.simple-experience #agent-view .agent-message-user .agent-bubble ~ .agent-edit-btn { right: auto; left: auto; }
+body.simple-experience #agent-view .agent-message-assistant .agent-msg-copy,
+body.simple-experience #agent-view .agent-message-assistant .agent-msg-repeat { display: inline-flex; margin: 6px 10px 0 0; }
+
+/* NEXT rows are quiet at rest (2026-10-01, by request: "when there are
+   many items it looks like there is lot of buttons"). The action shows as
+   a small outline button only while the row is hovered or holds focus;
+   its space is kept so nothing shifts, and it cannot be clicked unseen.
+   Clicking the row's title still opens the item. Opacity here is a hover
+   state, not what reveals content (CLAUDE.md animation rule). */
+body.simple-experience .nv-nextrow .nv-pill {
+    padding: 6px 14px; border: 1px solid var(--color-border); background: var(--color-surface);
+    color: var(--color-text); font: 600 13px var(--font-sans);
+    opacity: 0; pointer-events: none; transition: opacity var(--transition-fast);
+}
+body.simple-experience .nv-nextrow .nv-pill:hover { border-color: var(--color-border-hover); filter: none; }
+body.simple-experience .nv-nextrow .nv-notnow { opacity: 0; pointer-events: none; transition: opacity var(--transition-fast); }
+body.simple-experience .nv-nextrow:hover .nv-pill,
+body.simple-experience .nv-nextrow:focus-within .nv-pill,
+body.simple-experience .nv-nextrow:hover .nv-notnow,
+body.simple-experience .nv-nextrow:focus-within .nv-notnow { opacity: 1; pointer-events: auto; }
+body.simple-experience .nv-nextrow:hover { background: linear-gradient(to right, transparent, color-mix(in srgb, var(--color-text) 3%, transparent) 12%, color-mix(in srgb, var(--color-text) 3%, transparent) 88%, transparent); }
+
+/* NEXT rows carry no buttons (2026-10-01, by request): each row is ONE
+   click target that opens the thing, where its actions live. A quiet
+   chevron says so; hover tints the row. */
+body.simple-experience button.nv-nextrow { width: 100%; border: 0; border-top: 1px solid var(--color-border); background: none; color: var(--color-text); font: inherit; text-align: left; cursor: pointer; }
+body.simple-experience button.nv-nextrow .nv-what { cursor: inherit; }
+body.simple-experience button.nv-nextrow:hover .nv-t { text-decoration: none; }
+body.simple-experience .nv-chev { flex: none; color: var(--color-text-quaternary, var(--color-text-tertiary)); transition: color var(--transition-fast), transform var(--transition-fast); }
+body.simple-experience button.nv-nextrow:hover .nv-chev { color: var(--color-text-secondary); transform: translateX(2px); }
+body.simple-experience button.nv-nextrow:focus-visible { outline: 2px solid var(--color-accent); outline-offset: -2px; border-radius: var(--radius-sm); }
+
+/* TODAY as a short list (2026-10-01, by request): one item per line, the
+   time in a fixed left column so the eye scans the day down one edge; a
+   meeting row opens in its calendar. Replaces the one wrapping line. */
+body.simple-experience .nv-today-row { display: flex; align-items: baseline; gap: 14px; padding: 7px 0; border: 0; background: none; color: var(--color-text); font: inherit; font-size: 14.5px; text-align: left; width: 100%; }
+body.simple-experience .nv-today-time { flex: 0 0 72px; font-size: 13px; color: var(--color-text-secondary); font-variant-numeric: tabular-nums; }
+body.simple-experience .nv-today-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body.simple-experience .nv-today-row.is-link { cursor: pointer; }
+body.simple-experience .nv-today-row.is-link:hover .nv-today-title { text-decoration: underline; text-decoration-color: var(--color-border-hover); text-underline-offset: 3px; }
+body.simple-experience .nv-today-empty { margin: 0; padding: 4px 0; font-size: 14px; color: var(--color-text-secondary); }
+
+/* ══ Tasks and Projects, minimal (2026-10-01, by request: "minimalize the
+   tasks and projects pages ... inline with minimal and AI assistant
+   centric UI theme of insights and home page") ════════════════════════
+   One centred column, no rails, no white section cards, rows as hairline
+   lines, small chips for the one dimension worth switching. Group hues on
+   Projects are DATA (by request, 2026-09-10) and stay. */
+
+/* Shared chips (Tasks' time, Projects' groups). */
+body.simple-experience .nv-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 var(--space-lg); }
+body.simple-experience .nv-chip,
+body.simple-experience #goals-view .goals-filter-pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border: 1px solid var(--color-border); border-radius: 999px; background: var(--color-surface); color: var(--color-text-secondary); font: inherit; font-size: var(--text-sm); cursor: pointer; }
+body.simple-experience .nv-chip:hover,
+body.simple-experience #goals-view .goals-filter-pill:hover { color: var(--color-text); background: var(--color-surface-hover); }
+body.simple-experience .nv-chip.is-on,
+body.simple-experience #goals-view .goals-filter-pill.is-active { color: var(--color-bg); background: var(--color-text); border-color: var(--color-text); }
+
+/* ── Tasks ── */
+body.simple-experience #actions-view .actions-nav,
+body.simple-experience #actions-view #actions-nav-resizer,
+body.simple-experience #actions-view .actions-search-wrap,
+body.simple-experience #actions-view .app-help-btn,
+body.simple-experience #actions-view .actions-sel-pill,
+body.simple-experience #actions-view #actions-review-nudge,
+body.simple-experience #actions-view #actions-ask-row,
+body.simple-experience #actions-view .actions-push-today { display: none !important; }
+body.simple-experience #actions-view .app-header-bar,
+body.simple-experience #actions-view .actions-layout { max-width: 700px; margin-left: auto; margin-right: auto; }
+body.simple-experience #actions-view .actions-layout { display: block; }
+body.simple-experience #actions-view .actions-main { padding: 0; max-width: none; }
+body.simple-experience #actions-view .actions-date-line { margin: 0 0 var(--space-sm); }
+body.simple-experience #actions-view .actions-date-summary { font-size: 13px; color: var(--color-text-secondary); }
+body.simple-experience #actions-view #actions-quick-add { border-radius: 14px; border-color: var(--color-border-light); background: var(--color-surface); box-shadow: none; }
+body.simple-experience #actions-view .actions-quick-add-wrap { margin-bottom: var(--space-lg); }
+body.simple-experience #actions-view .actions-section { background: transparent; border: 0; border-radius: 0; box-shadow: none; padding: 0; margin: 0 0 var(--space-xl); }
+body.simple-experience #actions-view .actions-section-header { padding: 0 0 8px; font-size: var(--text-xs); letter-spacing: 0.06em; }
+body.simple-experience #actions-view .actions-section-count { background: none; border: 0; padding: 0; color: inherit; }
+body.simple-experience #actions-view .actions-overdue-pushall { border: 0; background: none; color: var(--color-text-secondary); text-decoration: underline; text-underline-offset: 3px; padding: 0; }
+body.simple-experience #actions-view .actions-date-heading { margin: 10px 0 2px; font-size: var(--text-xs); color: var(--color-text-tertiary); }
+body.simple-experience #actions-view .actions-row { padding: 10px 0; border-top: 1px solid var(--color-border); border-radius: 0; }
+body.simple-experience #actions-view .actions-row:hover { background: transparent; }
+body.simple-experience #actions-view .actions-day-divider { display: none; }
+body.simple-experience #actions-view .actions-check { appearance: none; -webkit-appearance: none; width: 18px; height: 18px; margin: 0; border: 1.5px solid var(--color-border-hover); border-radius: 50%; background: transparent; cursor: pointer; }
+body.simple-experience #actions-view .actions-check:hover { border-color: var(--color-text-secondary); }
+body.simple-experience #actions-view .actions-check:checked { background: var(--color-text); border-color: var(--color-text); }
+body.simple-experience #actions-view .actions-row-time { font-size: 13px; color: var(--color-text-secondary); font-style: normal; }
+body.simple-experience #actions-view .actions-row-time.is-anytime { color: var(--color-text-tertiary); }
+body.simple-experience #actions-view .actions-row-title { font-size: 15px; }
+body.simple-experience #actions-view .actions-goal-chip { border: 0; background: none; padding: 0; font-size: 13px; color: var(--color-text-tertiary); }
+body.simple-experience #actions-view .actions-goal-chip:hover { color: var(--color-text-secondary); }
+body.simple-experience #actions-view .actions-row-menu { opacity: 0; transition: opacity var(--transition-fast); }
+body.simple-experience #actions-view .actions-row:hover .actions-row-menu,
+body.simple-experience #actions-view .actions-row:focus-within .actions-row-menu { opacity: 1; }
+
+/* ── Projects ── */
+body.simple-experience #goals-view .app-help-btn,
+body.simple-experience #goals-view .goals-detail-eyebrow,
+body.simple-experience #goals-view .goals-th { display: none !important; }
+body.simple-experience #goals-view .app-header-bar,
+body.simple-experience #goals-view .goals-workspace { max-width: 700px; margin-left: auto; margin-right: auto; }
+body.simple-experience #goals-view .goals-head { display: none; }
+body.simple-experience #goals-view .goals-filter-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 var(--space-lg); }
+/* Needs attention: a section of lines, not a card. */
+body.simple-experience #goals-view .goals-attn { background: transparent; border: 0; box-shadow: none; padding: 0; margin: 0 0 var(--space-xl); }
+body.simple-experience #goals-view .goals-attn-head { padding-bottom: 8px; font-size: var(--text-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-text-secondary); }
+body.simple-experience #goals-view .goals-attn-row { padding: 10px 0; border-top: 1px solid var(--color-border); }
+/* The table becomes a list: title over one quiet line of facts. */
+body.simple-experience #goals-view .goals-table { background: transparent; border: 0; border-radius: 0; box-shadow: none; }
+body.simple-experience #goals-view .goals-table .goals-tr:not(.goals-th) {
+    display: grid; grid-template-columns: auto auto 1fr auto; grid-template-areas: "title title title target" "group progress next next";
+    gap: 4px 14px; align-items: baseline; padding: 14px 0; border-top: 1px solid var(--color-border); border-left: 0; border-right: 0; border-bottom: 0; border-radius: 0; background: none; text-align: left;
+}
+body.simple-experience #goals-view .goals-tr:not(.goals-th):hover { background: transparent; }
+body.simple-experience #goals-view .goals-tr:not(.goals-th):hover .goals-td-name { text-decoration: underline; text-decoration-color: var(--color-border-hover); text-underline-offset: 3px; }
+body.simple-experience #goals-view .goals-td-title { grid-area: title; }
+body.simple-experience #goals-view .goals-td-name { font-size: 15.5px; font-weight: 500; }
+body.simple-experience #goals-view .goals-td-targetcell { grid-area: target; font-size: 13px; color: var(--color-text-secondary); }
+body.simple-experience #goals-view .goals-td-group { grid-area: group; font-size: 13px; color: var(--color-text-secondary); }
+body.simple-experience #goals-view .goals-td-progress { grid-area: progress; font-size: 13px; color: var(--color-text-secondary); }
+body.simple-experience #goals-view .goals-td-progress .goals-track { display: none; }
+body.simple-experience #goals-view .goals-td-next { grid-area: next; display: flex; gap: 6px; min-width: 0; font-size: 13px; color: var(--color-text-secondary); }
+body.simple-experience #goals-view .goals-td-next::before { content: 'Next:'; color: var(--color-text-tertiary); }
+body.simple-experience #goals-view .goals-td-nexttitle { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+body.simple-experience #goals-view .goals-td-next .goals-td-sub,
+body.simple-experience #goals-view .goals-td-updated { display: none; }
+body.simple-experience #actions-view .actions-row-meta { border: 0; padding-right: 0; }
+body.simple-experience #actions-view .actions-row { column-gap: 14px; }
+body.simple-experience #actions-view .actions-date-heading { border: 0; }
+body.simple-experience #goals-view .goals-attn-row { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; width: 100%; grid-template-columns: none; text-align: left; }
+body.simple-experience #goals-view .goals-attn-title { display: inline-flex; align-items: center; gap: 8px; padding: 0; margin: 0; font-size: 14.5px; }
+body.simple-experience #goals-view .goals-td-next { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.simple-experience #goals-view .goals-td-next::before { margin-right: 6px; }
+body.simple-experience #goals-view .goals-td-nexttitle { display: inline; }
+body.simple-experience #goals-view .goals-attn-title { flex: 1; justify-content: flex-start; text-align: left; margin-right: auto; }
+body.simple-experience #goals-view .goals-table { border-top: 0; }
+/* Groups were removed from Projects (2026-10-01, by request): a project
+   stored with a group keeps no colour or chip for it. */
+body.simple-experience #goals-view .goals-hue-dot { display: none; }
+
+/* Task page, condensed (2026-10-01, by request: "keep these fields but
+   make the UI condensed to give a minimal feel"). The property list becomes
+   a quiet two-column grid — Date | Repeat, Start | End, Remind | Project —
+   with sentence-case labels in a narrow gutter, no row rules, no "Details"
+   header and no "optional" hints. Notes and Tags run full width beneath.
+   Same inputs and ids; layout only. */
+body.simple-experience .task-sheet .schedule-editor-fields > .detail-section-header,
+body.simple-experience .task-sheet .schedule-field-hint { display: none; }
+body.simple-experience .task-sheet .schedule-editor-fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: var(--space-xl);
+    row-gap: 0;
+    padding-bottom: var(--space-sm);
+}
+body.simple-experience .task-sheet .schedule-field-row-2 { display: contents; }
+body.simple-experience .task-sheet .schedule-field-group,
+body.simple-experience .task-sheet .schedule-weekly-options,
+body.simple-experience .task-sheet .schedule-custom-options {
+    grid-template-columns: 64px 1fr;
+    column-gap: var(--space-sm);
+    padding: 1px 0;
+    border-bottom: none;
+    min-width: 0;
+}
+body.simple-experience .task-sheet .schedule-field-group[hidden] { display: none; }
+body.simple-experience .task-sheet .schedule-field-group label,
+body.simple-experience .task-sheet .schedule-weekly-options label,
+body.simple-experience .task-sheet .schedule-custom-options > label {
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: var(--text-sm);
+    font-weight: 400;
+    color: var(--color-text-tertiary);
+}
+body.simple-experience .task-sheet .schedule-field-group input,
+body.simple-experience .task-sheet .schedule-field-group select { min-width: 0; height: 28px; }
+body.simple-experience .task-sheet .schedule-weekly-options,
+body.simple-experience .task-sheet .schedule-custom-options,
+body.simple-experience .task-sheet .schedule-field-group-full { grid-column: 1 / -1; }
+/* Notes: a plain writing area, no label — its placeholder says what it is. */
+body.simple-experience .task-sheet .schedule-field-group-full:has(#schedule-description-input) {
+    grid-template-columns: 1fr;
+    margin-top: var(--space-sm);
+}
+body.simple-experience .task-sheet .schedule-field-group-full:has(#schedule-description-input) > label { display: none; }
+body.simple-experience .task-sheet .schedule-description-input { margin-left: -10px; width: calc(100% + 10px); }
+body.simple-experience .task-sheet .schedule-field-group-full label { padding-top: 5px; }
+/* Project, now a row of the grid. */
+body.simple-experience .task-sheet .schedule-project-value { min-width: 0; position: relative; }
+body.simple-experience .task-sheet .schedule-goal-link {
+    max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+body.simple-experience .task-sheet .schedule-goal-suggest { margin-top: 2px; }
+
+/* Project page (2026-10-01): the weekly review lives in Updates' composer
+   foot, Delete in the head. */
+.updates-foot-extra { order: 1; display: inline-flex; align-items: center; gap: var(--space-sm); color: var(--color-text-tertiary); font-size: var(--text-xs); }
+.updates-foot-extra::before { content: "\00b7"; color: var(--color-text-quaternary); }
+.updates-checkin-btn { order: 0; }
+.goals-sheet-head-right .goal-embed-delete { color: var(--color-text-tertiary); }
+.goals-sheet-head-right .goal-embed-delete:hover { color: var(--color-red); }
+
+/* Now: a long job title or status must truncate, never widen the page
+   (2026-10-01 report). The section is a flex child of the column, so it
+   needs min-width: 0 to be allowed to be narrower than its content. */
+body.simple-experience .nv-section { min-width: 0; max-width: 100%; }
+body.simple-experience .nv-jobline { width: 100%; max-width: 100%; }
+body.simple-experience .nv-jobline .nv-t { flex: 0 1 auto; min-width: 0; }
+body.simple-experience .nv-jobline .nv-d { flex: 1 1 0; }
+
+/* Task sheet head (2026-10-01, by request): no breadcrumb and no time
+   tracked pill; the head is the save state and the actions. */
+.task-sheet .schedule-editor-header .app-breadcrumb,
+.task-sheet .schedule-timer-header { display: none !important; }
+.task-sheet .schedule-editor-header { justify-content: flex-end; }
+/* Tags row: the label centres on the pill strip (it inherited the
+   multi-line rows' top alignment and sat below "+ Add tag"). */
+body.simple-experience .task-sheet .schedule-field-group-full:has(#schedule-tags-container) { align-items: center; }
+body.simple-experience .task-sheet .schedule-field-group-full:has(#schedule-tags-container) > label { padding-top: 0; }
+
+/* Hover delete on Chats and Jobs rows (2026-10-01): the trash icon sits
+   over the row's right end and replaces its time/status while shown. */
+body.simple-experience .nv-del-wrap { position: relative; }
+body.simple-experience .nv-del-wrap > .simple-row { width: 100%; }
+body.simple-experience .nv-del-btn {
+    position: absolute; top: 50%; right: 10px; transform: translateY(-50%);
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 30px; height: 30px; padding: 0; border: 0; border-radius: 999px;
+    background: var(--color-surface); color: var(--color-text-tertiary);
+    cursor: pointer; opacity: 0; pointer-events: none;
+    transition: opacity var(--transition-fast), color var(--transition-fast), background var(--transition-fast);
+}
+body.simple-experience .nv-del-wrap:hover .nv-del-btn,
+body.simple-experience .nv-del-wrap:focus-within .nv-del-btn { opacity: 1; pointer-events: auto; }
+body.simple-experience .nv-del-btn:hover { color: var(--color-red); background: var(--color-surface-hover); }
+body.simple-experience .nv-del-wrap:hover .simple-row-meta,
+body.simple-experience .nv-del-wrap:hover .nv-job-status,
+body.simple-experience .nv-del-wrap:focus-within .simple-row-meta,
+body.simple-experience .nv-del-wrap:focus-within .nv-job-status { visibility: hidden; }
+body.simple-experience .nv-del-wrap + .nv-del-wrap { border-top: 1px solid var(--color-border); }
+body.simple-experience .nv-del-wrap:hover > .simple-row { background: var(--color-surface-hover); }
+
+/* ── Now as a walk-through (2026-10-01): one card at a time ──────────────
+   The card is the one white sheet on the page; everything else stays on
+   the ground. Kind is a small eyebrow (words, not colour), with the one
+   accent reserved for "Needs you". */
+body.simple-experience .nv-cards { gap: 10px; }
+body.simple-experience .nv-card {
+    padding: 18px 22px 16px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+}
+[data-theme="dark"] body.simple-experience .nv-card,
+body.simple-experience[data-theme="dark"] .nv-card { box-shadow: none; }
+body.simple-experience .nv-card-eyebrow {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 8px;
+    font-size: var(--text-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--color-text-secondary);
+}
+body.simple-experience .nv-card.is-decide .nv-card-eyebrow > span:first-child { color: var(--color-accent); }
+body.simple-experience .nv-card-count { font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--color-text-tertiary); }
+/* Previous / next beside the count (2026-10-02, by request): the person moves
+   through the deck; nothing moves it for them. */
+body.simple-experience .nv-card-nav { display: inline-flex; align-items: center; gap: 6px; }
+body.simple-experience .nv-card-step { width: 26px; height: 26px; border-radius: 999px; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text-secondary); font-size: var(--text-base); line-height: 1; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; padding: 0 0 2px; }
+body.simple-experience .nv-card-step:hover { color: var(--color-text); border-color: var(--color-border-hover); }
+body.simple-experience .nv-card-step:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+body.simple-experience .nv-card-title {
+    display: block; width: 100%; padding: 0; border: 0; background: none; text-align: left; cursor: pointer;
+    font: 400 var(--text-2xl)/1.3 var(--font-serif); letter-spacing: -0.01em; color: var(--color-text);
+}
+body.simple-experience .nv-card-title:hover { text-decoration: underline; text-decoration-color: var(--color-border); text-underline-offset: 4px; }
+body.simple-experience .nv-card-body { margin: 8px 0 0; font-size: var(--prose-size, 15px); line-height: var(--prose-lh, 1.65); color: var(--color-text-secondary); }
+body.simple-experience .nv-card-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; margin-top: 14px; }
+body.simple-experience .nv-card-primary {
+    padding: 7px 18px; border: 0; border-radius: 999px;
+    background: var(--color-accent); color: #fff; font: inherit; font-size: var(--text-sm); font-weight: 600; cursor: pointer;
+}
+body.simple-experience .nv-card-primary:hover { opacity: 0.88; }
+body.simple-experience .nv-card-quiet {
+    padding: 0; border: 0; background: none; font: inherit; font-size: var(--text-sm);
+    color: var(--color-text-secondary); cursor: pointer;
+}
+body.simple-experience .nv-card-quiet:hover { color: var(--color-text); text-decoration: underline; text-underline-offset: 3px; }
+body.simple-experience .nv-card-more {
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; min-width: 0;
+    padding: 2px 4px; font-size: var(--text-sm); color: var(--color-text-tertiary);
+}
+body.simple-experience .nv-card-pick {
+    max-width: 30ch; padding: 0; border: 0; background: none; font: inherit; color: var(--color-text-secondary);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer;
+}
+body.simple-experience .nv-card-pick:hover { color: var(--color-text); text-decoration: underline; text-underline-offset: 3px; }
+body.simple-experience .nv-presence {
+    display: flex; flex-direction: column; gap: 2px; margin: 4px 0 0;
+    font-size: var(--text-xs); color: var(--color-text-tertiary);
+}
+body.simple-experience .nv-presence span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── Simple Settings (2026-10-01, js/core/simple-settings.js) ────────────
+   iOS-style: a title, then grouped white lists on the ground; each row a
+   label, its current value and a chevron; a checkmark for the one chosen. */
+.ss-view .ss-wrap { max-width: 640px; margin: 0 auto; padding: 28px 24px 64px; }
+.ss-view .ss-title { margin: 0 0 6px; font: 400 var(--text-4xl)/1.15 var(--font-serif); letter-spacing: -0.01em; color: var(--color-text); }
+.ss-view .ss-lede { margin: 0 0 18px; font-size: var(--text-sm); color: var(--color-text-secondary); }
+.ss-view .ss-note { margin: 0 0 14px; font-size: var(--text-sm); color: var(--color-text-secondary); }
+.ss-view .ss-back { margin: 0 0 10px; padding: 0; border: 0; background: none; font: inherit; font-size: var(--text-sm); color: var(--color-text-secondary); cursor: pointer; }
+.ss-view .ss-back:hover { color: var(--color-text); }
+.ss-view .ss-link { padding: 0; border: 0; background: none; font: inherit; color: var(--color-text); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.ss-view .ss-group {
+    margin: 18px 0 0; overflow: hidden;
+    background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg);
+}
+.ss-view .ss-row {
+    display: flex; align-items: center; gap: 12px; width: 100%; min-height: 48px; padding: 0 16px;
+    border: 0; background: none; font: inherit; color: var(--color-text); text-align: left; cursor: pointer;
+}
+.ss-view .ss-group > .ss-row + .ss-row { border-top: 1px solid var(--color-border-light); }
+.ss-view button.ss-row:hover, .ss-view .ss-pick-main:hover { background: var(--color-surface-hover); }
+.ss-view .ss-label { flex: 1; min-width: 0; font-size: var(--text-base, 14.5px); }
+.ss-view .ss-accent { color: var(--color-accent); }
+.ss-view .ss-value { max-width: 55%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-sm); color: var(--color-text-tertiary); }
+.ss-view .ss-chev { flex: none; color: var(--color-text-quaternary, var(--color-text-tertiary)); }
+.ss-view .ss-pick { padding: 0; gap: 0; cursor: default; }
+.ss-view .ss-pick-main {
+    display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; min-height: 56px; padding: 8px 16px;
+    border: 0; background: none; font: inherit; color: var(--color-text); text-align: left; cursor: pointer;
+}
+.ss-view .ss-pick-copy { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.ss-view .ss-sub { font-size: var(--text-xs); color: var(--color-text-tertiary); }
+.ss-view .ss-pick.is-on .ss-label { font-weight: 600; }
+.ss-view .ss-checkmark { flex: none; width: 18px; color: var(--color-accent); }
+.ss-view .ss-remove {
+    flex: none; margin-right: 12px; padding: 4px 10px; border: 0; border-radius: 999px; background: none;
+    font: inherit; font-size: var(--text-xs); color: var(--color-text-tertiary); cursor: pointer; opacity: 0;
+    transition: opacity var(--transition-fast), color var(--transition-fast);
+}
+.ss-view .ss-pick:hover .ss-remove, .ss-view .ss-remove:focus-visible { opacity: 1; }
+.ss-view .ss-remove:hover { color: var(--color-red); }
+.ss-view .ss-empty { margin: 0; padding: 14px 16px; font-size: var(--text-sm); font-style: italic; color: var(--color-text-tertiary); }
+
+/* Memory hosted in the simple Settings: the page's own column, no extra gutter. */
+.ss-view .memory-page { max-width: none; margin: 0; padding: 0; }
+.ss-view .memory-lede { margin-top: 0; }
+
+.ss-view .ss-tile {
+    display: inline-flex; align-items: center; justify-content: center; flex: none;
+    width: 28px; height: 28px; border-radius: 7px;
+    background: var(--color-bg); border: 1px solid var(--color-border-light); color: var(--color-text-secondary);
+}
+.ss-view .ss-group > .ss-row + .ss-row { border-top: 0; position: relative; }
+.ss-view .ss-group > .ss-row + .ss-row::before { content: ''; position: absolute; top: 0; left: 56px; right: 0; border-top: 1px solid var(--color-border-light); }
+
+/* Today, agentic (2026-10-01, js/core/today-help.js): each row is the
+   time, what it is with nenva's one line of help under it, and one action. */
+body.simple-experience .nv-today-line { margin: -2px 0 8px; font-size: var(--text-sm); color: var(--color-text-secondary); }
+body.simple-experience .nv-today .nv-today-row {
+    display: grid; grid-template-columns: 76px minmax(0, 1fr) auto; align-items: start; column-gap: 14px;
+    padding: 9px 0; border: 0; background: none; text-align: left;
+}
+body.simple-experience .nv-today .nv-today-row + .nv-today-row { border-top: 1px solid var(--color-border-light); }
+body.simple-experience .nv-today .nv-today-time { padding-top: 1px; font-size: var(--text-sm); color: var(--color-text-tertiary); font-variant-numeric: tabular-nums; }
+body.simple-experience .nv-today-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+body.simple-experience .nv-today .nv-today-title { font-size: var(--text-base, 14.5px); color: var(--color-text); }
+body.simple-experience .nv-today button.nv-today-title { align-self: flex-start; padding: 0; border: 0; background: none; font: inherit; text-align: left; cursor: pointer; }
+body.simple-experience .nv-today button.nv-today-title:hover { text-decoration: underline; text-decoration-color: var(--color-border); text-underline-offset: 3px; }
+body.simple-experience .nv-today-help { font-size: var(--text-sm); color: var(--color-text-secondary); line-height: 1.45;
+    /* One line, always (2026-10-02). */
+    display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+body.simple-experience .nv-today-act {
+    align-self: center; padding: 4px 12px; border: 1px solid var(--color-border); border-radius: 999px;
+    background: var(--color-surface); color: var(--color-text); font: inherit; font-size: var(--text-sm); white-space: nowrap; cursor: pointer;
+}
+body.simple-experience .nv-today-act:hover { border-color: var(--color-text-tertiary); }
+
+/* An approval waiting on Now (2026-10-01): the accent, as in the chat's
+   approval card — a blue label and edge, and a blue primary button. */
+body.simple-experience .nv-card.is-approval { border-left: 3px solid var(--color-accent); }
+body.simple-experience .nv-card.is-approval .nv-card-eyebrow > span:first-child { color: var(--color-accent); }
+body.simple-experience .nv-card.is-approval .nv-card-primary { background: var(--color-accent); color: #fff; }
+/* A Today row whose work is under way or waiting (SimpleExperience._todayWork). */
+body.simple-experience .nv-today-help.is-live { color: var(--color-text-secondary); }
+body.simple-experience .nv-today-help.is-attn { color: var(--color-accent); }
+/* A routine run waiting on one change (TeamJobs J2), answered on its job page. */
+body.simple-experience .nv-job-wait { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 14px 0; padding: 12px 14px;
+    border: 1px solid var(--color-border); border-left: 3px solid var(--color-accent); border-radius: var(--radius-md); background: var(--color-surface); }
+body.simple-experience .nv-job-wait p { flex: 1 1 100%; margin: 0; }
+
+/* Long titles (2026-10-02, reported: a task title ran under its button and
+   off the page). A title link sizes to its column, wraps, and stops at two
+   lines on Today, three on a Now card. */
+body.simple-experience .nv-today button.nv-today-title,
+body.simple-experience .nv-today span.nv-today-title {
+    max-width: 100%; white-space: normal; overflow-wrap: anywhere;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+}
+body.simple-experience .nv-today .nv-today-act { align-self: start; white-space: nowrap; }
+body.simple-experience .nv-card-title { overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+body.simple-experience .nv-card-body { overflow-wrap: anywhere; }
+/* "Not useful" is feedback, not an action: it sits apart at the right. */
+body.simple-experience .nv-card-acts .nv-card-feedback { margin-left: auto; }
+
+/* A stable stage (2026-10-02, by request: "the card height keeps changing").
+   The card is sized for the common case and its content is bounded, so the
+   page below does not jump from one card to the next, and the buttons sit
+   in the same place every time: a minimum height, the actions pinned to the
+   bottom, the title and the body at most two lines each (the full text is
+   one click away on the card's own page). */
+body.simple-experience .nv-card { display: flex; flex-direction: column; min-height: 232px; box-sizing: border-box; }
+body.simple-experience .nv-card-title { -webkit-line-clamp: 2; flex: none; }
+body.simple-experience .nv-card-body { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+body.simple-experience .nv-card-acts { margin-top: auto; padding-top: 14px; }
+
+/* Where a card came from (2026-10-02, by request): one small monochrome
+   icon before the label, and before each title in the "N more" list. */
+body.simple-experience .nv-card-kind { display: inline-flex; align-items: center; gap: 7px; }
+body.simple-experience .nv-card-src { display: inline-flex; color: var(--color-text-secondary); }
+body.simple-experience .nv-card-pick { display: inline-flex; align-items: center; gap: 5px; }
+body.simple-experience .nv-card-pick .nv-card-src { color: var(--color-text-tertiary); }
+
+/* Talking to a card (2026-10-02, by request): the box is IN the card and
+   about it; the exchange shows in the card; the general box is for when
+   nothing is in front. */
+body.simple-experience.simple-at-home.nv-has-card .nv-dock { display: none; }
+body.simple-experience .nv-card-reply { display: flex; align-items: center; gap: 8px; margin-top: 18px; border: 1px solid var(--color-border); border-radius: 999px; padding: 4px 4px 4px 16px; background: var(--color-bg); }
+body.simple-experience .nv-card-reply:focus-within { border-color: var(--color-accent); }
+body.simple-experience .nv-card-reply input { flex: 1; border: 0; background: transparent; font: inherit; font-size: var(--text-base); color: var(--color-text); outline: none; padding: 6px 0; }
+body.simple-experience .nv-card-send { width: 32px; height: 32px; border-radius: 999px; border: 0; background: var(--color-accent); color: #fff; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+body.simple-experience .nv-card-exchange { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--color-border-light); }
+body.simple-experience .nv-card-you { margin: 0 0 6px; color: var(--color-text-secondary); font-size: var(--text-sm); }
+body.simple-experience .nv-card-you::before { content: 'You: '; color: var(--color-text-tertiary); }
+body.simple-experience .nv-card-answer { margin: 0; color: var(--color-text); line-height: 1.5; }
+body.simple-experience .nv-card-exchange.is-sending .nv-card-answer { color: var(--color-text-tertiary); }
+body.simple-experience .nv-card-changed { margin: 6px 0 0; font-size: var(--text-sm); color: var(--color-green); }
+body.simple-experience .nv-card-exchange-acts { display: flex; gap: 14px; margin-top: 8px; }
+/* The card's box is ONE pill: the field inside it drops the app's own
+   text-field border, radius, background and focus ring (2026-10-02,
+   reported: a pill drawn inside the pill). */
+body.simple-experience .nv-card-reply input[type="text"],
+body.simple-experience .nv-card-reply input[type="text"]:focus,
+body.simple-experience .nv-card-reply input[type="text"]:hover {
+    border: 0; border-radius: 0; background: transparent; box-shadow: none; outline: none;
+    padding: 6px 0; margin: 0; height: auto; min-height: 0; width: auto;
+}
+/* The card's conversation (2026-10-02): earlier messages unfold in place. */
+body.simple-experience .nv-card-earlier { max-height: 260px; overflow-y: auto; padding-bottom: 8px; margin-bottom: 8px; border-bottom: 1px dashed var(--color-border-light); }
+body.simple-experience .nv-card-earlier .nv-card-answer { color: var(--color-text-secondary); margin-bottom: 8px; }
+body.simple-experience .nv-card-earlier-btn { display: inline-block; margin-bottom: 10px; font-size: var(--text-sm); }
+/* The card's box is a door to the thing's chat (2026-10-02): it looks like
+   the box, and a click opens the chat with the cursor in its composer. */
+body.simple-experience .nv-card-reply-door { width: 100%; cursor: text; text-align: left; font: inherit; }
+body.simple-experience .nv-card-reply-door:hover { border-color: var(--color-border-hover); }
+body.simple-experience .nv-card-reply-door:focus-visible { outline: none; border-color: var(--color-accent); }
+body.simple-experience .nv-card-reply-hint { flex: 1; color: var(--color-text-tertiary); font-size: var(--text-base); padding: 6px 0; }
+
+/* Commitments' door on Settings › Memory (2026-10-05). */
+.ss-view .ss-memory-doors { margin: 6px 0 22px; }
+
+/* Connectors (2026-10-05, js/core/simple-connectors.js): a search field over
+   the list; a connector's page is rows with one line under the label. */
+.ss-view .ss-search {
+    appearance: none; display: block; width: 100%; box-sizing: border-box; min-height: 38px; padding: 0 16px;
+    border: 1px solid var(--color-border); border-radius: 999px; background: var(--color-surface);
+    font: inherit; font-size: var(--text-base, 14.5px); color: var(--color-text); outline: none;
+}
+.ss-view .ss-search:focus { border-color: var(--color-accent); }
+.ss-view .ss-search::placeholder { color: var(--color-text-tertiary); }
+.ss-view .ss-row[hidden], .ss-view .ss-group[hidden] { display: none; }
+.ss-view .ss-row.ss-two { min-height: 56px; padding-top: 8px; padding-bottom: 8px; }
+.ss-view .ss-row .settings-switch { flex: none; }
+.ss-view .ss-danger { color: var(--color-red); }
+.ss-view .ss-foot { margin: 10px 4px 0; font-size: var(--text-xs); color: var(--color-text-tertiary); line-height: 1.5; }
+.ss-view .ss-eyebrow { margin: 22px 4px -10px; font-size: var(--text-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-text-secondary); }
+.ss-view .ss-none { padding-left: 4px; }
