@@ -1,0 +1,50 @@
+{
+  "manifest_version": 3,
+  "name": "nenva Browser Preview",
+  "version": "0.1.1",
+  "description": "Connect a dedicated Chrome session to nenva Workrooms.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvRwE7L7H9HzT9gXllfHxJGrZY+xUK0xCTRGoiEGJWbG6fW9yRKQWOS2ra3WLABkSHil8olcF6xZhWY9BakbK4tm+wX6UiEtpPq328cSVEk0gViDcuGvZq9R/qWa2PN3uCE8o7C2S9ovTHpf4Ff1dZJjfEl2yLgQRJ0Nqv+BSzARCsIwL9YB8smdjGOi8IbLco6Y3CpAk5hdPST4fXiPp1j9wH7Q9q8z6fOiNw3UPRDyXGEHfjr9JfHTX+BFqsSm/zuBFiq12t8DufIlyWmnceZVakWnODHsmR5GuCQjhtdFeFroRVQkkxaW30uqbaFjMgdMII6WKkE8Yia06zZI+WQIDAQAB",
+  "permissions": [
+    "nativeMessaging",
+    "scripting",
+    "tabs",
+    "storage",
+    "alarms",
+    "debugger"
+  ],
+  "host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
+  "background": {
+    "service_worker": "worker.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "js": [
+        "human-input.js"
+      ],
+      "all_frames": true,
+      "run_at": "document_start"
+    }
+  ],
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  }
+}
