@@ -1,0 +1,138 @@
+/* ===================================
+   Insights — one column since 2026-10-01 (js/apps/fyi/fyi-page.js header).
+   Needs you / Done, cards that expand in place, kind chips on top. The
+   three-pane page it replaced (folder rail, list pane, reading pane,
+   overview briefing) is in git history before this date.
+
+   Colour is DATA here, as before (2026-09-09, by request): each kind's hue
+   (`[data-ins-type]` → `--ins-hue`, palette in email.css) tints the card's
+   icon tile and nothing else. Chrome stays ink; the accent marks what is
+   live (the reading dot, unread counts).
+   =================================== */
+
+#fyi-view .fyi-column { max-width: 820px; margin: 0 auto; padding-bottom: var(--space-2xl); }
+
+/* Where reading stands — the same words as Home's "From your email". The
+   dot breathes only while reading is live (transform only: see the
+   animation rule in CLAUDE.md). */
+.fyi-status { display: flex; align-items: center; gap: 12px; margin: 0 0 var(--space-md); padding: 12px 16px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); }
+.fyi-status[hidden] { display: none; }
+.fyi-status-dot { width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%; background: var(--color-text-tertiary); }
+.fyi-status-dot.is-live { background: var(--color-accent); animation: fyiStatusPulse 1.6s ease-in-out infinite; }
+@keyframes fyiStatusPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(0.6); } }
+.fyi-status-copy { display: grid; gap: 2px; min-width: 0; flex: 1; }
+.fyi-status-title { font-size: var(--text-sm); font-weight: 600; color: var(--color-text); }
+.fyi-status-meta { font-size: var(--text-xs); color: var(--color-text-secondary); }
+.fyi-status-fix { flex: 0 0 auto; }
+
+/* Kind chips: only kinds that hold something; the count is what still
+   needs you in that kind. */
+.fyi-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 var(--space-lg); }
+.fyi-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border: 1px solid var(--color-border); border-radius: 999px; background: var(--color-surface); color: var(--color-text-secondary); font: inherit; font-size: var(--text-sm); cursor: pointer; }
+.fyi-chip:hover { color: var(--color-text); background: var(--color-surface-hover); }
+.fyi-chip.is-on { color: var(--color-bg); background: var(--color-text); border-color: var(--color-text); }
+.fyi-chip-count { font-size: var(--text-xs); font-weight: 600; color: var(--color-accent); }
+.fyi-chip.is-on .fyi-chip-count { color: inherit; }
+
+/* Sections */
+.fyi-section { margin: 0 0 var(--space-xl); }
+.fyi-section-title { margin: 0 0 10px; font: 600 var(--text-sm)/1.5 var(--font-sans); color: var(--color-text); }
+.fyi-section-title span { margin-left: 4px; color: var(--color-text-tertiary); font-weight: 400; }
+.fyi-done > summary { cursor: pointer; color: var(--color-text-secondary); list-style: none; }
+.fyi-done > summary::-webkit-details-marker { display: none; }
+.fyi-done > summary::before { content: '\25B8'; display: inline-block; margin-right: 6px; transition: transform var(--transition-fast); }
+.fyi-done[open] > summary::before { transform: rotate(90deg); }
+.fyi-quiet { margin: 0; padding: 14px 0; font-size: var(--text-sm); font-style: italic; color: var(--color-text-tertiary); }
+.fyi-more-link { margin-top: 8px; padding: 6px 0; border: 0; background: transparent; color: var(--color-text-secondary); font: inherit; font-size: var(--text-sm); cursor: pointer; }
+.fyi-more-link:hover { color: var(--color-text); }
+
+/* Cards: one white sheet per section, hairlines between cards. */
+.fyi-cards { border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); overflow: hidden; }
+.fyi-card + .fyi-card { border-top: 1px solid var(--color-border); }
+.fyi-card-row { display: flex; align-items: center; }
+.fyi-card-head { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; padding: 14px 16px; border: 0; background: transparent; color: var(--color-text); font: inherit; text-align: left; cursor: pointer; }
+.fyi-card-head:hover { background: var(--color-surface-hover); }
+.fyi-card-icon { display: grid; place-items: center; width: 30px; height: 30px; flex: 0 0 30px; border-radius: var(--radius-sm); background: color-mix(in srgb, var(--ins-hue, var(--color-text-tertiary)) 13%, var(--color-bg)); color: color-mix(in srgb, var(--ins-hue, var(--color-text-tertiary)) 75%, var(--color-text)); }
+[data-theme="dark"] .fyi-card-icon { background: color-mix(in srgb, var(--ins-hue, var(--color-text-tertiary)) 22%, var(--color-bg)); color: color-mix(in srgb, var(--ins-hue, var(--color-text-tertiary)) 82%, #fff); }
+.fyi-card-copy { display: grid; gap: 3px; min-width: 0; }
+.fyi-card-title { font-size: var(--text-base); line-height: 1.45; }
+.fyi-card:not(.is-done) .fyi-card-title { font-weight: 600; }
+.fyi-card.is-done .fyi-card-title { color: var(--color-text-secondary); }
+.fyi-card-meta { font-size: var(--text-xs); color: var(--color-text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fyi-card-check { display: grid; place-items: center; width: 32px; height: 32px; margin-right: 12px; flex: 0 0 32px; border: 1px solid var(--color-border); border-radius: 50%; background: transparent; color: var(--color-text-tertiary); cursor: pointer; }
+.fyi-card-check svg { width: 15px; height: 15px; }
+.fyi-card-check:hover { color: var(--color-green); border-color: var(--color-green); }
+
+/* Expanded */
+.fyi-card.is-open { background: var(--color-surface); }
+.fyi-card-body { padding: 0 16px 16px 58px; }
+/* What it says (2026-10-01): the analysis's summary sentences, read first. */
+.fyi-gist { margin: 0 0 var(--space-md); }
+.fyi-gist-label { margin-bottom: 4px; font-size: var(--text-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-text-secondary); }
+.fyi-gist ul { margin: 0; padding-left: 18px; font-size: var(--prose-size, 15px); line-height: var(--prose-lh, 1.65); color: var(--color-text); }
+.fyi-gist li + li { margin-top: 2px; }
+.fyi-facts { display: grid; grid-template-columns: 110px 1fr; gap: 6px 12px; margin: 0 0 var(--space-md); font-size: var(--text-sm); }
+.fyi-facts dt { color: var(--color-text-tertiary); }
+.fyi-facts dd { margin: 0; color: var(--color-text); overflow-wrap: anywhere; }
+.fyi-todo { margin: 0 0 var(--space-md); padding-left: 18px; font-size: var(--text-sm); }
+.fyi-todo li + li { margin-top: 4px; }
+.fyi-card-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.fyi-overflow { position: relative; }
+.fyi-overflow > summary { list-style: none; cursor: pointer; }
+.fyi-overflow > summary::-webkit-details-marker { display: none; }
+.fyi-overflow-menu { position: absolute; z-index: 5; top: calc(100% + 6px); left: 0; min-width: 190px; padding: 6px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); box-shadow: var(--shadow-md); }
+.fyi-overflow-menu button { display: block; width: 100%; padding: 8px 10px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--color-text); font: inherit; font-size: var(--text-sm); text-align: left; cursor: pointer; }
+.fyi-overflow-menu button:hover { background: var(--color-surface-hover); }
+.fyi-overflow-menu button.is-danger { color: var(--color-red); }
+
+/* Empty / gate */
+.fyi-empty { padding: var(--space-lg) var(--space-xs); font-size: var(--text-sm); font-style: italic; color: var(--color-text-tertiary); max-width: 52ch; line-height: 1.6; }
+.fyi-empty:has(.app-welcome) { font-style: normal; color: var(--color-text); max-width: none; }
+
+@media (max-width: 700px) {
+    .fyi-card-body { padding-left: 16px; }
+    .fyi-facts { grid-template-columns: 90px 1fr; }
+}
+
+/* One insight on its own page (2026-10-01): the way back, then just this
+   card, open. The page's search, status strip and chips stay out of it. */
+#fyi-view.is-single .app-header-bar,
+#fyi-view.is-single #fyi-status,
+.fyi-single .fyi-card-check { display: none !important; }
+#fyi-view.is-single .fyi-column { padding-top: var(--space-xl); }
+/* The way back on the left, the full list on the right: plain text that
+   darkens on hover, no underline (2026-10-01, by request). */
+.fyi-single-bar { display: flex; align-items: center; justify-content: space-between; margin: 0 0 var(--space-md); }
+.fyi-single-back,
+.fyi-single-all { padding: 4px 0; border: 0; background: none; color: var(--color-text-secondary); font: inherit; font-size: var(--text-sm); text-decoration: none; cursor: pointer; }
+.fyi-single-back:hover,
+.fyi-single-all:hover { color: var(--color-text); }
+.fyi-single .fyi-card-head { cursor: default; }
+.fyi-single .fyi-card-head:hover { background: transparent; }
+
+/* An appointment's matter on its card (docs/MATTERS.md): the open step with
+   its draft, then every message filed on it with its own sender. */
+.fyi-matter-step { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 0 0 var(--space-md); padding: 10px 12px;
+    border: 1px solid var(--color-border); border-left: 3px solid var(--color-accent); border-radius: var(--radius-md); }
+.fyi-matter-step > span { flex: 1 1 200px; font-weight: 600; }
+.fyi-matter-sources { margin: 0 0 var(--space-md); }
+.fyi-matter-sources ul { margin: 6px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.fyi-matter-src { font-weight: 600; }
+.fyi-matter-sum { color: var(--color-text-secondary); font-size: var(--text-sm); }
+
+/* The More menu was clipped by its list (2026-10-02, reported): the list no
+   longer hides overflow; its first and last cards round their own corners
+   instead, so hover fills still follow the rounded edge. */
+.fyi-cards { overflow: visible; }
+.fyi-cards > .fyi-card:first-child { border-top-left-radius: var(--radius-md); border-top-right-radius: var(--radius-md); }
+.fyi-cards > .fyi-card:last-child { border-bottom-left-radius: var(--radius-md); border-bottom-right-radius: var(--radius-md); }
+.fyi-cards > .fyi-card:first-child .fyi-card-head { border-top-left-radius: var(--radius-md); border-top-right-radius: var(--radius-md); }
+.fyi-cards > .fyi-card:last-child .fyi-card-head { border-bottom-left-radius: var(--radius-md); border-bottom-right-radius: var(--radius-md); }
+.fyi-overflow-menu { z-index: 20; }
+
+/* Trips (js/core/trips.js, 2026-10-02): the assistant's brief leads the card,
+   each message is a quiet button that opens it. */
+.fyi-trip-brief { font-family: var(--font-serif); font-weight: 400; font-size: var(--text-lg); line-height: 1.45; color: var(--color-text); margin: 0 0 var(--space-md); }
+.fyi-trip-msg { all: unset; cursor: pointer; display: block; width: 100%; }
+.fyi-trip-msg:hover .fyi-matter-sum { color: var(--color-text); }
+.fyi-trip-msg:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; border-radius: var(--radius-sm); }
