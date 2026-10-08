@@ -1,0 +1,5718 @@
+/**
+ * Settings App
+ * Full-page settings with storage, backup, theme, AI, auth, and developer options
+ */
+
+const SettingsApp = {
+    init() {
+        this.setupEventListeners();
+        this.loadSettings();
+        this.renderLogs();
+        this.renderSearchLogs();
+    },
+
+    render() {
+        // Opening Settings always lands on the root category list (iOS-style;
+        // predictable), unless a search is mid-flight.
+        const searching = !!document.querySelector('.settings-shell.searching');
+        if (!searching) this.showRoot();
+        this.loadSettings();
+        this.renderLogs();
+        this.renderSearchLogs();
+        // One Settings (2026-10-06): a door that opens this app and names no
+        // category (⌘K, the registry tile) lands on the simple page. A door
+        // that opens a category does so in the same tick
+        // (SimpleSettings._full), so the check waits one.
+        // The Advanced row (SimpleSettings._full) opens THIS root on purpose
+        // and says so with _intent, which is read once.
+        const intended = this._intent; this._intent = null;
+        if (!searching && !intended && typeof SimpleSettings !== 'undefined') {
+            Promise.resolve().then(() => {
+                // A sub-view (Storage & Backup, the logs, the lock page) has
+                // taken #settings-view's place by now; only the bare root goes.
+                const bare = this._mode === 'root' && document.getElementById('settings-view')?.classList.contains('active');
+                if (bare && typeof AppManager !== 'undefined' && AppManager.currentApp === 'settings') SimpleSettings.open('root');
+            });
+        }
+    },
+
+    async loadSettings() {
+        const storageFolder = window.electronStore.getStorageFolder();
+
+        // Storage summary on main settings page
+        const storagePathEl = document.getElementById('settings-storage-path');
+        if (storagePathEl) storagePathEl.textContent = storageFolder;
+
+        // Theme (light / dark / system segmented control)
+
+
+        // DevTools state
+        const devToggle = document.getElementById('settings-devtools');
+        if (devToggle && window.electronAuth?.isDevToolsOpen) {
+            window.electronAuth.isDevToolsOpen().then(isOpen => { devToggle.checked = isOpen; });
+        }
+
+
+
+        // AI Assistant summary
+        this._loadLLMSummary();
+
+        // Assistant permission grants (docs/COWORK_AGENT.md C1)
+        this._loadAgentPermissions();
+
+        // MCP tool servers (docs/COWORK_AGENT.md C2; behind the mcp flag)
+        this._loadMCPServers();
+
+        // Connected accounts (gmail + calendar in one place)
+        this._renderConnectedAccounts();
+
+        // Contacts + Portfolio sharing (peer channel, docs/PORTFOLIO_SHARING.md)
+        this._renderContacts();
+
+        // Apple Reminders import (iCloud → Tasks, per-Mac opt-in)
+        this._renderAppleImport();
+
+        // Telegram remote channel (assistant over a user-created bot)
+        this._renderTelegram();
+
+        // Paired devices (the phone <-> Mac channel)
+        this._renderPairedDevices();
+
+        // Privacy / analytics badge
+        const privacyBadge = document.getElementById('settings-privacy-status');
+        if (privacyBadge && typeof AnalyticsManager !== 'undefined') {
+            privacyBadge.textContent = AnalyticsManager.isEnabled() ? 'On' : 'Off';
+        }
+
+        this._updateRootHints();
+    },
+
+    _esc(s) {
+        return String(s == null ? '' : s)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    },
+
+
+    // Active two-pane category. Persisted on the instance so returning from a
+    // drill-in sub-view (which just re-activates #settings-view) keeps the
+    // user where they were. Default to AI.
+    _activeCategory: 'ai',
+
+    // ── Two-pane navigator + search ──────────────────────────────────
+
+    _setupNavigator() {
+        if (this._navigatorBound) return;
+        this._navigatorBound = true;
+
+        // Root list rows (iOS-style): tap a category row → its page.
+        const list = document.getElementById('settings-nav-list');
+        if (list) {
+            list.addEventListener('click', (e) => {
+                // Direct drill-ins skip the category layer (the AI Assistant
+                // and Data & Storage cards go straight to their pages — no
+                // intermediate one-card category page).
+                const direct = e.target.closest('[data-open]');
+                if (direct) {
+                    const o = direct.dataset.open;
+                    if (o === 'storage') this.openStorageBackup();
+                    else if (o === 'llm-logs') this.openLlmLogs();
+                    else if (o === 'search-logs') this.openSearchLogs();
+                    else if (o === 'network-logs') this.openNetworkLogs();
+                    else if (o === 'llm') this.showRoot();
+                    else this.openLLMSection(o);   // one AI Assistant section
+                    return;
+                }
+                const item = e.target.closest('[data-cat]');
+                if (!item) return;
+                this.openCategory(item.dataset.cat);
+            });
+        }
+
+        const search = document.getElementById('settings-search');
+        if (search) {
+            search.addEventListener('input', () => this._runSearch(search.value));
+            search.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && search.value) {
+                    search.value = '';
+                    this._runSearch('');
+                }
+            });
+        }
+
+        this.showRoot();
+    },
+
+    // ── iOS-style shell modes: 'root' (category list) / 'category' (one page) ──
+
+    /**
+     * One Settings (2026-10-06, the simplification): this root is Advanced.
+     * "Settings" in any breadcrumb goes back to the one page.
+     */
+    backToSettings() {
+        if (typeof SimpleSettings !== 'undefined') { SimpleSettings.open('root'); return; }
+        this.showRoot();
+    },
+
+    /** Quiet ancestor links above a single page title, shared by Advanced pages. */
+    _renderPageHeader(id, crumbs) {
+        const el = document.getElementById(id);
+        const view = el?.closest('.app-view');
+        const header = el?.closest('.app-header-bar');
+        if (!view || !header) { Breadcrumb.render(id, crumbs); return; }
+        view.classList.add('advanced-settings');
+        const current = crumbs.at(-1);
+        const hasTitle = current && !current.action;
+        Breadcrumb.render(id, hasTitle ? crumbs.slice(0, -1) : crumbs);
+        // The shared breadcrumb uses spans; give these links keyboard semantics.
+        el.querySelectorAll('.breadcrumb-link').forEach(link => {
+            link.setAttribute('role', 'button');
+            link.tabIndex = 0;
+            link.addEventListener('keydown', event => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault(); link.click();
+                }
+            });
+        });
+        let title = header.querySelector('.settings-page-heading');
+        if (!hasTitle) { title?.remove(); return; } // Web search and Add model own their titles.
+        if (!title) {
+            title = document.createElement('h1');
+            title.className = 'settings-page-heading';
+            header.append(title);
+        }
+        title.textContent = current.label;
+    },
+
+    /** The lineage every page here starts with: Settings (the one page) › Advanced (this root). `view` is the sub-view to close. */
+    _crumbRoot(view) {
+        return [
+            { label: 'Settings', action: () => this._crumbBack(view) },
+            { label: 'Advanced', action: () => this._crumbAdvanced(view) }
+        ];
+    },
+    /** The logs' lineage (2026-10-07): Settings › Advanced › Developer, the panel their doors are on. */
+    _crumbDeveloper(view) {
+        return [
+            ...this._crumbRoot(view),
+            { label: 'Developer', action: () => { this._crumbAdvanced(view); this.openCategory('build'); } }
+        ];
+    },
+    _crumbAdvanced(viewOrId) {
+        const view = typeof viewOrId === 'string' ? document.getElementById(viewOrId) : viewOrId;
+        if (view) view.classList.remove('active');
+        document.getElementById('settings-view').classList.add('active');
+        this.showRoot();
+    },
+
+    /** A sub-view's "Settings" crumb: close it and go back to the one Settings page. */
+    _crumbBack(viewOrId) {
+        const view = typeof viewOrId === 'string' ? document.getElementById(viewOrId) : viewOrId;
+        if (view) view.classList.remove('active');
+        if (typeof SimpleSettings !== 'undefined') { SimpleSettings.open('root'); return; }
+        this._crumbAdvanced(null);
+    },
+
+    showRoot() {
+        // Documents ships as a package (js/apps/reader/); with it uninstalled
+        // the Documents settings govern nothing — hide the door. Launcher
+        // visibility does not hide settings: Documents and Finance live in Memory.
+        // The Writing voice card stays: the voice is core (js/core/voice-store.js).
+        const libCard = document.querySelector('.settings-card-nav[data-cat="library"]');
+        if (libCard) libCard.hidden = (typeof ReaderApp === 'undefined');
+        // Same for Portfolio (js/apps/portfolio/): uninstalled, its one
+        // setting governs nothing.
+        const pfCard = document.querySelector('.settings-card-nav[data-cat="portfolio"]');
+        if (pfCard) pfCard.hidden = (typeof PortfolioApp === 'undefined');
+        this._mode = 'root';
+        const root = document.getElementById('settings-root');
+        if (root) root.style.display = '';
+        document.querySelectorAll('#settings-detail .settings-panel').forEach(p => p.classList.remove('active'));
+        const shell = document.querySelector('.settings-shell');
+        if (shell) shell.classList.remove('in-category');
+        this._renderPageHeader('settings-breadcrumb', [{ label: 'Settings', action: () => this.backToSettings() }, { label: 'Advanced' }]);
+        this._updateRootHints();
+    },
+
+    openCategory(cat) {
+        if (!cat) return;
+        // Retired categories (2026-07-30): Advanced merged into the Developer
+        // page; the Data & Storage layer collapsed into its one destination.
+        // 'ai' and 'data' are search-only stub panels, never pages.
+        if (cat === 'advanced') cat = 'build';
+        if (cat === 'data') { this.openStorageBackup(); return; }
+        if (cat === 'ai') { this.openLLMSettings(); return; }
+        this._mode = 'category';
+        const root = document.getElementById('settings-root');
+        if (root) root.style.display = 'none';
+        const shell = document.querySelector('.settings-shell');
+        if (shell) shell.classList.add('in-category');
+
+        let label = cat;
+        document.querySelectorAll('#settings-detail .settings-panel').forEach(p => {
+            const active = p.dataset.cat === cat;
+            p.classList.toggle('active', active);
+            if (active) {
+                const t = p.querySelector('.settings-panel-title');
+                if (t) label = t.textContent.trim();
+            }
+        });
+        this._renderPageHeader('settings-breadcrumb', [
+            { label: 'Settings', action: () => this.backToSettings() },
+            { label: 'Advanced', action: () => this.showRoot() },
+            { label }
+        ]);
+
+        // The paired-devices panel reflects live channel state — refresh on open.
+        if (cat === 'devices') this._renderPairedDevices();
+        // Contacts show live presence and pending invites — refresh on open.
+        if (cat === 'accounts') this._renderContacts();
+        // Documents engine state (model presence, index counts) is read fresh
+        // on every open — a download or an import may have finished since.
+        if (cat === 'library') this._renderLibrarySettings();
+        // The switch reflects a synced preference another Mac may have
+        // flipped, so it is read on every open rather than at init.
+        if (cat === 'portfolio') this._renderPortfolioSettings();
+    },
+
+    // ── Settings › License ──────────────────────────────────────────────
+    // Everything the card says comes from LicenseStore.status() in main
+    // (docs/BUSINESS_MODEL.md); this only lays it out. nenva is free for good
+    // (2026-09-30): the license is how a person registers, and the claim's
+    // words are the contact consent main sends (js/core/license-claim.js
+    // says the same thing; keep the two in step). The claim is offered
+    // unless the server says licensing is off; offline, claiming reports it.
+    /** The license card, drawn into `host` (the full panel's card by default; the simple Settings' Registration page passes its own, 2026-10-06). */
+    async _renderLicense(host) {
+        if (!host || !window.electronLicense) return;
+        const esc = (s) => UIUtils.escapeHtml(String(s ?? ''));
+        let status = null, remote = null;
+        try {
+            [status, remote] = await Promise.all([
+                window.electronLicense.get(),
+                window.electronLicense.remoteStatus().catch(() => null)
+            ]);
+        } catch (e) {
+            host.innerHTML = `<p class="settings-card-hint">Could not read the license: ${esc(e.message)}</p>`;
+            return;
+        }
+        if (!status) return;
+        const claimOpen = !remote || (remote.enabled === true && remote.claimOpen !== false);
+        const human = (iso) => {
+            if (!iso) return '';
+            const d = new Date(iso + 'T12:00:00');
+            return isNaN(d) ? iso : d.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+        };
+        const facts = (rows) => `<ul class="license-facts">${rows.filter(Boolean).map(([k, v, cls]) =>
+            `<li><span class="license-fact-label">${esc(k)}</span><span${cls ? ` class="${cls}"` : ''}>${v}</span></li>`).join('')}</ul>`;
+        const keyEntry = (lead) => `
+            <p class="settings-card-hint" style="margin-top: var(--space-md)">${lead}</p>
+            <textarea id="license-key-input" class="license-key-input" rows="3" spellcheck="false"
+                      placeholder="ANJ1.…"></textarea>
+            <div class="feedback-actions">
+                <span id="license-status-line" class="feedback-status"></span>
+                <button id="license-open-file-btn" class="secondary-btn">Open file&hellip;</button>
+                <button id="license-apply-btn" class="primary-btn">Apply key</button>
+            </div>`;
+        const footer = `<p class="settings-card-hint">A license is a small signed key checked on this Mac with a public key. No account, and nothing is looked up online to verify it.</p>`;
+
+        let html = '';
+        if (status.licensed) {
+            const isPaid = status.class === 'paid';
+            html += `<div class="license-status">${isPaid ? 'Paid license' : 'Free license'}
+                <span class="settings-badge">${isPaid ? 'Paid' : 'Registered'}</span></div>`;
+            html += facts([
+                ['Issued to', status.email ? esc(status.email) : 'this Mac'],
+                ['Issued', esc(human(status.issuedAt))],
+                ['License id', `<code>${esc(status.id)}</code>`]
+            ]);
+            html += `<p class="settings-card-hint">Keep this with the email address you used: on another Mac, or after a reinstall, getting a license again with the same address returns this same key.
+                <a href="#" id="license-show-key">Show key</a> &middot; <a href="#" id="license-remove-link">Remove from this Mac</a></p>
+                <p id="license-key-show" class="license-key-show" hidden></p>`;
+        } else {
+            if (status.invalid) {
+                html += `<p class="settings-card-hint license-row-warn">The license saved on this Mac no longer verifies (${esc(status.invalid)}). <a href="#" id="license-remove-link">Remove it</a> and enter the key again.</p>`;
+            }
+            html += `<div class="license-status">Register nenva</div>`;
+            if (claimOpen) {
+                // Same consent words as the claim modal (license-claim.js).
+                html += `<p class="settings-card-hint">${LicenseClaim.REGISTRATION_COPY}</p>
+                    <input id="license-claim-email" class="feedback-email" type="email" autocomplete="off" placeholder="you@example.com">
+                    <div class="feedback-actions">
+                        <span id="license-claim-status" class="feedback-status"></span>
+                        <button id="license-claim-btn" class="primary-btn">Get license</button>
+                    </div>`;
+            }
+            html += keyEntry('Already have a key? Paste it here, or open the file it came in.');
+        }
+        host.innerHTML = html + footer + `<details class="license-pricing"><summary>Cloud pricing</summary>${LicenseClaim.plansHtml()}</details>`;
+
+        // Actions. Rendered fresh each time, so listeners bind here.
+        const line = (id, text, isErr) => {
+            const el = host.querySelector('#' + id);
+            if (!el) return;
+            el.textContent = text || '';
+            el.classList.toggle('is-error', !!isErr);
+        };
+        host.querySelector('#license-show-key')?.addEventListener('click', async (e) => {
+            e.preventDefault();
+            const p = host.querySelector('#license-key-show');
+            if (!p) return;
+            // The key never crosses the bridge as part of status; read the
+            // file's key through the same path save() uses to display it.
+            if (p.hidden) {
+                const s = await window.electronLicense.get();
+                p.textContent = s?.key || '';
+                p.hidden = false;
+                e.target.textContent = 'Hide key';
+            } else {
+                p.hidden = true;
+                e.target.textContent = 'Show key';
+            }
+        });
+        host.querySelector('#license-remove-link')?.addEventListener('click', async (e) => {
+            e.preventDefault();
+            const ok = await UIUtils.confirm('Remove license from this Mac?',
+                'The key is not revoked and nothing is sent anywhere; this Mac just forgets it. You can enter it again any time.',
+                '&#9888;', { confirmText: 'Remove', cancelText: 'Keep' });
+            if (!ok) return;
+            await window.electronLicense.clear();
+            this._renderLicense(host);
+            this._updateRootHints();
+            if (typeof LicenseClaim !== 'undefined') LicenseClaim.refresh();
+        });
+        host.querySelector('#license-claim-btn')?.addEventListener('click', async () => {
+            const btn = host.querySelector('#license-claim-btn');
+            const email = host.querySelector('#license-claim-email')?.value || '';
+            btn.disabled = true;
+            line('license-claim-status', 'Getting your license…');
+            const r = await LicenseClaim.claim(email);
+            btn.disabled = false;
+            if (r?.error) { line('license-claim-status', r.error, true); return; }
+            UIUtils.showToast(r.created ? 'Your free nenva license is on this Mac.' : 'Welcome back. Your license is restored on this Mac.', 'success');
+            this._renderLicense(host);
+            this._updateRootHints();
+            if (typeof LicenseClaim !== 'undefined') LicenseClaim.refresh();
+        });
+        const apply = async (promise) => {
+            line('license-status-line', 'Checking…');
+            const r = await promise;
+            if (r?.canceled) { line('license-status-line', ''); return; }
+            if (r?.error) { line('license-status-line', r.error, true); return; }
+            UIUtils.showToast(`${r.class === 'paid' ? 'Paid' : 'Free'} license applied.`, 'success');
+            this._renderLicense(host);
+            this._updateRootHints();
+            if (typeof LicenseClaim !== 'undefined') LicenseClaim.refresh();
+        };
+        host.querySelector('#license-apply-btn')?.addEventListener('click', () => {
+            const text = host.querySelector('#license-key-input')?.value || '';
+            if (!text.trim()) { line('license-status-line', 'Paste a key first.', true); return; }
+            apply(window.electronLicense.set(text));
+        });
+        host.querySelector('#license-open-file-btn')?.addEventListener('click', () => {
+            apply(window.electronLicense.openFile());
+        });
+    },
+
+    // Back-compat alias (harnesses + older callers).
+    _selectCategory(cat) {
+        this.openCategory(cat);
+    },
+
+    // Current-value hints on the root rows — filled from data loadSettings
+    // already fetched. Each is best-effort; a missing source leaves the
+    // static hint empty rather than erroring.
+    _updateRootHints() {
+        // The Advanced root's rows state what they hold; the one live
+        // number is the memories badge (_refreshAssistantBadges).
+        this._refreshAssistantBadges();
+    },
+
+    // Live, cross-category filter. Empty query restores normal single-panel
+    // mode; a query stacks every panel and hides cards that don't match,
+    // collapsing groups/subheads/panels that end up empty.
+    _runSearch(raw) {
+        const shell = document.querySelector('.settings-shell');
+        if (!shell) return;
+        const q = (raw || '').trim().toLowerCase();
+
+        const rootList = document.getElementById('settings-nav-list');
+
+        if (!q) {
+            shell.classList.remove('searching');
+            shell.querySelectorAll('.search-hide').forEach(n => n.classList.remove('search-hide'));
+            shell.querySelectorAll('.settings-panel').forEach(p => p.classList.remove('has-match'));
+            const empty = document.getElementById('settings-search-empty');
+            if (empty) empty.style.display = 'none';
+            if (rootList) rootList.style.display = '';
+            this.showRoot();
+            return;
+        }
+
+        // Searching: hide the category rows, stack matching panel content
+        // below the search box (root stays visible as the container).
+        if (this._mode === 'category') this.showRoot();
+        if (rootList) rootList.style.display = 'none';
+        shell.classList.add('searching');
+        let anyMatch = false;
+
+        shell.querySelectorAll('.settings-panel').forEach(panel => {
+            const conditionallyHidden = false;
+
+            let panelHasMatch = false;
+            panel.querySelectorAll('.settings-card').forEach(card => {
+                // A card inside feature-gated-off UI never matches — otherwise
+                // its keywords would surface an empty panel title in the stack.
+                const gate = card.closest('[data-feature]');
+                const gatedOff = gate && typeof FEATURES !== 'undefined'
+                    && !FEATURES.isEnabled(gate.getAttribute('data-feature'));
+                const hay = (card.textContent + ' ' + (card.dataset.keywords || '')).toLowerCase();
+                const match = !conditionallyHidden && !gatedOff && hay.includes(q);
+                card.classList.toggle('search-hide', !match);
+                if (match) panelHasMatch = true;
+            });
+
+            // Collapse empty groups and their subheads.
+            panel.querySelectorAll('.settings-card-group').forEach(g => {
+                const visible = g.querySelector('.settings-card:not(.search-hide)');
+                g.classList.toggle('search-hide', !visible);
+            });
+            panel.querySelectorAll('.settings-subhead').forEach(sh => {
+                let next = sh.nextElementSibling;
+                while (next && !next.classList.contains('settings-card-group')) next = next.nextElementSibling;
+                sh.classList.toggle('search-hide', !next || next.classList.contains('search-hide'));
+            });
+
+            panel.classList.toggle('has-match', panelHasMatch);
+            if (panelHasMatch) anyMatch = true;
+        });
+
+        const empty = document.getElementById('settings-search-empty');
+        if (empty) empty.style.display = anyMatch ? 'none' : '';
+    },
+
+    setupEventListeners() {
+        this._setupNavigator();
+
+        // Open Storage & Backup sub-view
+        this._bindBtn('settings-open-storage-btn', () => {
+            this.openStorageBackup();
+        });
+
+        // DevTools
+        this._bindChange('settings-devtools', async () => {
+            const isOpen = await window.electronAuth.toggleDevTools();
+            const cb = document.getElementById('settings-devtools');
+            if (cb) cb.checked = isOpen;
+        }, true);
+
+        // Open AI Assistant sub-view (provider routing + web search key)
+        this._bindBtn('settings-open-llm-btn', () => {
+            this.openLLMSettings();
+        });
+
+        // Memories and the three logs each get their own sub-view. The logs
+        // are the developer's audit (2026-10-07): their doors are cards on the
+        // Developer panel, alongside the Data activity summary, with no counts.
+        this._bindBtn('settings-open-memories-btn', () => this.openMemoriesSettings());
+        this._bindBtn('settings-open-data-activity-btn', () => SimpleSettings.open('left'));
+        this._bindBtn('settings-open-llm-logs-btn', () => this.openLlmLogs());
+        this._bindBtn('settings-open-search-logs-btn', () => this.openSearchLogs());
+        this._bindBtn('settings-open-network-logs-btn', () => this.openNetworkLogs());
+        this._bindBtn('settings-network-logs-refresh-btn', () => this.renderNetworkLogs());
+        this._bindBtn('settings-network-logs-clear-btn', async () => {
+            try { await window.electronNetLog.clear(); } catch {}
+            this.renderNetworkLogs();
+            UIUtils.showToast('Network logs cleared', 'success');
+        });
+
+    },
+
+    // ── AI Assistant summary + sub-view ──
+
+    async _loadLLMSummary() {
+        // The default model entry IS the brain — summarize it directly.
+        const engineLabels = { llamacpp: 'Local', server: 'Your server', openai: 'OpenAI', anthropic: 'Anthropic', anjadhe: 'nenva cloud' };
+        try { await AgentService.ensureModelList?.(); } catch { /* offline */ }
+        const def = AgentService.getDefaultEntry?.() || null;
+
+        const provEl = document.getElementById('settings-llm-provider-display');
+        if (provEl) provEl.textContent = def ? (engineLabels[def.engine] || def.engine) : '--';
+
+        const localEl = document.getElementById('settings-llm-local-display');
+        if (localEl) localEl.textContent = def ? AgentService.displayModelName(def) : '--';
+    },
+
+    /**
+     * Assistant permission grants — standing "always allow" permissions
+     * (docs/COWORK_AGENT.md C1). Machine-local; revoking restores the
+     * confirmation dialog for that action.
+     */
+    async _loadAgentPermissions() {
+        const list = document.getElementById('settings-agent-permissions-list');
+        if (!list || typeof PermissionManager === 'undefined') return;
+        await PermissionManager.ready();
+        const grants = PermissionManager.listGrants();
+        const search = document.getElementById('settings-agent-permissions-search');
+        const clear = document.getElementById('settings-agent-permissions-clear');
+        const searchWrap = document.getElementById('settings-agent-permissions-search-wrap');
+        if (searchWrap) searchWrap.hidden = !grants.length;
+        if (search) search.oninput = () => this._filterAgentPermissions();
+        if (clear) clear.onclick = () => {
+            search.value = '';
+            this._filterAgentPermissions();
+            search.focus();
+        };
+        const esc = UIUtils.escapeHtml;
+        const focusGrant = (id) => {
+            const btn = Array.from(list.querySelectorAll('.agent-perm-row:not([hidden]) [data-limit]'))
+                .find(btn => btn.dataset.limit === id);
+            (btn || search)?.focus();
+        };
+        if (!grants.length) {
+            list.innerHTML = `<div class="agent-perm-empty">
+                <strong>No saved permissions</strong>
+                <p>When nenva asks for approval, choose “Always allow” to save a permission here. You can review or remove it anytime.</p>
+            </div>`;
+            if (search) search.value = '';
+            this._filterAgentPermissions();
+            return;
+        }
+        const rowParts = (g) => {
+            if (g.tool === 'fs:read') return { title: 'Read files', detail: g.scope, code: true };
+            if (g.tool === 'fs:write') return { title: 'Change files', detail: g.scope, code: true };
+            if (g.tool === 'shell') return { title: 'Run a command', detail: g.scope, code: true };
+            if (g.tool.startsWith('mcp:')) return { title: g.tool.slice(4), detail: 'Use any tool on this server' };
+            if (g.tool.startsWith('read_url:')) return { title: 'Read a website', detail: g.tool.slice(9) };
+            if (g.tool.startsWith('mac_site:')) return { title: 'Use a website', detail: g.tool.slice(9) };
+            const names = { send_email: 'Send email', send_text: 'Send a text', run_applescript: 'Control Mac apps' };
+            const t = g.tool.replace(/_/g, ' ');
+            return { title: names[g.tool] || t.charAt(0).toUpperCase() + t.slice(1), detail: g.scope || '' };
+        };
+        const bounds = (g) => {
+            const bits = [];
+            if (g.budget > 0) {
+                const today = new Date().toISOString().slice(0, 10);
+                const used = g.usedDay === today ? (g.usedCount || 0) : 0;
+                bits.push(`${used} of ${g.budget} uses today`);
+            }
+            if (g.expiresAt) {
+                const expired = Date.parse(g.expiresAt) <= Date.now();
+                bits.push(`${expired ? 'Expired' : 'Ends'} ${new Date(g.expiresAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`);
+            }
+            if ((g.exclusions || []).includes('new_recipient')) bits.push('Known email recipients only');
+            if ((g.exclusions || []).includes('other_people')) bits.push('Your own number only');
+            return bits.join(' · ');
+        };
+        const row = (g) => {
+            const p = rowParts(g);
+            const b = bounds(g);
+            return `<div class="agent-perm-row" data-grant="${esc(g.id)}" data-search="${esc([g.tool, g.scope, p.title, p.detail, b].filter(Boolean).join(' '))}">
+                <div class="agent-perm-info">
+                    <div class="agent-perm-title">${esc(p.title)}</div>
+                    ${p.detail ? `<div class="agent-perm-detail${p.code ? ' is-code' : ''}">${esc(p.detail)}</div>` : ''}
+                    ${b ? `<div class="agent-perm-bounds">${esc(b)}</div>` : ''}
+                </div>
+                <div class="agent-perm-actions">
+                    <button type="button" class="secondary-btn" data-limit="${esc(g.id)}" aria-expanded="false" aria-label="Edit limits: ${esc(p.title)}">Edit limits</button>
+                    <button type="button" class="secondary-btn" data-revoke="${esc(g.id)}" aria-label="Remove permission: ${esc(p.title)}">Remove</button>
+                </div>
+            </div>`;
+        };
+        const groups = [
+            ['Files & folders', g => g.tool === 'fs:read' || g.tool === 'fs:write'],
+            ['Commands', g => g.tool === 'shell'],
+            ['Websites', g => /^(read_url|mac_site):/.test(g.tool)],
+            ['Connected tools', g => g.tool.startsWith('mcp:')],
+            ['Actions', () => true]
+        ];
+        const remaining = [...grants].sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+        let html = '';
+        for (const [name, match] of groups) {
+            const mine = remaining.filter(match);
+            for (const g of mine) remaining.splice(remaining.indexOf(g), 1);
+            if (mine.length) html += `<section class="agent-perm-group"><h3>${name}</h3><div class="agent-perm-grants">${mine.map(row).join('')}</div></section>`;
+        }
+        list.innerHTML = html;
+        const filters = document.getElementById('settings-agent-permissions-filters');
+        if (filters) {
+            const sections = Array.from(list.querySelectorAll('.agent-perm-group'), group => ({
+                name: group.querySelector('h3').textContent,
+                count: group.querySelectorAll('.agent-perm-row').length
+            }));
+            if (!sections.some(section => section.name === this._agentPermissionSection)) this._agentPermissionSection = '';
+            filters.innerHTML = [{ name: '', count: grants.length }, ...sections].map(section =>
+                `<button type="button" data-permission-section="${esc(section.name)}" aria-pressed="false" aria-controls="settings-agent-permissions-list">${esc(section.name || 'All')} <span>${section.count}</span></button>`
+            ).join('');
+            filters.querySelectorAll('button').forEach(button => {
+                button.onclick = () => {
+                    this._agentPermissionSection = button.dataset.permissionSection;
+                    this._filterAgentPermissions();
+                    // A section change starts at its first row even after a long scroll.
+                    searchWrap?.scrollIntoView?.({ block: 'start' });
+                };
+            });
+        }
+        this._filterAgentPermissions();
+        list.querySelectorAll('[data-revoke]').forEach(btn => {
+            btn.onclick = async () => {
+                btn.disabled = true;
+                try {
+                    const index = Array.from(list.querySelectorAll('.agent-perm-row:not([hidden]) [data-revoke]')).indexOf(btn);
+                    await PermissionManager.revoke(btn.dataset.revoke);
+                    await this._loadAgentPermissions();
+                    UIUtils.showToast('Saved permission removed', 'success');
+                    const next = list.querySelectorAll('.agent-perm-row:not([hidden]) [data-revoke]');
+                    if (next.length) next[Math.min(index, next.length - 1)].focus();
+                    else if (search && PermissionManager.listGrants().length) search.focus();
+                    else { list.tabIndex = -1; list.focus(); }
+                } catch {
+                    btn.disabled = false;
+                    UIUtils.showToast('Could not remove this permission. Try again.', 'error');
+                }
+            };
+        });
+        list.querySelectorAll('[data-limit]').forEach(btn => {
+            btn.onclick = () => {
+                const row = btn.closest('[data-grant]');
+                if (row.querySelector('form')) { row.querySelector('input').focus(); return; }
+                const g = grants.find(x => x.id === row.dataset.grant);
+                const days = g.expiresAt ? String(Math.max(1, Math.ceil((Date.parse(g.expiresAt) - Date.now()) / 86400000))) : '';
+                const form = document.createElement('form');
+                form.className = 'agent-perm-editor';
+                form.innerHTML = `<div class="agent-perm-fields">
+                    <label>Uses per day<input class="settings-input" type="number" min="1" step="1" data-budget value="${g.budget > 0 ? Number(g.budget) : ''}" placeholder="Unlimited"><small>Leave empty for no daily limit.</small></label>
+                    <label>Expires in (days)<input class="settings-input" type="number" min="1" step="1" data-days value="${days}" placeholder="Never"><small>Leave empty for no end date.</small></label>
+                </div>
+                <p class="agent-perm-editor-hint">When a limit is reached, nenva asks for approval again.</p>
+                <div class="agent-perm-actions"><button type="submit" class="primary-btn">Save</button><button type="button" class="secondary-btn" data-cancel>Cancel</button></div>`;
+                row.append(form);
+                btn.setAttribute('aria-expanded', 'true');
+                const close = () => { form.remove(); btn.setAttribute('aria-expanded', 'false'); btn.focus(); };
+                form.querySelector('[data-cancel]').onclick = close;
+                form.onkeydown = e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); } };
+                form.onsubmit = async e => {
+                    e.preventDefault();
+                    if (!form.reportValidity()) return;
+                    const save = form.querySelector('[type="submit"]');
+                    save.disabled = true;
+                    const changes = { budget: form.querySelector('[data-budget]').value };
+                    // Editing a daily limit must not move an existing end date.
+                    if (form.querySelector('[data-days]').value !== days) changes.expiresInDays = form.querySelector('[data-days]').value;
+                    try {
+                        await PermissionManager.setGrantBounds(g.id, changes);
+                        await this._loadAgentPermissions();
+                        focusGrant(g.id);
+                        UIUtils.showToast('Limits saved', 'success');
+                    } catch {
+                        save.disabled = false;
+                        UIUtils.showToast('Could not save these limits. Try again.', 'error');
+                    }
+                };
+                form.querySelector('input').focus();
+            };
+        });
+    },
+
+    // Filter in place so typing never discards an unfinished limits edit.
+    _filterAgentPermissions() {
+        const list = document.getElementById('settings-agent-permissions-list');
+        if (!list) return;
+        const search = document.getElementById('settings-agent-permissions-search');
+        const query = (search?.value || '').trim().toLowerCase();
+        const terms = query.split(/\s+/).filter(Boolean);
+        const section = this._agentPermissionSection || '';
+        document.querySelectorAll('[data-permission-section]').forEach(button => {
+            button.setAttribute('aria-pressed', String(button.dataset.permissionSection === section));
+        });
+        let visible = 0;
+        const rows = list.querySelectorAll('.agent-perm-row');
+        list.querySelectorAll('.agent-perm-group').forEach(group => {
+            let matches = 0;
+            const name = group.querySelector('h3').textContent;
+            group.querySelectorAll('.agent-perm-row').forEach(row => {
+                const text = `${name} ${row.dataset.search}`.toLowerCase();
+                row.hidden = (!!section && name !== section) || !terms.every(term => text.includes(term));
+                if (!row.hidden) matches++;
+            });
+            group.hidden = matches === 0;
+            visible += matches;
+        });
+        const clear = document.getElementById('settings-agent-permissions-clear');
+        if (clear) clear.hidden = !search?.value;
+        const status = document.getElementById('settings-agent-permissions-status');
+        if (status) {
+            status.hidden = (!query && !section) || !rows.length;
+            status.textContent = (query || section) && rows.length ? `${visible} of ${rows.length} permissions` : '';
+        }
+        const empty = document.getElementById('settings-agent-permissions-no-results');
+        if (empty) empty.hidden = !rows.length || visible > 0;
+    },
+
+
+
+    /**
+     * Curated one-click connections (C8.7). Hosted (url) entries need no
+     * local runtime; tokenPrompt entries paste a key inline (stored
+     * encrypted as an Authorization header); needsNode entries are checked
+     * against this Mac at Add time. remote-config `mcpPresets` replaces
+     * this list without a release — review it each release alongside the
+     * model catalog (RELEASING.md).
+     */
+    MCP_PRESETS: [
+        {
+            name: 'linear', label: 'Linear', url: 'https://mcp.linear.app/mcp', auth: 'oauth',
+            desc: 'Find, create and update issues, projects and comments. Connect through Linear in your browser. Content you request is shared with your selected AI model.'
+        },
+        {
+            name: 'slack', label: 'Slack', url: 'https://mcp.slack.com/mcp', auth: 'oauth',
+            desc: 'Find conversations, read threads and send messages when asked. Connect through Slack in your browser.'
+        },
+        {
+            name: 'notion', label: 'Notion', url: 'https://mcp.notion.com/mcp', auth: 'oauth',
+            desc: 'Search, read and update your Notion pages and databases. Connect through Notion in your browser. Content you request is shared with your selected AI model.'
+        },
+        {
+            name: 'browser', label: 'Browser (Playwright)', recommended: true, needsNode: true,
+            command: 'npx', args: ['-y', '@playwright/mcp@latest'],
+            desc: 'Lets the assistant open websites, click, and fill forms in a real browser window on this Mac.'
+        },
+        {
+            name: 'deepwiki', label: 'DeepWiki', url: 'https://mcp.deepwiki.com/mcp',
+            desc: 'Lets the assistant look up and ask questions about any public GitHub repository\'s code and docs. Hosted service, no install, no account.'
+        },
+        {
+            name: 'context7', label: 'Context7 docs', url: 'https://mcp.context7.com/mcp',
+            desc: 'Up-to-date documentation for programming libraries, so coding answers cite current APIs instead of stale ones. Hosted service, no install.'
+        },
+        {
+            name: 'github', label: 'GitHub', url: 'https://api.githubcopilot.com/mcp/',
+            tokenPrompt: 'a GitHub personal access token', tokenPlaceholder: 'ghp_…',
+            desc: 'Work with your GitHub issues, pull requests, and repositories. Hosted by GitHub, no install.'
+        }
+    ],
+    _mcpPresets: null,
+
+    async _loadMCPPresetOverride() {
+        if (this._mcpPresets !== null) return;
+        try {
+            const cfg = await window.electronConfig?.get?.();
+            if (Array.isArray(cfg?.mcpPresets) && cfg.mcpPresets.length) this._mcpPresets = cfg.mcpPresets;
+            else this._mcpPresets = undefined;   // checked, no override
+        } catch { this._mcpPresets = undefined; }
+    },
+
+    /**
+     * MCP tool servers (docs/COWORK_AGENT.md C2). List + add/remove +
+     * enable + test + per-server trust. Server processes and secrets live
+     * in main; this is config UX only.
+     */
+    async _loadMCPServers() {
+        await this._loadMCPPresetOverride();
+        const list = document.getElementById('settings-mcp-list');
+        if (!list || !window.electronMCP?.listServers) return;
+        if (typeof FEATURES !== 'undefined' && !FEATURES.isEnabled('mcp')) return;
+        if (!this._mcpStopWatching) this._mcpStopWatching = window.electronMCP.onServersChanged?.(() => {
+            clearTimeout(this._mcpRefreshTimer);
+            this._mcpRefreshTimer = setTimeout(() => this._loadMCPServers(), 75);
+        });
+
+        const esc = UIUtils.escapeHtml;
+        const servers = await window.electronMCP.listServers();
+        await (typeof PermissionManager !== 'undefined' ? PermissionManager.ready() : Promise.resolve());
+        const trusted = new Set(
+            (typeof PermissionManager !== 'undefined' ? PermissionManager.listGrants() : [])
+                .filter(g => g.tool.startsWith('mcp:')).map(g => g.tool.slice(4))
+        );
+
+        // Curated one-click connections (C8.7 — the C6 browser preset shape,
+        // generalized): name, what it does, what it needs, one Add button.
+        // Hosted (URL) entries need no local runtime; token entries paste a
+        // key inline (stored encrypted); stdio entries state their runtime
+        // requirement at Add time instead of failing cryptically later.
+        // remote-config `mcpPresets` can extend/replace this list without a
+        // release (same pattern as the model catalog).
+        const presets = (this._mcpPresets || this.MCP_PRESETS)
+            .filter(p => !servers.some(s => s.name === p.name));
+        const presetHtml = presets.map(p => `
+            <div class="settings-toggle-row" data-mcp-preset-row="${esc(p.name)}">
+                <span class="settings-toggle-label" style="flex-direction: column; align-items: flex-start; gap: 2px;">
+                    <strong>${esc(p.label)}${p.recommended ? ' &middot; recommended' : ''}</strong>
+                    <span class="settings-hint" style="margin: 0;">${esc(p.desc)}${p.needsNode ? ' Needs Node.js.' : ''}${p.tokenPrompt ? ` Needs ${esc(p.tokenPrompt)}.` : ''} Every action asks for permission first.</span>
+                </span>
+                <span class="settings-row-actions">
+                    ${p.tokenPrompt ? `<input type="password" class="settings-form-input" data-preset-token style="width: 150px;" placeholder="${esc(p.tokenPlaceholder || 'paste token')}">` : ''}
+                    <button class="secondary-btn" data-mcp-preset="${esc(p.name)}">${p.auth === 'oauth' ? 'Connect' : 'Add'}</button>
+                </span>
+            </div>`).join('');
+
+        if (!servers.length) {
+            list.innerHTML = presetHtml || '<p class="settings-hint" style="font-style: italic;">No servers yet.</p>';
+        } else {
+            list.innerHTML = presetHtml + servers.map(s => `
+                <div class="settings-toggle-row" data-mcp="${esc(s.name)}">
+                    <span class="settings-toggle-label" style="flex-direction: column; align-items: flex-start; gap: 2px;">
+                        <strong>${esc((this._mcpPresets || this.MCP_PRESETS).find(p => p.name === s.name && p.url === s.url)?.label || s.name)}</strong>
+                        <span class="settings-hint" style="margin: 0;">
+                            <code>${esc(s.url ? s.url : `${s.command} ${(s.args || []).join(' ')}`)}</code>
+                            &middot; ${s.tools.length} tool${s.tools.length === 1 ? '' : 's'}
+                            ${s.transport === 'http' ? ' &middot; hosted' : ''}
+                            ${s.running ? ' &middot; running' : ''}
+                            ${s.auth === 'oauth' ? ` &middot; ${s.authStatus === 'connecting' ? 'Waiting for browser sign-in' : s.authStatus === 'connected' ? 'Signed in' : s.authStatus === 'reconnect' ? 'Reconnect needed' : 'Not signed in'}` : ''}
+                            ${trusted.has(s.name) ? ' &middot; trusted' : ''}
+                        </span>
+                    </span>
+                    <span class="settings-row-actions">
+                        ${s.auth === 'oauth' ? (s.authStatus === 'connecting'
+                            ? '<button class="secondary-btn" data-mcp-action="cancel-auth">Cancel sign-in</button>'
+                            : `<button class="secondary-btn" data-mcp-action="authorize" ${s.enabled ? '' : 'disabled'}>${s.authStatus === 'connected' || s.authStatus === 'reconnect' ? 'Reconnect' : 'Connect'}</button>
+                               ${s.authStatus === 'connected' || s.authStatus === 'reconnect' ? '<button class="secondary-btn" data-mcp-action="disconnect">Disconnect</button>' : ''}`) : ''}
+                        <button class="secondary-btn" data-mcp-action="test" ${s.auth === 'oauth' && s.authStatus !== 'connected' ? 'disabled' : ''}>Test</button>
+                        <button class="secondary-btn" data-mcp-action="trust">${trusted.has(s.name) ? 'Untrust' : 'Trust'}</button>
+                        <button class="secondary-btn" data-mcp-action="toggle">${s.enabled ? 'Disable' : 'Enable'}</button>
+                        <button class="secondary-btn" data-mcp-action="remove">Remove</button>
+                    </span>
+                </div>`).join('');
+        }
+
+        list.onclick = async (e) => {
+            const presetBtn = e.target.closest('button[data-mcp-preset]');
+            if (presetBtn) {
+                const preset = (this._mcpPresets || this.MCP_PRESETS).find(p => p.name === presetBtn.dataset.mcpPreset);
+                if (!preset) return;
+                // Failure honesty (C8.7): a runtime the Mac doesn't have is a
+                // sentence at Add time, not a cryptic first-tool-call error.
+                if (preset.needsNode) {
+                    const rt = await window.electronMCP.checkRuntime('npx');
+                    if (!rt.found) {
+                        UIUtils.showToast('This connection needs Node.js, which was not found on this Mac. Install it from nodejs.org, then Add again.', 'error');
+                        return;
+                    }
+                }
+                let headers;
+                if (preset.tokenPrompt) {
+                    const tokenEl = presetBtn.closest('[data-mcp-preset-row]')?.querySelector('[data-preset-token]');
+                    const token = (tokenEl?.value || '').trim();
+                    if (!token) { UIUtils.showToast(`Paste ${preset.tokenPrompt} first`, 'error'); return; }
+                    headers = { Authorization: `${preset.tokenScheme || 'Bearer'} ${token}` };
+                }
+                presetBtn.disabled = true;
+                presetBtn.textContent = 'Adding…';
+                const res = await window.electronMCP.addServer({
+                    name: preset.name,
+                    command: preset.command,
+                    args: preset.args,
+                    env: {},
+                    url: preset.url,
+                    headers,
+                    auth: preset.auth
+                });
+                if (res.error) {
+                    UIUtils.showToast(res.error, 'error');
+                } else if (preset.auth === 'oauth') {
+                    await this._connectMCPServer(res.name);
+                } else if (preset.url) {
+                    // Hosted servers cost nothing to verify right now — do it,
+                    // so a bad token or dead URL is caught at Add time.
+                    presetBtn.textContent = 'Connecting…';
+                    const test = await window.electronMCP.testServer(res.name);
+                    if (test.error) UIUtils.showToast(`Added, but connecting failed: ${test.error}`, 'error');
+                    else {
+                        UIUtils.showToast(`Connected — ${test.tools.length} tool${test.tools.length === 1 ? '' : 's'} available to the assistant`, 'success');
+                        const updated = (await window.electronMCP.listServers()).find(s => s.name === res.name);
+                        if (updated && typeof MCPTools !== 'undefined') MCPTools.refreshServer(updated);
+                    }
+                } else {
+                    UIUtils.showToast(`Added "${res.name}" — press Test to connect and load its tools`, 'success');
+                }
+                this._loadMCPServers();
+                return;
+            }
+            const btn = e.target.closest('button[data-mcp-action]');
+            if (!btn) return;
+            const name = btn.closest('[data-mcp]')?.dataset.mcp;
+            if (!name) return;
+            const action = btn.dataset.mcpAction;
+            const servers = await window.electronMCP.listServers();
+            const server = servers.find(s => s.name === name);
+            if (!server) return;
+            if (action === 'authorize') {
+                await this._connectMCPServer(name);
+            } else if (action === 'cancel-auth') {
+                await window.electronMCP.cancelAuthorization(name);
+            } else if (action === 'disconnect') {
+                await window.electronMCP.disconnectServer(name);
+                if (typeof MCPTools !== 'undefined') MCPTools.unregisterServer(name);
+                UIUtils.showToast('Disconnected on this Mac. You can also revoke access in Notion or the connected service.', 'success');
+            } else if (action === 'test') {
+                btn.disabled = true;
+                btn.textContent = 'Testing…';
+                const res = await window.electronMCP.testServer(name);
+                if (res.error) UIUtils.showToast(`${name}: ${res.error}`, 'error');
+                else {
+                    UIUtils.showToast(`${name}: connected — ${res.tools.length} tool${res.tools.length === 1 ? '' : 's'}`, 'success');
+                    // Re-register with the fresh tool list.
+                    const updated = (await window.electronMCP.listServers()).find(s => s.name === name);
+                    if (updated && typeof MCPTools !== 'undefined') MCPTools.refreshServer(updated);
+                }
+            } else if (action === 'trust') {
+                const grant = (typeof PermissionManager !== 'undefined' ? PermissionManager.listGrants() : [])
+                    .find(g => g.tool === 'mcp:' + name);
+                if (grant) {
+                    await PermissionManager.revoke(grant.id);
+                    UIUtils.showToast(`"${name}" tools will ask again`, 'success');
+                } else {
+                    await PermissionManager.grantAlways('mcp:' + name);
+                    UIUtils.showToast(`"${name}" tools run without asking now`, 'success');
+                }
+                this._loadAgentPermissions();
+            } else if (action === 'toggle') {
+                await window.electronMCP.setEnabled(name, !server.enabled);
+                const updated = (await window.electronMCP.listServers()).find(s => s.name === name);
+                if (updated && typeof MCPTools !== 'undefined') MCPTools.refreshServer(updated);
+            } else if (action === 'remove') {
+                const ok = await UIUtils.confirm(`Remove "${name}"?`, 'The server config (and any API keys you entered for it) is deleted from this Mac.');
+                if (!ok) return;
+                await window.electronMCP.removeServer(name);
+                if (typeof MCPTools !== 'undefined') MCPTools.unregisterServer(name);
+            }
+            await this._loadMCPServers();
+        };
+
+        const addBtn = document.getElementById('settings-mcp-add-btn');
+        if (addBtn) addBtn.onclick = () => this._addMCPServer();
+    },
+
+    async _connectMCPServer(name, { label } = {}) {
+        try {
+            const server = (await window.electronMCP.listServers()).find(s => s.name === name);
+            const provider = {
+                'https://mcp.notion.com/mcp': { name: 'Notion', callback: '127.0.0.1' },
+                'https://mcp.linear.app/mcp': { name: 'Linear', callback: '127.0.0.1' },
+                'https://mcp.slack.com/mcp': { name: 'Slack', callback: 'localhost', hostedCallback: true }
+            }[server?.url?.replace(/\/$/, '')];
+            if (provider) {
+                const proceed = await new Promise(resolve => {
+                    let continued = false;
+                    const modal = Modal.create({
+                        title: provider.hostedCallback ? `Connect to ${provider.name}` : `Connect directly to ${provider.name}`,
+                        content: provider.hostedCallback ? `<p>Slack returns through nenva Connect, which passes a one-time sign-in code back to nenva on this Mac. Keep nenva running while you sign in.</p>
+                            <p>Your access tokens are obtained directly from Slack and stored securely on this Mac.</p>`
+                            : `<p>${provider.name} will return you to nenva on this Mac. You may see <code>${provider.callback}</code> as the return address. That means your own computer.</p>
+                            <p>Sign-in connects this Mac directly to ${provider.name}. Your sign-in credentials are stored securely on this Mac.</p>`,
+                        onClose: () => resolve(continued),
+                        buttons: [
+                            { text: 'Cancel', className: 'secondary-btn' },
+                            { text: `Continue to ${provider.name}`, className: 'primary-btn', onClick: () => {
+                                continued = true;
+                                modal.close();
+                            } }
+                        ]
+                    });
+                });
+                if (!proceed) return { cancelled: true };
+            }
+            const pending = window.electronMCP.authorizeServer(name);
+            UIUtils.showToast('Complete sign-in in your browser. You can cancel here.', 'info');
+            const result = await pending;
+            if (result.error) UIUtils.showToast(result.error, 'error');
+            else UIUtils.showToast(label ? `${label} is connected. You can ask nenva to use it now.` : `Connected. ${result.tools.length} tools available.`, 'success');
+            return result;
+        } catch (e) {
+            UIUtils.showToast(`Could not connect: ${e.message}`, 'error');
+            return { error: e.message };
+        } finally { await this._loadMCPServers(); }
+    },
+
+    _addMCPServer() {
+        let modal;
+        const content = document.createElement('div');
+        // Labeled fields with per-field hints (labels survive typing;
+        // placeholder-only fields lose their meaning the moment they fill).
+        content.innerHTML = `
+            <div class="settings-form">
+                <label class="settings-form-field">
+                    <span class="settings-form-label">Name</span>
+                    <input id="mcp-add-name" class="settings-form-input" type="text"
+                           placeholder="github" spellcheck="false" autocomplete="off">
+                </label>
+                <label class="settings-form-field">
+                    <span class="settings-form-label">Launch command <em>or</em> server URL</span>
+                    <input id="mcp-add-command" class="settings-form-input settings-form-input--mono" type="text"
+                           placeholder="npx -y @modelcontextprotocol/server-github &nbsp;&middot;&nbsp; https://mcp.example.com/mcp" spellcheck="false" autocomplete="off">
+                    <span class="settings-form-hint">Paste it exactly as the server's docs show it. An https:// address connects to a hosted server (no install needed).</span>
+                </label>
+                <label class="settings-form-field">
+                    <span class="settings-form-label">Sign-in method</span>
+                    <select id="mcp-add-auth" class="settings-form-input">
+                        <option value="">No sign-in or access token</option>
+                        <option value="oauth">Sign in with browser (OAuth)</option>
+                    </select>
+                    <span class="settings-form-hint">Browser sign-in works with HTTPS servers that support automatic desktop client registration.</span>
+                </label>
+                <label class="settings-form-field" id="mcp-add-env-field">
+                    <span class="settings-form-label">Environment variables or access token <em>optional</em></span>
+                    <textarea id="mcp-add-env" class="settings-form-input settings-form-input--mono" rows="3"
+                              placeholder="GITHUB_TOKEN=ghp_..." spellcheck="false"></textarea>
+                    <span class="settings-form-hint">One KEY=value per line. For a hosted server, a single line with just the token becomes its Authorization header. Stored encrypted on this Mac.</span>
+                </label>
+            </div>`;
+        const save = async () => {
+            const name = document.getElementById('mcp-add-name')?.value.trim();
+            const cmdLine = document.getElementById('mcp-add-command')?.value.trim();
+            if (!name || !cmdLine) { UIUtils.showToast('Name and a command or URL are required', 'error'); return; }
+            const isUrl = /^https?:\/\//i.test(cmdLine);
+            const auth = document.getElementById('mcp-add-auth')?.value || undefined;
+            if (auth === 'oauth' && !/^https:\/\//i.test(cmdLine)) {
+                UIUtils.showToast('Browser sign-in needs an HTTPS server URL.', 'error'); return;
+            }
+            const parts = cmdLine.split(/\s+/);
+            const env = {};
+            let bareToken = null;
+            for (const line of (document.getElementById('mcp-add-env')?.value || '').split('\n')) {
+                const t = line.trim();
+                if (!t) continue;
+                const eq = t.indexOf('=');
+                if (eq > 0) env[t.slice(0, eq).trim()] = t.slice(eq + 1).trim();
+                else if (isUrl && !bareToken) bareToken = t;   // hosted: a lone token line → Authorization
+            }
+            const res = isUrl
+                ? await window.electronMCP.addServer({
+                    name, url: cmdLine.split(/\s+/)[0],
+                    auth,
+                    headers: auth === 'oauth' ? undefined : (bareToken ? { Authorization: `Bearer ${bareToken}` } : (Object.keys(env).length ? env : undefined))
+                })
+                : await window.electronMCP.addServer({ name, command: parts[0], args: parts.slice(1), env });
+            if (res.error) { UIUtils.showToast(res.error, 'error'); return; }
+            modal.close();
+            if (auth === 'oauth') { await this._connectMCPServer(res.name); return; }
+            UIUtils.showToast(`Added "${res.name}" — press Test to connect and load its tools`, 'success');
+            this._loadMCPServers();
+        };
+        content.querySelector('#mcp-add-auth').onchange = (e) => {
+            content.querySelector('#mcp-add-env-field').hidden = e.target.value === 'oauth';
+            content.querySelector('#mcp-add-env').disabled = e.target.value === 'oauth';
+        };
+        // Enter in a single-line field submits (the textarea keeps Enter
+        // for new env lines).
+        content.querySelectorAll('input').forEach(el =>
+            el.addEventListener('keydown', (e) => { if (e.key === 'Enter') save(); }));
+        modal = Modal.create({
+            title: 'Add MCP server',
+            content,
+            buttons: [
+                { text: 'Cancel', className: 'secondary-btn' },
+                { text: 'Add', className: 'primary-btn', onClick: save }
+            ]
+        });
+        content.querySelector('#mcp-add-name')?.focus();
+    },
+
+    // ── Connected accounts (macOS-style: account → toggleable services) ──
+
+    // ── Accounts panel: ONE card anatomy for every connection (2026-09-01) ──
+    // Google accounts, the Apple apps, Telegram and iMessage each used to
+    // draw their own rows — four typographies, subtitles truncated with an
+    // ellipsis, buttons floating wherever the text ended. Every connection
+    // now goes through _acct(): a head (title + one status line with a
+    // semantic dot, the control on the right), a description that WRAPS,
+    // an optional property list of [label | value | action] rows on one
+    // grid, an optional form row, and a foot for secondary actions. The
+    // models list (settings-model-card) is the reference: 600/sm title,
+    // xs secondary text, small outlined buttons, green/amber/red dot.
+    // Ids and classes the handlers bind to are passed through verbatim.
+    _acct({ title, status, tone = 'off', statusId = '', control = '', desc = '', rows = [], form = '', foot = '', footActions = '' }) {
+        const rowsHtml = rows.length ? `<div class="acct-rows">${rows.map(r => `
+            <div class="acct-row">
+                <span class="acct-row-label">${r.label}</span>
+                <span class="acct-row-value">${r.value || ''}</span>
+                <span class="acct-row-action">${r.action || ''}</span>
+            </div>`).join('')}</div>` : '';
+        return `
+            <div class="acct">
+                <div class="acct-head">
+                    <div class="acct-heading">
+                        <div class="acct-title">${title}</div>
+                        <div class="acct-status" data-tone="${tone}"${statusId ? ` id="${statusId}"` : ''}><span class="acct-dot"></span><span class="acct-status-text">${status}</span></div>
+                    </div>
+                    ${control ? `<div class="acct-control">${control}</div>` : ''}
+                </div>
+                ${desc ? `<p class="acct-desc">${desc}</p>` : ''}
+                ${rowsHtml}
+                ${form ? `<div class="acct-form">${form}</div>` : ''}
+                ${(foot || footActions) ? `<div class="acct-foot"><span class="acct-foot-note">${foot}</span><span class="acct-foot-actions">${footActions}</span></div>` : ''}
+            </div>`;
+    },
+
+    _acctSwitch(id, checked, extra = '') {
+        return `<label class="settings-switch"><input type="checkbox" id="${id}" ${checked ? 'checked' : ''} ${extra}><span class="settings-switch-track"></span></label>`;
+    },
+
+    _acctBtn(id, label, { primary = false, disabled = false, title = '', cls = '', data = '' } = {}) {
+        return `<button type="button"${id ? ` id="${id}"` : ''} class="acct-btn${primary ? ' is-primary' : ''}${cls ? ' ' + cls : ''}"${disabled ? ' disabled' : ''}${title ? ` title="${title}"` : ''} ${data}>${label}</button>`;
+    },
+
+    /** Update a rendered status line in place (text + tone) without repainting the card. */
+    _acctStatusSet(el, text, tone) {
+        if (!el) return;
+        el.dataset.tone = tone;
+        const t = el.querySelector('.acct-status-text');
+        if (t) t.textContent = text; else el.textContent = text;
+    },
+
+    _renderConnectedAccounts() {
+        const container = document.getElementById('settings-connected-accounts-list');
+        if (!container) return;
+
+        const accounts = (typeof AccountsManager !== 'undefined') ? AccountsManager.getAll() : [];
+
+        let html = '';
+        if (accounts.length === 0) {
+            html += this._acct({
+                title: 'Google',
+                status: 'Not connected',
+                tone: 'off',
+                control: this._acctBtn('connected-account-add-google', 'Connect Google', { primary: true }),
+                desc: 'One sign-in links Gmail and Calendar. Mail syncs from Google straight to this Mac and your own model reads it here; nothing passes through a server of nenva’s. Optional, and you can disconnect at any time.'
+            });
+        } else {
+            html += accounts.map(a => this._renderAccountRow(a)).join('');
+            // Single "Add" button — runs the unified OAuth flow that grants
+            // every service (Mail + Calendar) in one shot.
+            html += `<div class="acct-add">${this._acctBtn('connected-account-add-google', '+ Add Google account')}</div>`;
+        }
+        container.innerHTML = html;
+
+        // Wire up per-account actions
+        container.querySelectorAll('.connected-account-service-toggle').forEach(input => {
+            input.addEventListener('change', () => {
+                this._toggleAccountService(input.dataset.email, input.dataset.service, input.checked);
+            });
+        });
+        container.querySelectorAll('.connected-account-reconnect-btn').forEach(btn => {
+            btn.addEventListener('click', () => this._reconnectGoogleAccount(btn.dataset.email));
+        });
+        container.querySelectorAll('.connected-account-disconnect-btn').forEach(btn => {
+            btn.addEventListener('click', () => this._disconnectGoogleAccount(btn.dataset.email));
+        });
+        const addBtn = document.getElementById('connected-account-add-google');
+        if (addBtn) addBtn.addEventListener('click', () => this._connectGoogleAccount());
+    },
+
+    _renderAccountRow(account) {
+        const email = this._esc(account.email);
+        const displayName = this._esc(account.displayName || account.email);
+        const services = account.services || {};
+        const emailPrefix = displayName !== email ? `${email} · ` : '';
+        const dataEmail = `data-email="${email}"`;
+        // Accounts sync between Macs but OAuth tokens don't — an account
+        // connected on another Mac shows here as needing a one-time sign-in
+        // on this one, instead of pretending to be live and failing fetches.
+        const localDisconnected = (typeof AccountsManager !== 'undefined')
+            && AccountsManager.isLocallyDisconnected(account.email);
+        if (localDisconnected) {
+            return this._acct({
+                title: displayName,
+                status: `${emailPrefix}Connected on another Mac — sign in once to use it here`,
+                tone: 'warn',
+                // Both actions in the head: one zone, not a primary up top
+                // and a stray Remove floating under an otherwise empty card.
+                control: this._acctBtn('', 'Remove', { cls: 'connected-account-disconnect-btn', data: dataEmail, title: 'Remove this account everywhere' })
+                    + this._acctBtn('', 'Connect on this Mac', { primary: true, cls: 'connected-account-reconnect-btn', data: dataEmail, title: 'Sign in to this account on this Mac' })
+            });
+        }
+        return this._acct({
+            title: displayName,
+            status: `${emailPrefix}Connected`,
+            tone: 'ok',
+            rows: [
+                { label: 'Mail', value: 'Inbox, Insights, and tasks found in mail', action: this._renderServiceToggle(account.email, 'mail', services.mail) },
+                { label: 'Calendar', value: 'Events on the Calendar and in Today', action: this._renderServiceToggle(account.email, 'calendar', services.calendar) }
+            ],
+            footActions: this._acctBtn('', 'Reconnect', { cls: 'connected-account-reconnect-btn', data: dataEmail, title: 'Re-authenticate this account' })
+                + this._acctBtn('', 'Remove', { cls: 'connected-account-disconnect-btn', data: dataEmail, title: 'Remove this account' })
+        });
+    },
+
+    _renderServiceToggle(email, service, enabled) {
+        // The door to the unified Email Settings page lives on its own row
+        // of the Accounts panel (2026-07-30) — a link squeezed beside the
+        // Mail toggle was two controls sharing one hit area.
+        return `<label class="settings-switch"><input type="checkbox" class="connected-account-service-toggle" data-email="${this._esc(email)}" data-service="${service}" ${enabled ? 'checked' : ''}><span class="settings-switch-track"></span></label>`;
+    },
+
+    /**
+     * Linked institutions page (Settings › Connectors): brokerages (Portfolio)
+     * and banks/cards (Spending) share one Plaid door on Connect. Items come
+     * from Connect (`electronBrokerage.items`, the truth about what Plaid
+     * holds) joined with the Portfolio accounts and Spending accounts riding
+     * on each; the packages own the flows (PortfolioBrokerage.link/relink/
+     * pickAccounts/unlink, and Spending's through Anjadhe.use('spending')).
+     * Honest-copy rule: the card says plainly that holdings and transactions
+     * pass through nenva's server and that Plaid is in the loop — this is
+     * an opt-in cloud service, like the cloud AI keys.
+     */
+    async _renderBrokerages() {
+        const container = document.getElementById('settings-brokerages');
+        if (!container) return;
+        // Behind the `brokerage` flag: the markup is hidden by data-feature,
+        // and no Connect call is made for a feature the user cannot see.
+        if (typeof FEATURES !== 'undefined' && !FEATURES.isEnabled('brokerage')) { container.innerHTML = ''; return; }
+        const title = 'Connections';
+        const desc = 'Connect a brokerage, bank or card to bring holdings, balances and transactions into Finance.<br><br>You sign in through Plaid; nenva never receives your password. Your financial data passes through nenva cloud to this Mac and is not stored or logged there. The server keeps only an encrypted Plaid access token, deleted when you unlink.<br><br>You can also track accounts by hand or from confirmation emails.';
+        const bk = (typeof PortfolioBrokerage !== 'undefined' && PortfolioBrokerage.available()) ? PortfolioBrokerage : null;
+        const sp = (typeof Anjadhe !== 'undefined' && Anjadhe.use('spending')?.available()) ? Anjadhe.use('spending') : null;
+        if (!bk && !sp) {
+            const why = (typeof InstitutionLink === 'undefined' || !InstitutionLink.available())
+                ? 'Not available in this build.'
+                : 'Institution linking is unavailable because Finance is not loaded.';
+            container.innerHTML = this._acct({ title, status: why, tone: 'off', desc });
+            return;
+        }
+        let items = [];
+        let fetchErr = null;
+        try {
+            const r = await window.electronBrokerage.items();
+            if (r.error) fetchErr = r; else items = r.items || [];
+            if (r.enabled === false) fetchErr = { code: 'disabled' };
+        } catch (e) { fetchErr = { error: e.message, code: 'connect' }; }
+        if (bk) PortfolioApp.loadData();
+        const pfAccounts = bk ? bk.linkedAccounts() : [];
+        const spLinks = sp ? sp.links() : [];
+        // Every institution this Mac knows about: Connect's list first, then
+        // any link an app still holds that Connect no longer reports (linked
+        // on the other Mac, or unlinked there) so the user sees and can clear it.
+        const byItem = new Map(items.map(it => [it.itemId, { ...it, pf: [], sp: [], spLink: null }]));
+        for (const a of pfAccounts) {
+            const id = a.brokerage.itemId;
+            if (!byItem.has(id)) byItem.set(id, { itemId: id, institution: a.brokerage.institution, status: bk.isHere(a) ? 'missing' : 'elsewhere', products: ['investments'], pf: [], sp: [], spLink: null });
+            byItem.get(id).pf.push(a);
+        }
+        for (const l of spLinks) {
+            if (!byItem.has(l.id)) byItem.set(l.id, { itemId: l.id, institution: l.institution, status: l.here ? 'missing' : 'elsewhere', products: l.products || ['transactions'], pf: [], sp: [], spLink: null });
+            const it = byItem.get(l.id);
+            it.spLink = l;
+            it.sp = sp.accountsFor(l.id);
+        }
+        const cards = [...byItem.values()].map(it => {
+            const isBank = (it.products || []).includes('transactions');
+            const here = it.pf.some(a => bk && bk.isHere(a)) || (it.spLink ? it.spLink.here : false);
+            const nPf = it.pf.length, nSp = it.sp.length;
+            const parts = [];
+            if (nPf) parts.push(`${nPf} in Portfolio`);
+            if (nSp) parts.push(`${nSp} in Spending`);
+            let tone = 'ok', status = parts.length ? `Connected · ${parts.join(', ')}` : 'Connected · no accounts added yet';
+            const needsLogin = it.status === 'login_required' || it.spLink?.needsLogin || it.pf.some(a => a.brokerage.needsLogin);
+            if (needsLogin) { tone = 'warn'; status = 'Needs sign-in — the institution asked for your credentials again'; }
+            else if (it.status === 'error') { tone = 'err'; status = 'The last sync failed — try again, or unlink and link afresh'; }
+            else if (it.status === 'elsewhere') { tone = 'off'; status = `Linked on another Mac${parts.length ? ` · ${parts.join(', ')} sync from there` : ''}`; }
+            else if (it.status === 'missing') { tone = 'warn'; status = 'No longer linked on nenva cloud — unlink to clear'; }
+            const stamps = [...it.pf.map(a => a.brokerage.lastSyncAt), it.spLink?.lastSyncAt].filter(Boolean).sort();
+            const last = stamps.pop();
+            const rows = [
+                ...it.pf.map(a => ({ label: this._esc(a.name), value: `Portfolio${a.brokerage.lastSyncAt ? ` · synced ${UIUtils.formatDateTime(a.brokerage.lastSyncAt)}` : ' · not synced yet'}`, action: '' })),
+                ...it.sp.map(a => ({ label: this._esc(a.name), value: `Spending${it.spLink?.lastSyncAt ? ` · synced ${UIUtils.formatDateTime(it.spLink.lastSyncAt)}` : ' · not synced yet'}`, action: '' }))
+            ];
+            const data = `data-item="${this._esc(it.itemId)}"`;
+            const actions = [];
+            if (needsLogin) actions.push(this._acctBtn('', 'Sign in again', { primary: true, cls: 'brokerage-relink-btn', data }));
+            else if (it.status === 'ok' && here && (nPf || nSp)) actions.push(this._acctBtn('', 'Sync now', { cls: 'brokerage-sync-btn', data }));
+            if (it.status === 'ok' || it.status === 'error') {
+                const both = bk && sp && isBank && (it.products || []).includes('investments');
+                if (bk && (it.products || []).includes('investments')) actions.push(this._acctBtn('', both ? 'Add to Portfolio' : 'Add accounts', { cls: 'brokerage-add-btn', data, title: 'Add this institution’s investment accounts to Portfolio' }));
+                if (sp && isBank) actions.push(this._acctBtn('', both ? 'Add to Spending' : 'Add accounts', { cls: 'spending-add-btn', data, title: 'Add this institution’s checking, savings or card accounts to Spending' }));
+            }
+            actions.push(this._acctBtn('', 'Unlink', { cls: 'brokerage-unlink-btn', data, title: 'Remove the link at nenva cloud and Plaid, and its accounts from Portfolio and Spending' }));
+            return this._acct({
+                title: this._esc(it.institution || (isBank ? 'Bank' : 'Brokerage')),
+                status, tone,
+                rows,
+                foot: last ? `Last sync ${UIUtils.formatDateTime(last)}` : '',
+                footActions: actions.join('')
+            });
+        });
+        const linkButtons = (disabled) => [
+            bk ? this._acctBtn('brokerage-link-btn', 'Link a brokerage', { primary: true, disabled }) : '',
+            sp ? this._acctBtn('spending-link-btn-settings', 'Link a bank or card', { primary: !bk, disabled }) : ''
+        ].join(' ');
+        let head;
+        if (fetchErr?.code === 'disabled') {
+            head = this._acct({ title, status: 'Not enabled on nenva cloud yet', tone: 'off', desc });
+        } else if (fetchErr) {
+            head = this._acct({
+                title, status: 'nenva cloud could not be reached — showing what this Mac knows', tone: 'warn', desc,
+                control: linkButtons(true)
+            });
+        } else {
+            head = this._acct({
+                title,
+                status: cards.length ? `${cards.length} institution${cards.length === 1 ? '' : 's'} linked` : 'None linked',
+                tone: cards.length ? 'ok' : 'off',
+                control: linkButtons(false),
+                desc
+            });
+        }
+        // Accounts a link created that no link holds any more (unlinked
+        // before unlink removed accounts, or a sandbox item that vanished):
+        // one button clears them all instead of a Delete per account.
+        const orphans = bk ? bk.orphanedAccounts(PortfolioApp.accounts, PortfolioApp.transactions) : [];
+        const orphanCard = orphans.length ? this._acct({
+            title: 'Left over from earlier links',
+            status: `${orphans.length} Portfolio account${orphans.length === 1 ? '' : 's'} came from a link that no longer exists`,
+            tone: 'warn',
+            rows: orphans.slice(0, 12).map(a => ({ label: this._esc(a.name), value: a.type || '', action: '' })),
+            foot: orphans.length > 12 ? `and ${orphans.length - 12} more` : '',
+            footActions: this._acctBtn('brokerage-orphans-btn', `Remove ${orphans.length === 1 ? 'it' : 'all ' + orphans.length}`, { cls: '', title: 'Delete these accounts and the positions and trades they brought in' })
+        }) : '';
+        container.innerHTML = head + cards.join('') + orphanCard;
+
+        const orphanBtn = document.getElementById('brokerage-orphans-btn');
+        if (orphanBtn) orphanBtn.addEventListener('click', async () => {
+            const n = orphans.length;
+            const ok = await UIUtils.confirm('Remove leftover accounts',
+                `Delete ${n === 1 ? 'this account' : `these ${n} accounts`} from Portfolio, with the positions and trades ${n === 1 ? 'it' : 'they'} brought in? Nothing changes at nenva cloud or Plaid.`,
+                '❓', { confirmText: 'Remove' });
+            if (!ok) return;
+            orphanBtn.disabled = true;
+            try { bk.removeOrphans(); UIUtils.showToast(`Removed ${n} account${n === 1 ? '' : 's'}`, 'success'); } finally { this._renderBrokerages(); }
+        });
+
+        const linkBtn = document.getElementById('brokerage-link-btn');
+        if (linkBtn) linkBtn.addEventListener('click', async () => {
+            linkBtn.disabled = true;
+            try { await bk.link(); } finally { this._renderBrokerages(); }
+        });
+        const bankBtn = document.getElementById('spending-link-btn-settings');
+        if (bankBtn) bankBtn.addEventListener('click', async () => {
+            bankBtn.disabled = true;
+            try {
+                // The Spending page owns the flow; open it so the first sync lands in view.
+                AppManager.openApp('spending');
+                if (typeof SpendingSync !== 'undefined') await SpendingSync.link();
+            } finally { this._renderBrokerages(); }
+        });
+        container.querySelectorAll('.brokerage-relink-btn').forEach(btn => btn.addEventListener('click', async () => {
+            btn.disabled = true;
+            const it = byItem.get(btn.dataset.item);
+            try {
+                if (it.spLink && sp) await sp.relink(it.itemId);
+                else if (bk) await bk.relink(it.itemId);
+                // Both apps' flags clear when the one sign-in succeeds.
+                if (it.spLink && sp && it.pf.length && bk) {
+                    const now = new Date().toISOString();
+                    for (const a of it.pf) { a.brokerage.needsLogin = false; a.updatedAt = now; }
+                    PortfolioApp.saveData();
+                }
+            } finally { this._renderBrokerages(); }
+        }));
+        container.querySelectorAll('.brokerage-sync-btn').forEach(btn => btn.addEventListener('click', async () => {
+            btn.disabled = true;
+            const it = byItem.get(btn.dataset.item);
+            try {
+                if (bk && it.pf.length) await bk.sync(it.pf.map(a => a.id), { manual: true });
+                if (sp && it.spLink) await sp.sync(it.itemId);
+            } finally { this._renderBrokerages(); }
+        }));
+        container.querySelectorAll('.brokerage-add-btn').forEach(btn => btn.addEventListener('click', async () => {
+            btn.disabled = true;
+            const it = byItem.get(btn.dataset.item);
+            try { await bk.pickAccounts({ itemId: it.itemId, institution: it.institution }); } finally { this._renderBrokerages(); }
+        }));
+        container.querySelectorAll('.spending-add-btn').forEach(btn => btn.addEventListener('click', async () => {
+            btn.disabled = true;
+            const it = byItem.get(btn.dataset.item);
+            try { await sp.pickAccounts({ itemId: it.itemId, institution: it.institution, products: it.products }); } finally { this._renderBrokerages(); }
+        }));
+        container.querySelectorAll('.brokerage-unlink-btn').forEach(btn => btn.addEventListener('click', async () => {
+            const it = byItem.get(btn.dataset.item);
+            const nPf = it.pf.length, nSp = it.sp.length;
+            const gone = [];
+            if (nPf) gone.push(`${nPf === 1 ? 'its Portfolio account and the positions and trades it brought in' : `its ${nPf} Portfolio accounts and the positions and trades they brought in`}`);
+            if (nSp) gone.push(`${nSp === 1 ? 'its Spending account and its transactions' : `its ${nSp} Spending accounts and their transactions`}`);
+            const ok = await UIUtils.confirm('Unlink institution',
+                `Disconnect ${it.institution || 'this institution'} from nenva cloud? The link is removed at Plaid too${gone.length ? `, and ${gone.join(', and ')} ${nPf + nSp === 1 ? 'is' : 'are'} removed from the app` : ''}.`,
+                '❓', { confirmText: 'Unlink' });
+            if (!ok) return;
+            btn.disabled = true;
+            try {
+                // One Connect call, then each app clears its own records.
+                if (bk && nPf) { await bk.unlink(it.itemId); if (sp) sp.forgetItem(it.itemId); }
+                else if (sp) await sp.unlink(it.itemId);
+                else if (bk) await bk.unlink(it.itemId);
+            } finally { this._renderBrokerages(); }
+        }));
+    },
+
+    /**
+     * Contacts card (Settings › Accounts, docs/PORTFOLIO_SHARING.md): other
+     * nenva users paired by invite code over the peer channel
+     * (js/channel/peer-channel.mjs), and the Portfolio accounts shared with
+     * them or by them. Honest-copy rule: the relay sees ciphertext only,
+     * but a share needs both Macs online for now, and the copy on their
+     * Mac is removed from THEIR APP on revoke — never "gone everywhere".
+     */
+    async _renderContacts() {
+        const container = document.getElementById('settings-contacts');
+        if (!container) return;
+        if (typeof FEATURES !== 'undefined' && !FEATURES.isEnabled('sharing')) { container.innerHTML = ''; return; }
+        const title = 'Contacts';
+        const desc = 'Another nenva user you have paired with by invite code, so you can share a Portfolio account with them read-only (and they with you). Everything travels end to end encrypted between your Macs through nenva’s relay, which sees only ciphertext and keeps no record of who shares with whom. For now both Macs have to be open and online for a share or an update to arrive; a shared copy that hears nothing for 30 days removes itself.';
+        if (!window.electronPeers) {
+            container.innerHTML = this._acct({ title, status: 'Not available in this build.', tone: 'off', desc });
+            return;
+        }
+        let info = null;
+        try { info = await window.electronPeers.info(); } catch { /* below */ }
+        if (!info || !info.available) {
+            container.innerHTML = this._acct({
+                title, status: 'The sharing channel is starting…', tone: 'warn', desc,
+                footActions: this._acctBtn('contacts-retry-btn', 'Retry'),
+            });
+            container.querySelector('#contacts-retry-btn')?.addEventListener('click', async () => {
+                try { await window.electronPeers.ensure(); } catch { /* below */ }
+                setTimeout(() => this._renderContacts(), 1500);
+            });
+            return;
+        }
+        const contacts = info.contacts || [];
+        const invites = info.invites || [];
+        const when = (iso) => { const d = new Date(iso || ''); return isNaN(d.getTime()) ? '' : d.toLocaleDateString(); };
+        const rows = contacts.map(c => ({
+            label: `<b>${this._esc(c.label)}</b>`,
+            value: `${c.online ? 'Online' : 'Offline'}${c.pairedAt ? ` · paired ${when(c.pairedAt)}` : ''}`,
+            action: this._acctBtn('', 'Rename', { cls: 'contacts-rename-btn', data: `data-contact="${this._esc(c.id)}"` })
+                + ' ' + this._acctBtn('', 'Remove', { cls: 'contacts-remove-btn', data: `data-contact="${this._esc(c.id)}"` }),
+        }));
+        for (const inv of invites) {
+            rows.push({
+                label: `Invite for <b>${this._esc(inv.label)}</b>`,
+                value: `<code class="contacts-invite-code" title="${this._esc(inv.code)}">${this._esc(inv.code.slice(0, 28))}…</code> · until ${when(inv.expiresAt)}`,
+                action: this._acctBtn('', 'Copy code', { cls: 'contacts-copy-btn', primary: true, data: `data-invite="${this._esc(inv.id)}" data-code="${this._esc(inv.code)}"` })
+                    + ' ' + this._acctBtn('', 'Cancel', { cls: 'contacts-cancel-btn', data: `data-invite="${this._esc(inv.id)}"` }),
+            });
+        }
+        const form = `
+            <div class="contacts-form-row">
+                <span class="contacts-form-label">Invite someone</span>
+                <input type="text" id="contacts-invite-name" class="settings-input" placeholder="Their name (what you call them)" autocomplete="off" maxlength="64">
+                ${this._acctBtn('contacts-invite-btn', 'Create an invite code', { primary: true, title: 'Send them the code any way you trust; it works for a day' })}
+            </div>
+            <div class="contacts-form-row">
+                <span class="contacts-form-label">Have a code?</span>
+                <input type="text" id="contacts-accept-code" class="settings-input" placeholder="Paste the invite code" autocomplete="off" spellcheck="false">
+                <input type="text" id="contacts-accept-name" class="settings-input contacts-accept-name" placeholder="Their name" autocomplete="off" maxlength="64">
+                ${this._acctBtn('contacts-accept-btn', 'Accept')}
+            </div>`;
+        const status = `${contacts.length} contact${contacts.length === 1 ? '' : 's'} · ${info.connected ? 'connected' : 'relay offline'}`;
+        let html = this._acct({ title, status, tone: info.connected ? 'ok' : 'warn', desc, rows, form });
+
+        // The shares themselves: given and received (Portfolio's records).
+        const sharing = (typeof PortfolioSharing !== 'undefined' && PortfolioSharing.available()) ? PortfolioSharing : null;
+        if (sharing && typeof PortfolioApp !== 'undefined') {
+            PortfolioApp.loadData();
+            const given = sharing.liveShares();
+            const received = sharing.sharedAccounts();
+            const nameOf = (id) => PortfolioApp.accounts.find(a => a.id === id)?.name || '(deleted account)';
+            const shareRows = given.map(s => {
+                let st = s.declinedAt ? 'declined' : (s.lastAckAt ? `they have it · sent ${sharing.ago(s.lastPushedAt)}` : (s.lastPushedAt ? `sent ${sharing.ago(s.lastPushedAt)} · not accepted yet` : 'not sent yet'));
+                if (!sharing.isHere(s)) st = 'shared from another of your Macs';
+                return {
+                    label: `<b>${this._esc(nameOf(s.accountId))}</b> → ${this._esc(sharing.contactLabel(s.contactId, s.contactLabel))}`,
+                    value: st,
+                    action: sharing.isHere(s) ? this._acctBtn('', 'Stop sharing', { cls: 'contacts-revoke-btn', data: `data-share="${this._esc(s.id)}"` }) : '',
+                };
+            }).concat(received.map(a => ({
+                label: `<b>${this._esc(a.name)}</b> from ${this._esc(a.shared.contactLabel || 'a contact')}`,
+                value: `read-only · updated ${sharing.ago(a.shared.receivedAt)}${sharing.isExpired(a) ? ' · expired' : ''}`,
+                action: this._acctBtn('', 'Remove', { cls: 'contacts-unshare-btn', data: `data-share="${this._esc(a.shared.shareId)}"` }),
+            })));
+            html += this._acct({
+                title: 'Shared accounts',
+                status: shareRows.length ? `${given.length} given · ${received.length} received` : 'Nothing shared yet',
+                tone: shareRows.length ? 'ok' : 'off',
+                desc: shareRows.length ? '' : 'Open an account in Portfolio and press Share to share it with a contact, read-only.',
+                rows: shareRows,
+            });
+        }
+        container.innerHTML = html;
+
+        const rerender = () => this._renderContacts();
+        container.querySelector('#contacts-invite-btn')?.addEventListener('click', async () => {
+            const name = container.querySelector('#contacts-invite-name')?.value.trim();
+            if (!name) { UIUtils.showToast('Give the contact a name first', 'info'); return; }
+            const r = await window.electronPeers.createInvite(name);
+            if (r?.error) { UIUtils.showToast(r.error, 'error'); return; }
+            try { await navigator.clipboard.writeText(r.invite.code); UIUtils.showToast('Invite code copied — send it to them', 'success'); }
+            catch { UIUtils.showToast('Invite created — use Copy code', 'success'); }
+            rerender();
+        });
+        container.querySelector('#contacts-accept-btn')?.addEventListener('click', async (e) => {
+            const code = container.querySelector('#contacts-accept-code')?.value.trim();
+            const name = container.querySelector('#contacts-accept-name')?.value.trim();
+            if (!code) { UIUtils.showToast('Paste the invite code first', 'info'); return; }
+            if (!name) { UIUtils.showToast('Give the contact a name', 'info'); return; }
+            const btn = e.currentTarget; btn.disabled = true; btn.textContent = 'Connecting…';
+            const r = await window.electronPeers.acceptInvite(code, name);
+            if (r?.error) { UIUtils.showToast(r.error, 'error'); btn.disabled = false; btn.textContent = 'Accept'; return; }
+            UIUtils.showToast(`${name} is now a contact`, 'success');
+            if (sharing) sharing.refreshContacts();
+            rerender();
+        });
+        container.querySelectorAll('.contacts-copy-btn').forEach(btn => btn.addEventListener('click', async () => {
+            try { await navigator.clipboard.writeText(btn.dataset.code); UIUtils.showToast('Invite code copied', 'success'); }
+            catch { UIUtils.showToast('Could not copy — select the code and copy it', 'error'); }
+        }));
+        container.querySelectorAll('.contacts-cancel-btn').forEach(btn => btn.addEventListener('click', async () => {
+            await window.electronPeers.cancelInvite(btn.dataset.invite); rerender();
+        }));
+        container.querySelectorAll('.contacts-rename-btn').forEach(btn => btn.addEventListener('click', async () => {
+            const c = contacts.find(x => x.id === btn.dataset.contact);
+            const name = prompt('Name for this contact', c?.label || '');
+            if (name == null || !name.trim()) return;
+            await window.electronPeers.renameContact(btn.dataset.contact, name.trim());
+            if (sharing) { await sharing.refreshContacts(); sharing.syncWithContacts(); }
+            rerender();
+        }));
+        container.querySelectorAll('.contacts-remove-btn').forEach(btn => btn.addEventListener('click', async () => {
+            const c = contacts.find(x => x.id === btn.dataset.contact);
+            const ok = await UIUtils.confirm('Remove contact',
+                `Remove ${this._esc(c?.label || 'this contact')}? Anything you share with them stops, anything they share with you is removed from your Portfolio, and a new invite is needed to reconnect.`, '', { confirmText: 'Remove' });
+            if (!ok) return;
+            await window.electronPeers.removeContact(btn.dataset.contact);
+            if (sharing) { await sharing.refreshContacts(); sharing.syncWithContacts(); }
+            UIUtils.showToast('Contact removed', 'success');
+            rerender();
+        }));
+        container.querySelectorAll('.contacts-revoke-btn').forEach(btn => btn.addEventListener('click', async () => {
+            const ok = await UIUtils.confirm('Stop sharing', 'Stop sharing this account? It is removed from their Portfolio app.', '', { confirmText: 'Stop sharing' });
+            if (!ok) return;
+            sharing.revoke(btn.dataset.share);
+            UIUtils.showToast('Sharing stopped', 'success');
+            rerender();
+        }));
+        container.querySelectorAll('.contacts-unshare-btn').forEach(btn => btn.addEventListener('click', async () => {
+            const ok = await UIUtils.confirm('Remove shared account', 'Remove this shared account from your Portfolio? They keep theirs and can share it again.', '', { confirmText: 'Remove' });
+            if (!ok) return;
+            sharing.removeShared(btn.dataset.share);
+            rerender();
+        }));
+    },
+
+    /**
+     * Telegram card (Settings › Accounts). The bridge itself lives in the
+     * main process (js/main/telegram-bridge.js); this card manages its
+     * token, the one-chat link, and the on/off switch. Honest-copy rule:
+     * the card says plainly that messages travel through Telegram's
+     * servers — this channel is an opt-in, like the cloud AI keys.
+     */
+    async _renderTelegram() {
+        const container = document.getElementById('settings-telegram');
+        if (!container) return;
+        if (!window.electronTelegram) { container.innerHTML = ''; return; }
+        let st;
+        try { st = await window.electronTelegram.getStatus(); } catch { return; }
+        // Every Telegram change re-renders this card, so this keeps the
+        // notification funnel's cached "forwarding is live" answer honest.
+        if (typeof Notify !== 'undefined') Notify.refreshTelegram(st);
+        this._telegramPollStop();
+
+        let body = '';
+        if (!st.configured) {
+            this._telegramLinkCode = null;
+            body = this._acct({
+                title: 'Telegram',
+                status: 'Not connected',
+                tone: 'off',
+                statusId: 'telegram-setup-error',
+                desc: 'Message the assistant on this Mac from the Telegram app on any device. Create a bot with Telegram’s @BotFather (send it /newbot) and paste the token it gives you. Messages and replies travel through Telegram’s servers; the token is stored encrypted on this Mac. Set this up on ONE Mac — Telegram allows a single listening app per bot.',
+                form: `<input type="password" id="telegram-token-input" class="settings-input" placeholder="Bot token from @BotFather" autocomplete="off">`
+                    + this._acctBtn('telegram-connect-btn', 'Connect', { primary: true })
+            });
+        } else {
+            const botLabel = st.bot
+                ? `${this._esc(st.bot.name || 'Bot')}${st.bot.username ? ' · @' + this._esc(st.bot.username) : ''}`
+                : 'Telegram bot';
+            const { tone, text } = this._telegramStatus(st);
+            const rows = [];
+            if (st.chat) {
+                rows.push({
+                    label: 'Linked chat',
+                    value: `${this._esc(st.chat.name || 'a chat')} — only this chat is answered`,
+                    action: this._acctBtn('telegram-unlink-btn', 'Unlink')
+                });
+                rows.push({
+                    label: 'Notifications',
+                    value: 'Send this Mac’s reminders and alerts to the linked chat too (through Telegram’s servers)',
+                    action: this._acctSwitch('telegram-notify', st.notify)
+                });
+            } else if (st.linking && this._telegramLinkCode) {
+                rows.push({
+                    label: 'Pairing code',
+                    value: `In Telegram, send <strong>${this._esc(this._telegramLinkCode)}</strong> to ${st.bot && st.bot.username ? '@' + this._esc(st.bot.username) : 'your bot'} — the chat that sends it becomes the one this Mac answers`,
+                    action: this._acctBtn('telegram-cancel-link-btn', 'Cancel')
+                });
+            } else {
+                rows.push({
+                    label: 'Linked chat',
+                    value: 'None yet — nothing is answered until you link yours',
+                    action: this._acctBtn('telegram-link-btn', 'Link your Telegram', { primary: true })
+                });
+            }
+            body = this._acct({
+                title: botLabel,
+                status: text,
+                tone,
+                statusId: 'telegram-status-line',
+                control: this._acctSwitch('telegram-enabled', st.enabled),
+                desc: 'The assistant answers your Telegram messages with its tools: it can read your data and add tasks or notes. Anything that needs your confirmation is declined there and has to be done here. Messages and replies travel through Telegram’s servers.',
+                rows,
+                footActions: this._acctBtn('telegram-disconnect-btn', 'Disconnect')
+            });
+        }
+        container.innerHTML = body;
+
+        // The status line is live while the card is on screen: a poll that
+        // died in a network change reads "Reconnecting" for the seconds the
+        // bridge backs off, then clears on its own — the card used to keep a
+        // stale red "unreachable" until something else repainted it.
+        if (st.configured) {
+            this._telegramPoll = setInterval(async () => {
+                const el = document.getElementById('telegram-status-line');
+                if (!el || !el.isConnected) { this._telegramPollStop(); return; }
+                try {
+                    const s = await window.electronTelegram.getStatus();
+                    const cur = this._telegramStatus(s);
+                    this._acctStatusSet(el, cur.text, cur.tone);
+                } catch { /* next tick */ }
+            }, 5000);
+        }
+
+        const connectBtn = document.getElementById('telegram-connect-btn');
+        if (connectBtn) connectBtn.addEventListener('click', async () => {
+            const input = document.getElementById('telegram-token-input');
+            const errEl = document.getElementById('telegram-setup-error');
+            connectBtn.disabled = true;
+            this._acctStatusSet(errEl, 'Connecting…', 'busy');
+            const res = await window.electronTelegram.setToken(input ? input.value : '');
+            connectBtn.disabled = false;
+            if (res && res.error) { this._acctStatusSet(errEl, res.error, 'err'); return; }
+            // A fresh connection is meant to be used — enable straight away.
+            await window.electronTelegram.setEnabled(true);
+            this._renderTelegram();
+        });
+        const enabledInput = document.getElementById('telegram-enabled');
+        if (enabledInput) enabledInput.addEventListener('change', async () => {
+            await window.electronTelegram.setEnabled(enabledInput.checked);
+            this._renderTelegram();
+        });
+        const notifyInput = document.getElementById('telegram-notify');
+        if (notifyInput) notifyInput.addEventListener('change', async () => {
+            await window.electronTelegram.setNotify(notifyInput.checked);
+            this._renderTelegram();
+        });
+        const linkBtn = document.getElementById('telegram-link-btn');
+        if (linkBtn) linkBtn.addEventListener('click', async () => {
+            const res = await window.electronTelegram.beginLink();
+            this._telegramLinkCode = res && res.code ? res.code : null;
+            this._renderTelegram();
+        });
+        const cancelLinkBtn = document.getElementById('telegram-cancel-link-btn');
+        if (cancelLinkBtn) cancelLinkBtn.addEventListener('click', async () => {
+            await window.electronTelegram.cancelLink();
+            this._telegramLinkCode = null;
+            this._renderTelegram();
+        });
+        const unlinkBtn = document.getElementById('telegram-unlink-btn');
+        if (unlinkBtn) unlinkBtn.addEventListener('click', async () => {
+            await window.electronTelegram.unlink();
+            this._renderTelegram();
+        });
+        const disconnectBtn = document.getElementById('telegram-disconnect-btn');
+        if (disconnectBtn) disconnectBtn.addEventListener('click', async () => {
+            if (!window.confirm('Disconnect Telegram? The token and the linked chat are removed from this Mac.')) return;
+            await window.electronTelegram.disconnect();
+            this._telegramLinkCode = null;
+            this._renderTelegram();
+        });
+    },
+
+    /**
+     * One sentence + tone for the Telegram card's status line. A poll error
+     * while the bridge is still running is "reconnecting" (amber): the
+     * bridge backs off and retries on its own, so the line must not read
+     * as a dead connection.
+     */
+    _telegramStatus(st) {
+        if (st.lastError) {
+            return (st.enabled && st.running)
+                ? { tone: 'warn', text: `Reconnecting — ${st.lastError}` }
+                : { tone: 'err', text: st.lastError };
+        }
+        if (!st.enabled) return { tone: 'off', text: 'Off — messages are not received' };
+        if (!st.chat) return { tone: 'warn', text: 'Listening — no chat linked yet' };
+        return { tone: 'ok', text: 'Listening for messages' };
+    },
+
+    _telegramPollStop() {
+        if (this._telegramPoll) { clearInterval(this._telegramPoll); this._telegramPoll = null; }
+    },
+
+    /** Own handle for explicit texts, shown only in Connectors → Apple Messages. */
+    async _renderIMessage() {
+        const container = document.getElementById('settings-imessage');
+        if (!container || !window.electronIMessage) return;
+        let st;
+        try { st = await window.electronIMessage.getStatus(); } catch { return; }
+        if (!container.isConnected || !st.available) return;
+        container.parentElement.hidden = false;
+        container.innerHTML = this._acct({
+            title: 'Texts you send',
+            status: st.handle ? 'Your number is saved' : 'Your number is not saved',
+            tone: st.handle ? 'ok' : 'off',
+            statusId: 'imessage-status-line',
+            desc: 'Save your iMessage number or email to ask your AI to text “me”. It asks you to approve the recipient and wording unless a standing permission covers the send. Messages must be signed in on this Mac; macOS asks for permission on the first send.',
+            form: `<input type="text" id="imessage-handle-input" class="settings-input" aria-label="Your iMessage number or email" value="${this._esc(st.handle)}" placeholder="Your iMessage number or email" autocomplete="off">`
+                + this._acctBtn('imessage-save-btn', 'Save')
+        });
+        const saveBtn = container.querySelector('#imessage-save-btn');
+        saveBtn.addEventListener('click', async () => {
+            saveBtn.disabled = true;
+            try {
+                const res = await window.electronIMessage.setHandle(container.querySelector('#imessage-handle-input').value);
+                if (!container.isConnected) return;
+                if (res && res.error) {
+                    this._acctStatusSet(container.querySelector('#imessage-status-line'), res.error, 'err');
+                    return;
+                }
+                await this._renderIMessage();
+            } catch {
+                if (container.isConnected) this._acctStatusSet(container.querySelector('#imessage-status-line'), 'Could not save your number. Try again.', 'err');
+            } finally {
+                saveBtn.disabled = false;
+            }
+        });
+    },
+
+    /**
+     * Apple apps cards (Accounts panel). Per-Mac opt-in: the toggles and
+     * import state live in localStorage via AppleImport; only the list
+     * picker syncs. Enabling runs an import immediately — that first run is
+     * what triggers the macOS consent dialog, so a denial surfaces here as
+     * an honest status line instead of a silently empty import.
+     */
+    _renderAppleImport() {
+        const container = document.getElementById('settings-apple-reminders');
+        if (typeof AppleImport === 'undefined' || !container) return;
+
+        const state = AppleImport.state();
+        const prefs = AppleImport.prefs();
+        const importedLine = (at, summary) => `Last import ${UIUtils.formatDateTime(at)} · ${summary}`;
+        const status = (on, err, at, summary) => {
+            if (!on) return { tone: 'off', text: 'Off' };
+            if (err) return { tone: 'err', text: this._esc(err) };
+            if (at) return { tone: 'ok', text: importedLine(at, summary) };
+            return { tone: 'busy', text: 'On — first import running' };
+        };
+
+        // Reminders → Tasks
+        const on = AppleImport.enabled();
+        const c = state.counts || {};
+        const rem = status(on, state.lastError, state.lastAt, `${c.created || 0} added, ${c.updated || 0} updated`);
+        const lists = on ? (state.lists || []) : [];
+        const remRows = lists.map(name => ({
+            label: this._esc(name),
+            value: '',
+            action: `<label class="settings-switch"><input type="checkbox" class="apple-reminders-list-toggle" data-list="${this._esc(name)}" ${(!prefs.reminderLists || prefs.reminderLists.includes(name)) ? 'checked' : ''}><span class="settings-switch-track"></span></label>`
+        }));
+
+        // Notes → Notes. The one-Mac warning is load-bearing: Notes ids are
+        // per-Mac, so two Macs importing would duplicate every note —
+        // reminders don't have this problem (stable cross-device ids).
+        const notesOn = AppleImport.notesEnabled();
+        const nc = state.notesCounts || {};
+        const notesExtras = [];
+        if (nc.skippedLocked) notesExtras.push(`${nc.skippedLocked} locked skipped`);
+        if (nc.skippedEdited) notesExtras.push(`${nc.skippedEdited} edited here, left alone`);
+        if (nc.retagged) notesExtras.push(`${nc.retagged} tagged with their folder`);
+        const notes = status(notesOn, state.notesLastError, state.notesLastAt,
+            `${nc.created || 0} added, ${nc.updated || 0} updated${notesExtras.length ? ' · ' + notesExtras.join(', ') : ''}`);
+
+        // Calendar → Calendar: a mirror of iCloud/local calendars that
+        // writes through (2026-09-09) — Google-source calendars on the Mac
+        // are excluded by the helper: the app syncs Google itself.
+        const eventsOn = AppleImport.eventsEnabled();
+        const ec = state.eventsCounts || {};
+        const events = status(eventsOn, state.eventsLastError, state.eventsLastAt,
+            `${ec.events || 0} events from ${ec.calendars || 0} calendars`);
+
+        container.innerHTML = this._acct({
+            title: 'Apple Reminders',
+            status: rem.text, tone: rem.tone,
+            control: this._acctSwitch('apple-reminders-enabled', on),
+            desc: 'Import this Mac’s iCloud reminders as commitments. Since 2026-10-06 what you do here is written back to Reminders (done, dropped and a day of a repeat done complete it; reopen reopens; a new title or date updates; remove deletes it there, since the next import would otherwise bring it back). Turning this off removes the imported commitments (they stay in Reminders). Pick which lists come across below.',
+            rows: remRows,
+            footActions: on ? this._acctBtn('apple-reminders-import-now', 'Import now') : ''
+        }) + `<div hidden>` + this._acct({
+            title: 'Apple Notes (import, retired)',
+            status: notes.text, tone: notes.tone,
+            control: this._acctSwitch('apple-notes-enabled', notesOn),
+            desc: 'Retired 2026-10-06: Apple Notes is read as a source now (Settings › Connectors › Apple Notes indexes your notes without copying them). This import, which copied notes into Text Documents, no longer runs on its own; Import now still works for a Mac that relied on it. Turning it off removes the imported copies.',
+            footActions: notesOn ? this._acctBtn('apple-notes-import-now', 'Import now') : ''
+        }) + `</div>` + this._acct({
+            title: 'Apple Calendar',
+            status: events.text, tone: events.tone,
+            control: this._acctSwitch('apple-events-enabled', eventsOn),
+            desc: 'Show this Mac’s iCloud and local calendar events in Calendar, kept current automatically: refreshed every minute while Calendar is open, every five minutes otherwise. Events you add, edit or delete here are written to Apple Calendar on this Mac, and the assistant can do the same when you ask. Calendars that refuse edits (subscribed, holidays) stay read-only. Turning this off removes the events from the view; they stay in Apple Calendar. Google calendars are left out: nenva syncs Google itself.',
+            footActions: eventsOn ? this._acctBtn('apple-events-import-now', 'Import now') : ''
+        });
+
+        const enableInput = document.getElementById('apple-reminders-enabled');
+        if (enableInput) enableInput.addEventListener('change', async () => {
+            AppleImport.setEnabled(enableInput.checked);
+            if (!enableInput.checked) {
+                // The Gmail model (by request): source owns the data, so
+                // toggling off removes the imported copies.
+                const n = AppleImport.removeImportedReminders();
+                if (n) UIUtils.showToast(`Removed ${n} imported task${n === 1 ? '' : 's'} — still in Apple Reminders`, 'info');
+            }
+            this._renderAppleImport();
+            if (enableInput.checked) await this._runAppleImport();
+        });
+
+        const importBtn = document.getElementById('apple-reminders-import-now');
+        if (importBtn) importBtn.addEventListener('click', () => this._runAppleImport());
+
+        const notesInput = document.getElementById('apple-notes-enabled');
+        if (notesInput) notesInput.addEventListener('change', async () => {
+            AppleImport.setNotesEnabled(notesInput.checked);
+            if (!notesInput.checked) {
+                const n = AppleImport.removeImportedNotes();
+                if (n) UIUtils.showToast(`Removed ${n} imported note${n === 1 ? '' : 's'} — still in Apple Notes`, 'info');
+            }
+            this._renderAppleImport();
+            if (notesInput.checked) await this._runAppleNotesImport();
+        });
+
+        const notesBtn = document.getElementById('apple-notes-import-now');
+        if (notesBtn) notesBtn.addEventListener('click', () => this._runAppleNotesImport());
+
+        const eventsInput = document.getElementById('apple-events-enabled');
+        if (eventsInput) eventsInput.addEventListener('change', async () => {
+            AppleImport.setEventsEnabled(eventsInput.checked);
+            if (!eventsInput.checked) {
+                const n = AppleImport.removeImportedEvents();
+                if (n) UIUtils.showToast(`Removed ${n} mirrored event${n === 1 ? '' : 's'} — still in Apple Calendar`, 'info');
+            }
+            this._renderAppleImport();
+            if (eventsInput.checked) await this._runAppleEventsImport();
+        });
+
+        const eventsBtn = document.getElementById('apple-events-import-now');
+        if (eventsBtn) eventsBtn.addEventListener('click', () => this._runAppleEventsImport());
+
+        container.querySelectorAll('.apple-reminders-list-toggle').forEach(input => {
+            input.addEventListener('change', () => {
+                const all = [...container.querySelectorAll('.apple-reminders-list-toggle')];
+                const picked = all.filter(i => i.checked).map(i => i.dataset.list);
+                // Every list checked stores null ("all") so a NEW list in
+                // iCloud is included by default rather than silently skipped.
+                AppleImport.savePrefs({ reminderLists: picked.length === all.length ? null : picked });
+            });
+        });
+    },
+
+    async _runAppleEventsImport() {
+        const btn = document.getElementById('apple-events-import-now');
+        if (btn) { btn.disabled = true; btn.textContent = 'Importing…'; }
+        try {
+            const res = await AppleImport.importEvents();
+            if (res.error) {
+                UIUtils.showToast(res.error, 'error');
+            } else {
+                UIUtils.showToast(`Calendar imported: ${res.events} events from ${res.calendars} calendars`, 'success');
+            }
+        } catch (e) {
+            UIUtils.showToast(`Import failed: ${e.message}`, 'error');
+        }
+        this._renderAppleImport();
+    },
+
+    async _runAppleNotesImport() {
+        const btn = document.getElementById('apple-notes-import-now');
+        if (btn) { btn.disabled = true; btn.textContent = 'Importing…'; }
+        try {
+            const res = await AppleImport.importNotes();
+            if (res.error) {
+                UIUtils.showToast(res.error, 'error');
+            } else {
+                UIUtils.showToast(`Notes imported: ${res.created} added, ${res.updated} updated`, 'success');
+            }
+        } catch (e) {
+            UIUtils.showToast(`Import failed: ${e.message}`, 'error');
+        }
+        this._renderAppleImport();
+    },
+
+    async _runAppleImport() {
+        const btn = document.getElementById('apple-reminders-import-now');
+        if (btn) { btn.disabled = true; btn.textContent = 'Importing…'; }
+        try {
+            const res = await AppleImport.importReminders();
+            if (res.error) {
+                UIUtils.showToast(res.error, 'error');
+            } else {
+                UIUtils.showToast(`Reminders imported: ${res.created} added, ${res.updated} updated`, 'success');
+            }
+        } catch (e) {
+            UIUtils.showToast(`Import failed: ${e.message}`, 'error');
+        }
+        this._renderAppleImport();
+    },
+
+    async _connectGoogleAccount() {
+        if (typeof AccountsManager === 'undefined' || !window.electronAccounts) return;
+        UIUtils.showToast('Opening Google sign-in...', 'info');
+        try {
+            const result = await window.electronAccounts.googleOAuth();
+            if (result?.success && result.email) {
+                AccountsManager.addOrUpdate({
+                    email: result.email,
+                    provider: 'google',
+                    displayName: result.displayName,
+                    enabledServices: result.services || ['mail', 'calendar']
+                });
+                UIUtils.showToast(AccountsManager.connectedMessage(result.email, result.services), 'success');
+                this._renderConnectedAccounts();
+            } else if (result?.error) {
+                UIUtils.showToast(`Connection failed: ${result.error}`, 'error');
+            }
+        } catch (e) {
+            UIUtils.showToast(`Connection error: ${e.message}`, 'error');
+        }
+    },
+
+    async _reconnectGoogleAccount(email) {
+        UIUtils.showToast(`Re-authenticate as ${email}`, 'info');
+        await this._connectGoogleAccount();
+    },
+
+    async _disconnectGoogleAccount(email) {
+        if (typeof AccountsManager === 'undefined') return;
+        const confirmed = await UIUtils.confirm(
+            'Remove account',
+            `Remove ${email}? Synced data from this account (emails, calendar events) will be cleared. You can reconnect later.`,
+            ''
+        );
+        if (!confirmed) return;
+        await AccountsManager.remove(email);
+        UIUtils.showToast(`Removed ${email}`, 'success');
+        this._renderConnectedAccounts();
+    },
+
+    _toggleAccountService(email, service, enabled) {
+        if (typeof AccountsManager === 'undefined') return;
+        AccountsManager.setServiceEnabled(email, service, enabled);
+        // The label below the switch updates implicitly via re-render on next open;
+        // for now we just toast so the user gets immediate feedback.
+        UIUtils.showToast(`${service === 'mail' ? 'Mail' : 'Calendar'} ${enabled ? 'enabled' : 'disabled'} for ${email}`, 'info');
+    },
+
+    // ── Paired devices (the phone <-> Mac channel) ──
+
+    /**
+     * Settings › Library — the app's plumbing (the page itself is for
+     * reading and finding). Everything here re-reads live state on open;
+     * the download button carries the progress inline, the way the old
+     * on-page banner did before it moved here (2026-08-08).
+     */
+    async _renderLibrarySettings() {
+        if (!window.electronLibrary) return;
+        let status = null;
+        try { status = await window.electronLibrary.status(); } catch { return; }
+
+        const embedStatus = document.getElementById('settings-library-embed-status');
+        const embedBtn = document.getElementById('settings-library-embed-btn');
+        const downloaded = !!(status.embed && status.embed.modelDownloaded);
+        if (embedStatus) {
+            embedStatus.textContent = downloaded
+                ? 'Search model downloaded — search finds passages by meaning.'
+                : 'Not downloaded — search is keyword-only.';
+        }
+        if (embedBtn) {
+            embedBtn.hidden = downloaded;
+            if (!downloaded && !embedBtn._wired) {
+                embedBtn._wired = true;
+                embedBtn.addEventListener('click', async () => {
+                    embedBtn.disabled = true;
+                    embedBtn.textContent = 'Downloading…';
+                    try { window.electronLibrary.onPullProgress((p) => {
+                        if (p && p.percent != null) embedBtn.textContent = `Downloading… ${p.percent}%`;
+                    }); } catch { /* progress is cosmetic */ }
+                    const res = await window.electronLibrary.pullEmbedModel();
+                    if (res && res.error) {
+                        UIUtils.showToast(`Download failed: ${res.error}`, 'error');
+                        embedBtn.disabled = false;
+                        embedBtn.textContent = 'Download';
+                    } else {
+                        // Freshly capable — fill in vectors for whatever was
+                        // indexed keyword-only while the model was missing.
+                        window.electronLibrary.reindex();
+                        UIUtils.showToast('Semantic search enabled — re-indexing your documents', 'success');
+                        this._renderLibrarySettings();
+                    }
+                });
+            }
+        }
+
+        const indexStatus = document.getElementById('settings-library-index-status');
+        if (indexStatus) {
+            const bits = status.docs
+                ? [`${status.docs} document${status.docs === 1 ? '' : 's'}`, `${status.chunks || 0} passages`]
+                : ['The Library folder is empty.'];
+            if (status.queued) bits.push(`${status.queued} in the indexing queue`);
+            if (status.errors) bits.push(`${status.errors} failed`);
+            // Honest about the engine behind semantic search: the KNN index
+            // when sqlite-vec is live, the linear scan when it isn't.
+            if (status.docs && status.vectorIndex === 'vec') bits.push('vector index active');
+            indexStatus.textContent = bits.join(' · ');
+        }
+        const rescanBtn = document.getElementById('settings-library-rescan-btn');
+        if (rescanBtn && !rescanBtn._wired) {
+            rescanBtn._wired = true;
+            rescanBtn.addEventListener('click', async () => {
+                try { await window.electronLibrary.scan(); } catch { /* status shows it */ }
+                this._renderLibrarySettings();
+            });
+        }
+        const reindexBtn = document.getElementById('settings-library-reindex-btn');
+        if (reindexBtn && !reindexBtn._wired) {
+            reindexBtn._wired = true;
+            reindexBtn.addEventListener('click', async () => {
+                try { await window.electronLibrary.reindex(); } catch { /* status shows it */ }
+                UIUtils.showToast('Re-indexing everything in the background', 'info');
+                this._renderLibrarySettings();
+            });
+        }
+
+        const folderPath = document.getElementById('settings-library-folder-path');
+        if (folderPath) folderPath.textContent = status.dir || '~/nenva/library';
+        const folderBtn = document.getElementById('settings-library-folder-btn');
+        if (folderBtn && !folderBtn._wired) {
+            folderBtn._wired = true;
+            folderBtn.addEventListener('click', async () => {
+                const res = await window.electronLibrary.openFolder();
+                if (res && res.error) UIUtils.showToast(res.error, 'error');
+            });
+        }
+    },
+
+    async _renderPairedDevices() {
+        const container = document.getElementById('settings-paired-devices-list');
+        if (!container) return;
+
+        const flagOff = typeof FEATURES !== 'undefined' && !FEATURES.isEnabled('mobilesync');
+        if (flagOff || !window.electronChannel) {
+            container.innerHTML = `<div class="connected-account-empty">Device pairing is not available in this build.</div>`;
+            return;
+        }
+
+        // Register the "a phone paired" listener once, on first render.
+        if (!this._pairedListenerBound) {
+            this._pairedListenerBound = true;
+            window.electronChannel.onPaired(() => {
+                this._pairingQr = null;
+                this._renderPairedDevices();
+                if (typeof UIUtils !== 'undefined') UIUtils.showToast('Phone paired', 'success');
+            });
+        }
+
+        let info = null;
+        try { info = await window.electronChannel.getInfo(); } catch {}
+
+        if (!info || !info.available) {
+            container.innerHTML = `<div class="connected-account-empty">The channel is offline. Start the relay, then reopen this panel.</div>`;
+            return;
+        }
+
+        const devices = info.devices || [];
+        let html = '';
+        if (devices.length === 0) {
+            html += `<div class="connected-account-empty">No phone paired yet.</div>`;
+        } else {
+            for (const device of devices) html += this._renderDeviceRow(device);
+        }
+
+        if (this._pairingQr) {
+            html += `
+                <div class="pairing-qr-block">
+                    <div class="pairing-qr">${this._pairingQr}</div>
+                    <p class="pairing-qr-help">Open nenva on your iPhone and scan this code to pair. It stays valid for two minutes.</p>
+                    <div class="connected-account-actions-row">
+                        <button id="paired-device-cancel" class="secondary-btn">Cancel</button>
+                    </div>
+                </div>
+            `;
+        } else {
+            html += `
+                <div class="connected-account-actions-row">
+                    <button id="paired-device-pair" class="secondary-btn">+ Pair a device</button>
+                </div>
+            `;
+        }
+
+        html += `<div id="settings-remote-access" class="pairing-remote"></div>`;
+        container.innerHTML = html;
+
+        container.querySelectorAll('.paired-device-forget-btn').forEach(btn => {
+            btn.addEventListener('click', () => this._forgetDevice(btn.dataset.pub));
+        });
+        const pairBtn = document.getElementById('paired-device-pair');
+        if (pairBtn) pairBtn.addEventListener('click', () => this._beginPairing());
+        const cancelBtn = document.getElementById('paired-device-cancel');
+        if (cancelBtn) cancelBtn.addEventListener('click', () => this._cancelPairing());
+        this._renderRemoteAccess();
+    },
+
+    // Reach from anywhere (2026-09-08): Tailscale Funnel on this Mac gives
+    // the embedded relay a public https address on the Mac's own Tailscale
+    // name, so the phone dials the Mac directly from any network with nothing
+    // installed on the phone. Status is whatever `tailscale serve status`
+    // says right now; the switch runs `tailscale funnel` for the relay port.
+    async _renderRemoteAccess(pending) {
+        const el = document.getElementById('settings-remote-access');
+        if (!el || !window.electronChannel || !window.electronChannel.remoteAccessStatus) return;
+        let st = pending || null;
+        if (!st) {
+            el.innerHTML = `<div class="connected-account-empty">Checking Tailscale…</div>`;
+            try { st = await window.electronChannel.remoteAccessStatus(); } catch (e) { st = { error: e.message }; }
+        }
+        st = st || {};
+        const on = !!st.url;
+        let tone = 'off', text, control = '', foot = '';
+        if (!st.installed) {
+            text = 'Tailscale is not installed on this Mac';
+            foot = `<a href="#" id="remote-access-tailscale-link">Get Tailscale</a>`;
+        } else if (st.error && !on) {
+            tone = 'err'; text = st.error;
+            control = this._acctSwitch('remote-access-toggle', false, !st.relayPort ? 'disabled' : '');
+        } else if (on) {
+            tone = 'ok'; text = `On — ${this._esc(st.url)}`;
+            control = this._acctSwitch('remote-access-toggle', true);
+        } else if (!st.running) {
+            text = 'Tailscale is installed but not connected';
+            control = this._acctSwitch('remote-access-toggle', false, 'disabled');
+        } else if (!st.canFunnel) {
+            text = 'Funnel is not enabled for this Mac in your Tailscale admin console';
+            control = this._acctSwitch('remote-access-toggle', false, 'disabled');
+            foot = `<a href="#" id="remote-access-funnel-help">How to enable Funnel</a>`;
+        } else {
+            text = 'Off — away from home, your phone goes through the nenva Connect relay';
+            control = this._acctSwitch('remote-access-toggle', false, !st.relayPort ? 'disabled' : '');
+        }
+        el.innerHTML = this._acct({
+            title: 'Reach from anywhere',
+            status: text,
+            tone,
+            statusId: 'remote-access-status-line',
+            control,
+            desc: 'With Tailscale on this Mac, its Funnel gives this Mac’s own relay a public address on your Tailscale name, so your phone reaches this Mac directly from any network with nothing installed on the phone. The connection is encrypted end to end and ends on this Mac; Tailscale forwards bytes it cannot read, your home IP stays hidden, and the pairing is still what lets a phone in. At home the phone keeps using the local network, and the nenva Connect relay stays as the fallback.',
+            foot,
+        });
+        const toggle = document.getElementById('remote-access-toggle');
+        if (toggle) toggle.addEventListener('change', async () => {
+            const want = toggle.checked;
+            toggle.disabled = true;
+            this._acctStatusSet(document.getElementById('remote-access-status-line'), want ? 'Turning on…' : 'Turning off…', 'off');
+            let res;
+            try { res = await window.electronChannel.setRemoteAccess(want); } catch (e) { res = { error: e.message }; }
+            if (res && res.error) UIUtils.showToast(res.error, 'error');
+            this._renderRemoteAccess(res);
+        });
+        const link = document.getElementById('remote-access-tailscale-link');
+        if (link) link.addEventListener('click', (e) => { e.preventDefault(); window.electronAuth.openExternal('https://tailscale.com/download'); });
+        const help = document.getElementById('remote-access-funnel-help');
+        if (help) help.addEventListener('click', (e) => { e.preventDefault(); window.electronAuth.openExternal('https://tailscale.com/kb/1223/funnel'); });
+    },
+
+    _renderDeviceRow(device) {
+        const name = this._esc(device.name || 'iPhone');
+        const pub = this._esc(device.pub || '');
+        let when = '';
+        if (device.pairedAt) {
+            const d = new Date(device.pairedAt);
+            if (!isNaN(d.getTime())) when = `Paired ${d.toLocaleDateString()}`;
+        }
+        return `
+            <div class="connected-account-row">
+                <div class="connected-account-header">
+                    <div class="connected-account-info">
+                        <div class="connected-account-email">${name}</div>
+                        ${when ? `<div class="connected-account-subtitle">${when}</div>` : ''}
+                    </div>
+                    <div class="connected-account-row-actions">
+                        <button class="secondary-btn paired-device-forget-btn" data-pub="${pub}" title="Unpair this device">Forget</button>
+                    </div>
+                </div>
+            </div>
+        `;
+    },
+
+    async _beginPairing() {
+        if (!window.electronChannel) return;
+        try {
+            const result = await window.electronChannel.beginPairing();
+            if (result && result.qrSvg) {
+                this._pairingQr = result.qrSvg;
+                this._renderPairedDevices();
+            } else {
+                UIUtils.showToast((result && result.error) || 'Could not start pairing', 'error');
+            }
+        } catch (e) {
+            UIUtils.showToast(`Pairing error: ${e.message}`, 'error');
+        }
+    },
+
+    _cancelPairing() {
+        this._pairingQr = null;
+        if (window.electronChannel) window.electronChannel.cancelPairing();
+        this._renderPairedDevices();
+    },
+
+    async _forgetDevice(pub) {
+        if (!window.electronChannel || !pub) return;
+        const confirmed = await UIUtils.confirm(
+            'Forget device',
+            'Unpair this phone? It will need to scan a new code to reconnect.',
+            ''
+        );
+        if (!confirmed) return;
+        await window.electronChannel.removeDevice(pub);
+        UIUtils.showToast('Device unpaired', 'success');
+        this._renderPairedDevices();
+    },
+
+    _esc(str) {
+        if (!str) return '';
+        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    },
+
+    _llmSettingsBound: false,
+
+    // Shared binding setup for both the AI Models sub-view and the AI Assistant
+    // sub-view. Element IDs live in whichever view they were moved into — we bind
+    // once (idempotent guard) and both sub-views work regardless of open order.
+    _ensureLlmBindings() {
+        if (this._llmSettingsBound) return;
+        this._llmSettingsBound = true;
+        this._attachLlmBindings();
+    },
+
+    _escape(s) {
+        return String(s == null ? '' : s)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    },
+
+    // The AI Assistant page is a MASTER LIST (2026-07-30): rows showing each
+    // setting's current value, each opening that one setting's own page.
+    // Section content renders lazily when its page opens — nothing heavy
+    // runs to show the list.
+    LLM_SECTIONS: {
+        'llm-sec-name': { label: 'Name' },
+        'llm-sec-models': { label: 'Models' },
+        // ownTitle: the section carries its own masthead title, so the
+        // breadcrumb stops at the lineage (the Add Model page's rule).
+        'settings-search-section': { label: 'Web Search', ownTitle: true },
+        'llm-sec-mcp': { label: 'Tool Servers' },
+        'llm-sec-permissions': { label: 'Permissions' }
+    },
+
+    /** The AI Assistant master list is gone (2026-10-06): its sections are cards on the Advanced root. */
+    async openLLMSettings() {
+        this._crumbAdvanced('llm-settings-view');
+    },
+
+    /** Open ONE setting's page inside the AI Assistant view. */
+    async openLLMSection(secId) {
+        const spec = this.LLM_SECTIONS[secId];
+        const view = document.getElementById('llm-settings-view');
+        const sec = document.getElementById(secId);
+        if (!spec || !view || !sec) return;
+        if (!view.classList.contains('active')) {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            view.classList.add('active');
+            this._ensureLlmBindings();
+        }
+        view.classList.add('llm-in-section');
+        view.querySelectorAll('.settings-section').forEach(s => s.classList.toggle('active', s === sec));
+        const crumbs = this._crumbRoot(view);
+        if (!spec.ownTitle) crumbs.push({ label: spec.label });
+        this._renderPageHeader('llm-settings-breadcrumb', crumbs);
+
+        // Lazy per-section render. The library watch runs only while the
+        // Models page is open.
+        if (secId !== 'llm-sec-models') this._stopLibraryWatch();
+        switch (secId) {
+            case 'llm-sec-name': this._bindAssistantName(); break;
+            case 'llm-sec-models': await this._renderModelLibrary(); this._startLibraryWatch(); break;
+            case 'settings-search-section': await this._renderSearchProviders(); break;
+            case 'llm-sec-mcp': await this._loadMCPServers(); break;
+            case 'llm-sec-permissions': await this._loadAgentPermissions(); break;
+        }
+    },
+
+    // Assistant name (AssistantIdentity): populate on every open, bind once.
+    // Saving repaints every "AI Assistant" label via applyToDom; blank clears
+    // back to the generic label.
+    _bindAssistantName() {
+        const input = document.getElementById('settings-assistant-name');
+        if (!input) return;
+        input.value = (typeof AssistantIdentity !== 'undefined' && AssistantIdentity.get()) || '';
+        if (this._assistantNameBound) return;
+        this._assistantNameBound = true;
+        // Auto-save on blur/Enter — every other control on the page saves
+        // itself, and a lone Save button made this one field feel like a form.
+        const save = () => {
+            const before = AssistantIdentity.get();
+            AssistantIdentity.set(input.value);
+            const now = AssistantIdentity.get();
+            input.value = now || '';
+            if (now === before || (!now && !before)) return; // unchanged: stay quiet
+            if (now) UIUtils.showToast(`Your assistant is now called ${now}`, 'success');
+            else UIUtils.showToast('Name removed', 'success');
+        };
+        input.addEventListener('blur', save);
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); save(); }
+        });
+    },
+
+    // ─────────────────── Model library ───────────────────
+    //
+    // One card per entry ({id, engine, model, baseUrl?, numCtx?, think?});
+    // the DEFAULT entry is the brain. Every card renders its own Manage body
+    // inline (no shared/moved panels), every mutation goes through the
+    // AgentService entries API (addEntry/updateEntry/removeEntry — never a
+    // raw selectedModel write), and downloads are tracked by entry id so a
+    // re-render can't orphan a progress bar.
+
+    _engines: null,              // snapshot from _refreshEngineState
+    _openManageId: null,         // entry id whose Manage body is open
+    _activeDownloads: new Map(), // entry id -> { text, percent }
+    _pendingDefaultId: null,     // local entry that becomes the default when its download lands
+    _libraryWatchTimer: null,
+    _entryKeyStatus: new Map(),  // cloud entry id -> hasKey (refreshed per render)
+
+    _engineLabel(engine) {
+        return engine === 'server' ? 'your server'
+            : engine === 'openai' ? 'OpenAI'
+            : engine === 'anthropic' ? 'Anthropic'
+            : engine === 'anjadhe' ? 'nenva cloud'
+            : 'Local';
+    },
+
+    _engineApiFor() {
+        return window.electronLlamaCpp;
+    },
+
+    /**
+     * Make an entry the default — the ONE door for the Models radio and the
+     * chat's model chip. A local model whose weights are not on this Mac
+     * yet cannot answer anything, so it does not become the default until
+     * they are: the download starts (engine install included, when the
+     * engine is missing) and the switch happens when it lands. Until then
+     * the current default keeps answering. A new install starts on nenva
+     * cloud, so "switch to local" is usually exactly this case.
+     * Returns 'switched' | 'pending' | null.
+     */
+    async chooseDefault(entryId) {
+        const entry = AgentService.getEntry(entryId);
+        if (!entry) return null;
+        if (entry.engine === 'llamacpp') {
+            let installed = null;
+            try {
+                const res = await window.electronLlamaCpp?.listModels?.();
+                if (res && Array.isArray(res.models)) installed = new Set(res.models.map(m => m.name));
+            } catch { /* unknown — fall through and let the switch report it */ }
+            if (installed && !installed.has(entry.model)) {
+                if (!this._engines) await this._refreshEngineState();
+                const cat = this._catalogFor(entry);
+                if (!(cat && cat.gguf)) {
+                    UIUtils.showToast('This model has no download. Drop its .gguf file into ~/.nenva_llamacpp/models first.', 'error', 6000);
+                    return null;
+                }
+                this._pendingDefaultId = entry.id;
+                const already = this._activeDownloads.has(entry.id);
+                UIUtils.showToast(`${AgentService.displayModelName(entry)} ${already ? 'is still downloading' : 'is downloading'}. `
+                    + 'It becomes your default model when the download finishes.', 'info', 6000);
+                if (!already) this._startEntryDownload(entry.id);
+                await this._renderModelLibrary();
+                return 'pending';
+            }
+        }
+        this._pendingDefaultId = null;
+        await AgentService.setDefaultEntry(entry.id);
+        if (typeof AgentUI !== 'undefined') {
+            AgentUI.updateModelChip?.();
+            AgentUI.startReadinessWatch?.();
+        }
+        return 'switched';
+    },
+
+    /**
+     * One parallel snapshot of everything the library renders from: the
+     * model catalog (remote config), machine RAM, and each local engine's
+     * status + installed + resident model sets. Failures degrade to empty —
+     * an unreachable engine just renders as not installed.
+     */
+    async _refreshEngineState() {
+        const wrap = (p) => Promise.resolve(p).then(v => v, () => null);
+        const [config, llamaStatus, llamaModels] = await Promise.all([
+            wrap(window.electronConfig?.get?.()),
+            wrap(window.electronLlamaCpp?.status?.()),
+            wrap(window.electronLlamaCpp?.listModels?.())
+        ]);
+        const names = (r) => new Set(((r && r.models) || []).map(m => m.name));
+        this._engines = {
+            catalog: (config && config.models) || [],
+            totalMemGB: Number(config?.machine?.totalMemGB) || 8,
+            llamacpp: {
+                status: llamaStatus || { isReady: false, isInstalled: false },
+                installed: names(llamaModels),
+                // Bytes per installed model — a drop-in GGUF is named by
+                // its size, never by its file name (model-names.js).
+                sizes: new Map(((llamaModels && llamaModels.models) || []).map(m => [m.name, m.size])),
+                resident: new Set(llamaStatus?.isReady && llamaStatus.loadedModel ? [llamaStatus.loadedModel] : [])
+            }
+        };
+        return this._engines;
+    },
+
+    /** The catalog record for an entry's model, or null (custom models). */
+    _catalogFor(entry) {
+        if (!entry || !this._engines) return null;
+        return this._engines.catalog.find(m => m.name === entry.model) || null;
+    },
+
+    /** "2026-03-11" → "Mar 2026" (the catalog's provider release date). */
+    _formatReleased(iso) {
+        const d = new Date(`${iso}T00:00:00`);
+        if (isNaN(d.getTime())) return String(iso);
+        return d.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+    },
+
+    async _renderModelLibrary() {
+        const cardsHost = document.getElementById('settings-model-cards');
+        if (!cardsHost) return;
+        try { await AgentService.ensureModelList?.(); } catch { /* offline */ }
+        // Which models read images, incl. nenva cloud's (the card badge).
+        try { await AgentService.ensureVisionInfo?.(); } catch { /* offline */ }
+        await this._refreshEngineState();
+        this._renderEngineUpdate(); // fire-and-forget; owns its own row
+
+        const entries = AgentService.getModelList();
+        // Cloud entries' status text depends on whether a key is saved —
+        // resolve it once per render so _computeEntryStatus stays synchronous
+        // (the watch loop repaints from it cheaply).
+        await Promise.all(entries
+            .filter(e => e.engine === 'openai' || e.engine === 'anthropic')
+            .map(async (e) => {
+                try {
+                    const r = await window.electronLLM?.entryKeyStatus?.(e.id);
+                    this._entryKeyStatus.set(e.id, r && r.unreadable ? 'unreadable' : !!(r && r.hasKey));
+                } catch { /* leave unknown */ }
+            }));
+        const def = AgentService.getDefaultEntry();
+
+        cardsHost.innerHTML = '';
+        // Adding the first model is the single most important setup action in
+        // the app, so the empty list is a real empty-state card and the Add
+        // button below it steps up to primary until a model exists.
+        const addBtn = document.getElementById('settings-add-model-btn');
+        if (addBtn) {
+            addBtn.classList.toggle('primary-btn', !entries.length);
+            addBtn.classList.toggle('secondary-btn', !!entries.length);
+        }
+        if (!entries.length) {
+            const empty = document.createElement('div');
+            empty.className = 'settings-empty-state settings-model-cards-empty';
+            empty.innerHTML = `
+                <div class="settings-empty-state-title">No models yet</div>
+                <p class="settings-empty-state-text">Add one to power chat, email insights, and everything else the assistant does. A model that runs on this Mac keeps your data here.</p>`;
+            cardsHost.appendChild(empty);
+            return;
+        }
+        // Grouped by WHERE the model runs (2026-08-25) — the one fact that
+        // decides where the user's data goes, so it is the heading, not a
+        // badge to read off each card. Group order is the trust order the
+        // wizard and Add Model page use; a group with no entry is skipped,
+        // and with a single group the heading still renders so the page
+        // says out loud where everything runs. Cards keep their DOM shape
+        // (the watch loop and progress painter find them by data-entry-id).
+        for (const { group, members } of AgentService.groupModelEntries(entries)) {
+            const section = document.createElement('section');
+            section.className = 'settings-model-group';
+            section.dataset.group = group.key;
+            section.innerHTML = `
+                <div class="settings-model-group-head">
+                    <span class="settings-model-group-title">${group.title}</span>
+                    <span class="settings-model-group-desc">${group.desc}</span>
+                </div>`;
+            for (const entry of members) {
+                const card = this._buildModelCard(entry, !!(def && def.id === entry.id));
+                section.appendChild(card);
+            }
+            cardsHost.appendChild(section);
+            for (const entry of members) {
+                if (this._activeDownloads.has(entry.id)) this._paintCardProgress(entry.id);
+                if (this._openManageId === entry.id) {
+                    const card = section.querySelector(`.settings-model-card[data-entry-id="${CSS.escape(entry.id)}"]`);
+                    if (card) this._openManage(card, entry);
+                }
+            }
+        }
+    },
+
+    /** Your Models groups — shared with the chat/titlebar model menu. */
+    get MODEL_GROUPS() { return AgentService.MODEL_GROUPS; },
+
+    // The separate "Default Model" status card was removed 2026-07-24 —
+    // it only echoed the default entry's name/engine/status, all of which
+    // the Your Models card already shows on the entry marked Default.
+
+    _engineUpdateBusy: false,   // a retry in flight owns the row
+
+    /**
+     * Quiet row under the model cards about the llama.cpp engine. The
+     * engine updates ITSELF (LlamaCppManager.autoUpdateEngine, a minute
+     * after launch, swapped without stopping anything), so there is nothing
+     * to press while that works: the row says an update is on its way, and
+     * offers "Try again" only when the last one failed or was rolled back.
+     * Shown only when a local model entry exists to care about it.
+     */
+    async _renderEngineUpdate() {
+        const host = document.getElementById('settings-engine-update');
+        if (!host || this._engineUpdateBusy) return;
+        const hasLocal = AgentService.getModelList().some(e => !AgentService.isRemoteEngine(e.engine));
+        const installed = !!this._engines?.llamacpp?.status?.isInstalled;
+        let check = null;
+        if (hasLocal && installed) {
+            try { check = await window.electronLlamaCpp?.checkEngineUpdate?.(); } catch { /* stay hidden */ }
+        }
+        if (!check?.updateAvailable || !check.managed) {
+            host.hidden = true;
+            host.innerHTML = '';
+            return;
+        }
+        const last = check.last;
+        const failed = last && (last.state === 'failed' || last.state === 'rolled-back') && last.to === check.latest;
+        host.hidden = false;
+        if (!failed) {
+            host.innerHTML = `<span class="settings-engine-update-text">The llama.cpp engine is updating to ${UIUtils.escapeHtml(check.latest)} by itself. Nothing to do; the next model load uses it.</span>`;
+            return;
+        }
+        host.innerHTML = `
+            <span class="settings-engine-update-text"></span>
+            <button id="settings-engine-update-btn" class="secondary-btn">Try again</button>`;
+        const text = host.querySelector('.settings-engine-update-text');
+        text.textContent = last.state === 'rolled-back'
+            ? `The llama.cpp engine ${check.latest} could not load your model, so ${check.installed} was put back.`
+            : `The llama.cpp engine could not update to ${check.latest}: ${last.error || 'unknown error'}.`;
+        const btn = host.querySelector('#settings-engine-update-btn');
+        btn.addEventListener('click', async () => {
+            if (this._engineUpdateBusy) return;
+            this._engineUpdateBusy = true;
+            btn.disabled = true;
+            text.textContent = `Updating the llama.cpp engine to ${check.latest}…`;
+            try {
+                const res = await window.electronLlamaCpp.updateEngineNow();
+                if (res?.error) throw new Error(res.error);
+                this._engineUpdateBusy = false;
+                if (res?.updated) UIUtils.showToast(`llama.cpp engine updated to ${res.to}`, 'success');
+                await this._renderEngineUpdate();
+            } catch (e) {
+                this._engineUpdateBusy = false;
+                text.textContent = e?.message || 'Engine update failed';
+                btn.disabled = false;
+            }
+        });
+    },
+
+    /**
+     * Entry status from the engine snapshot — synchronous so the watch can
+     * repaint cheaply. States: downloading (an active pull owns the card),
+     * server configured/not-configured (no auto-probe: testCustom issues a
+     * real completion, too heavy per paint — Test lives in Manage),
+     * engine-missing / not-installed / warming / ready / installed.
+     */
+    _computeEntryStatus(entry) {
+        if (!entry) return { state: 'none', text: '' };
+        if (this._activeDownloads.has(entry.id)) {
+            const p = this._activeDownloads.get(entry.id);
+            return { state: 'downloading', text: this._downloadText(entry.id, p) };
+        }
+        if (entry.engine === 'server') {
+            if (!entry.baseUrl) return { state: 'not-configured', text: 'No server URL yet. Open Manage' };
+            let hostLabel = entry.baseUrl;
+            try { hostLabel = new URL(entry.baseUrl).host || entry.baseUrl; } catch { /* show raw */ }
+            return { state: 'configured', text: hostLabel };
+        }
+        if (entry.engine === 'openai' || entry.engine === 'anthropic') {
+            // 'unreadable' = a key IS stored but this Mac's keychain can't
+            // decrypt it, so requests would go out without one. Saying
+            // "configured" there is how a broken key stayed invisible.
+            if (this._entryKeyStatus.get(entry.id) === 'unreadable') {
+                return { state: 'not-configured', text: 'API key needs re-entering. Open Manage' };
+            }
+            if (this._entryKeyStatus.get(entry.id) === false) {
+                return { state: 'not-configured', text: 'No API key yet. Open Manage' };
+            }
+            return { state: 'configured', text: entry.engine === 'openai' ? 'api.openai.com' : 'api.anthropic.com' };
+        }
+        if (entry.engine === 'anjadhe') {
+            // No key to configure — the machine's Connect key mints itself on
+            // first use, so the entry is ready the moment it exists.
+            return { state: 'configured', text: 'api.nenva.co' };
+        }
+        const eng = this._engines && this._engines[entry.engine];
+        if (!eng) return { state: 'unknown', text: '' };
+        if (!eng.status.isInstalled) {
+            return { state: 'engine-missing', text: 'Engine not installed yet' };
+        }
+        if (!eng.installed.has(entry.model)) return { state: 'not-installed', text: 'Not downloaded' };
+        if (typeof AgentService !== 'undefined' && AgentService._warming) return { state: 'warming', text: 'Warming up…' };
+        if (eng.resident.has(entry.model)) return { state: 'ready', text: 'Ready' };
+        return { state: 'installed', text: 'Downloaded' };
+    },
+
+    _buildModelCard(entry, isDefault) {
+        const card = document.createElement('div');
+        card.className = 'settings-model-card' + (isDefault ? ' is-default' : '');
+        card.dataset.entryId = entry.id;
+
+        const header = document.createElement('div');
+        header.className = 'settings-model-card-header';
+
+        // Default radio — switching also warms local engines.
+        const radioWrap = document.createElement('label');
+        radioWrap.className = 'settings-model-card-default';
+        radioWrap.title = 'Use this model for new chats and every AI feature';
+        const radio = document.createElement('input');
+        radio.type = 'radio';
+        radio.name = 'settings-model-card-default';
+        radio.checked = !!isDefault;
+        radio.addEventListener('change', async () => {
+            if (!radio.checked) return;
+            // A local model still to download waits for its weights (the
+            // download re-renders the list, which puts the radio back).
+            const outcome = await this.chooseDefault(entry.id);
+            if (outcome !== 'switched') { this._renderModelLibrary(); return; }
+            const e = AgentService.getEntry(entry.id);
+            const shown = e ? AgentService.displayModelName(e) : '';
+            UIUtils.showToast(e && e.engine === 'server'
+                ? `Default model: ${shown} (your server)`
+                : e && AgentService.isRemoteEngine(e.engine)
+                    ? `Default model: ${shown}`
+                    : `Default model: ${shown} — warming up`, 'success');
+            this._renderModelLibrary();
+        });
+        radioWrap.appendChild(radio);
+
+        // Name + engine badge; the catalog description moves to its own
+        // subline below the header so the row never turns into a wrap-fest.
+        const info = document.createElement('div');
+        info.className = 'settings-model-card-info';
+        const name = document.createElement('span');
+        name.className = 'settings-model-card-name';
+        // One name per model (AgentService.displayModelName): a curated
+        // tier by its tier ("nenva cloud lite", "nenva local"), and no
+        // engine badge for those — the name already says where it runs.
+        name.textContent = AgentService.displayModelName(entry);
+        info.appendChild(name);
+        if (isDefault) {
+            const chip = document.createElement('span');
+            chip.className = 'settings-model-card-defaultchip';
+            chip.textContent = 'Default';
+            chip.title = 'This model powers chat and every AI feature';
+            info.appendChild(chip);
+        }
+        if (entry.engine !== 'anjadhe' && entry.engine !== 'llamacpp') {
+            const badge = document.createElement('span');
+            badge.className = 'settings-model-card-engine';
+            badge.textContent = this._engineLabel(entry.engine);
+            info.appendChild(badge);
+        }
+        const cat = this._catalogFor(entry);
+        // Vision badge: the catalog's mmproj sidecar marks a local model as
+        // able to read attached images (chat gating keys on the same signal).
+        const cloudVision = entry.engine === 'anjadhe' && AgentService.supportsVision?.(entry);
+        if ((cat && cat.gguf && cat.gguf.mmproj && entry.engine === 'llamacpp') || cloudVision) {
+            const vis = document.createElement('span');
+            vis.className = 'settings-model-vision';
+            vis.textContent = 'Reads images';
+            vis.title = 'A regular chat model that can also read attached images';
+            info.appendChild(vis);
+        }
+
+        // Status area: dot + text + (when not downloaded) a Download button.
+        const statusWrap = document.createElement('div');
+        statusWrap.className = 'settings-model-card-statuswrap';
+        const dot = document.createElement('span');
+        dot.className = 'settings-model-card-dot';
+        dot.setAttribute('aria-hidden', 'true');
+        const status = document.createElement('span');
+        status.className = 'settings-model-card-status';
+        statusWrap.append(dot, status);
+        this._fillCardStatus(statusWrap, status, entry, card);
+
+        // Manage disclosure.
+        const manage = document.createElement('button');
+        manage.type = 'button';
+        manage.className = 'settings-model-card-manage';
+        manage.textContent = 'Manage';
+        manage.title = entry.engine === 'server'
+            ? 'Server URL, API key, connection test'
+            : (entry.engine === 'openai' || entry.engine === 'anthropic')
+                ? 'API key, model, connection test'
+            : entry.engine === 'anjadhe'
+                ? 'Monthly allowance, connection test'
+                : 'Engine status, context window, thinking, delete';
+        manage.addEventListener('click', () => this._toggleManage(card, entry));
+
+        // Remove from the list (weights stay on disk — Manage deletes those).
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'settings-model-card-remove';
+        remove.title = 'Remove this model from the list';
+        remove.textContent = '✕';
+        remove.addEventListener('click', async () => {
+            const ok = await UIUtils.confirm('Remove model',
+                `Remove <strong>${this._escape(AgentService.displayModelName(entry))}</strong> from your list? ` +
+                (AgentService.isRemoteEngine(entry.engine) ? '' : 'Downloaded files stay on disk — use Manage &rsaquo; Delete to free the space.'),
+                '✕', { confirmText: 'Remove' });
+            if (!ok) return;
+            if (this._openManageId === entry.id) this._openManageId = null;
+            AgentService.removeEntry(entry.id);
+            if (typeof AgentUI !== 'undefined') {
+                AgentUI.updateModelChip?.();
+                AgentUI.startReadinessWatch?.();
+            }
+            this._renderModelLibrary();
+        });
+
+        header.append(radioWrap, info, statusWrap, manage, remove);
+        card.appendChild(header);
+
+        // Subline: what the model is, out of the way. A local model is told
+        // apart by size and the memory it needs — "nenva local" is its name
+        // whatever runs underneath, so its release date is not shown.
+        const localFacts = entry.engine === 'llamacpp'
+            ? [cat && cat.size, cat && cat.minRam ? `needs ${cat.minRam} GB of memory` : ''].filter(Boolean).join(' · ')
+            : '';
+        if (cat && entry.engine !== 'server' && (entry.engine === 'llamacpp' ? localFacts : (cat.desc || cat.released))) {
+            const sub = document.createElement('div');
+            sub.className = 'settings-model-card-sub';
+            if (entry.engine === 'llamacpp' ? localFacts : cat.desc) {
+                const desc = document.createElement('span');
+                desc.className = 'settings-model-card-desc';
+                desc.textContent = entry.engine === 'llamacpp' ? localFacts : cat.desc;
+                sub.appendChild(desc);
+            }
+            if (cat.released && entry.engine !== 'llamacpp') {
+                const rel = document.createElement('span');
+                rel.className = 'settings-model-card-released';
+                rel.textContent = `Released ${this._formatReleased(cat.released)}`;
+                rel.title = 'When the provider published this model';
+                sub.appendChild(rel);
+            }
+            card.appendChild(sub);
+        }
+
+        // Hidden Manage body — rendered on open, per card.
+        const body = document.createElement('div');
+        body.className = 'settings-model-card-body';
+        body.style.display = 'none';
+        card.appendChild(body);
+        return card;
+    },
+
+    /** Status text + the action that fits the state (Download / hint). */
+    _fillCardStatus(statusWrap, statusEl, entry, card) {
+        const st = this._computeEntryStatus(entry);
+        card.dataset.state = st.state;
+        statusEl.textContent = st.text;
+        statusEl.classList.toggle('is-downloading', st.state === 'downloading');
+        if (st.state === 'not-installed' || st.state === 'engine-missing') {
+            const cat = this._catalogFor(entry);
+            if (entry.engine === 'llamacpp' && !(cat && cat.gguf)) {
+                // No download source — the model arrives as a GGUF drop-in.
+                statusEl.textContent = 'GGUF not found — drop the file in ~/.nenva_llamacpp/models';
+                return;
+            }
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'secondary-btn settings-model-card-download';
+            btn.textContent = cat && cat.size ? `Download (${cat.size})` : 'Download';
+            if (st.state === 'engine-missing') {
+                btn.title = 'Installs the llama.cpp engine (~11 MB), then downloads the model';
+            }
+            btn.addEventListener('click', () => this._startEntryDownload(entry.id));
+            statusWrap.appendChild(btn);
+        }
+    },
+
+    // ── Per-card Manage body ──
+
+    _toggleManage(card, entry) {
+        const body = card.querySelector('.settings-model-card-body');
+        if (!body) return;
+        const isOpen = body.style.display !== 'none';
+        // Close any open body (one at a time).
+        document.querySelectorAll('.settings-model-card-body').forEach(b => { b.style.display = 'none'; });
+        document.querySelectorAll('.settings-model-card-manage.open').forEach(b => b.classList.remove('open'));
+        this._openManageId = null;
+        if (isOpen) return;
+        this._openManage(card, entry);
+    },
+
+    _openManage(card, entry) {
+        const body = card.querySelector('.settings-model-card-body');
+        if (!body) return;
+        this._openManageId = entry.id;
+        card.querySelector('.settings-model-card-manage')?.classList.add('open');
+        body.style.display = '';
+        if (entry.engine === 'server') this._renderServerManage(body, entry);
+        else if (entry.engine === 'openai' || entry.engine === 'anthropic') this._renderCloudManage(body, entry);
+        else if (entry.engine === 'anjadhe') this._renderAnjadheManage(body, entry);
+        else this._renderLocalManage(body, entry);
+    },
+
+    /**
+     * Manage body for a local entry: engine status, Think toggle, context
+     * window, license, delete-weights. All controls are closures over the
+     * ENTRY and query inside the body — no global ids, so two cards can't
+     * fight and nothing mutates machine-global engine state on open.
+     */
+    _renderLocalManage(body, entry) {
+        body.innerHTML = '';
+        const eng = this._engines && this._engines[entry.engine];
+
+        const engineHost = document.createElement('div');
+        engineHost.className = 'settings-model-card-enginestatus';
+        body.appendChild(engineHost);
+        this._renderEngineStatusInto(engineHost);
+
+        // Think toggle — per entry, the chat default (header chip overrides per-chat).
+        const thinkRow = document.createElement('div');
+        thinkRow.className = 'settings-toggle-row';
+        const thinkLabel = document.createElement('label');
+        thinkLabel.className = 'settings-toggle-label';
+        thinkLabel.textContent = 'Thinking';
+        const thinkInput = document.createElement('input');
+        thinkInput.type = 'checkbox';
+        thinkInput.checked = entry.think !== false;
+        thinkInput.title = 'Reasoning on by default (slower first token, often better multi-step answers) — uncheck to skip it';
+        thinkInput.addEventListener('change', () => {
+            AgentService.updateEntry(entry.id, { think: thinkInput.checked });
+        });
+        thinkRow.append(thinkLabel, thinkInput);
+        body.appendChild(thinkRow);
+        const thinkHint = document.createElement('p');
+        thinkHint.className = 'settings-hint';
+        thinkHint.textContent = 'On by default: reasoning models think through hidden tokens before each answer — slower to start, often better at multi-step tasks. Uncheck to answer without the thinking pass. Non-reasoning models ignore this. You can still flip it per-chat from the thinking chip.';
+        body.appendChild(thinkHint);
+
+        // Context window — per entry (Auto = the RAM tier for this engine).
+        const ctxRow = document.createElement('div');
+        ctxRow.className = 'settings-toggle-row';
+        const ctxLabel = document.createElement('label');
+        ctxLabel.className = 'settings-toggle-label';
+        ctxLabel.textContent = 'Context window';
+        const ctxSel = document.createElement('select');
+        ctxSel.className = 'settings-select settings-inline-select';
+        const autoVal = AgentService.autoNumCtx(this._engines?.totalMemGB || 8, entry.engine);
+        for (const [value, label] of [
+            [0, `Auto — ${autoVal.toLocaleString()} on this Mac`],
+            [4096, '4,096 tokens (low RAM)'],
+            [8192, '8,192 tokens'],
+            [16384, '16,384 tokens'],
+            [32768, '32,768 tokens'],
+            [65536, '65,536 tokens (high memory)']
+        ]) {
+            const opt = document.createElement('option');
+            opt.value = String(value);
+            opt.textContent = label;
+            ctxSel.appendChild(opt);
+        }
+        ctxSel.value = String(entry.numCtx || 0);
+        ctxSel.addEventListener('change', () => {
+            const n = Number(ctxSel.value);
+            AgentService.updateEntry(entry.id, { numCtx: Number.isFinite(n) && n > 0 ? n : null });
+        });
+        ctxRow.append(ctxLabel, ctxSel);
+        body.appendChild(ctxRow);
+        const ctxHint = document.createElement('p');
+        ctxHint.className = 'settings-hint';
+        ctxHint.textContent = 'How much conversation and document context this model holds in memory. Bigger fits more but uses more RAM. Changing it triggers a one-time model reload on the next chat.';
+        body.appendChild(ctxHint);
+
+        // License — each model ships under its own terms.
+        const cat = this._catalogFor(entry);
+        if (cat && cat.license) {
+            const lic = document.createElement('p');
+            lic.className = 'settings-hint';
+            lic.textContent = 'License: ';
+            const link = document.createElement('a');
+            link.href = '#';
+            link.className = 'settings-model-license';
+            link.textContent = cat.license;
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (cat.licenseUrl) window.electronAuth?.openExternal?.(cat.licenseUrl);
+            });
+            lic.appendChild(link);
+            body.appendChild(lic);
+        }
+
+        // Delete the downloaded weights (the entry itself stays in the list).
+        if (eng && eng.installed.has(entry.model)) {
+            const delRow = document.createElement('div');
+            delRow.className = 'settings-input-row';
+            delRow.style.marginTop = 'var(--space-md)';
+            const delBtn = document.createElement('button');
+            delBtn.type = 'button';
+            delBtn.className = 'secondary-btn settings-model-card-deleteweights';
+            delBtn.textContent = 'Delete model from disk';
+            delBtn.addEventListener('click', async () => {
+                const ok = await UIUtils.confirm('Delete model',
+                    `Delete <strong>${this._escape(AgentService.displayModelName(entry))}</strong> from this Mac? You can download it again anytime.`,
+                    '🗑️', { confirmText: 'Delete' });
+                if (!ok) return;
+                delBtn.disabled = true;
+                delBtn.textContent = 'Deleting…';
+                try {
+                    const result = await this._engineApiFor(entry.engine).deleteModel(entry.model);
+                    if (result?.error || result?.success === false) throw new Error(result?.error || 'Delete failed');
+                    UIUtils.showToast(`${AgentService.displayModelName(entry)} deleted`, 'success');
+                    await this._renderModelLibrary();
+                } catch {
+                    UIUtils.showToast(`Failed to delete ${AgentService.displayModelName(entry)}`, 'error');
+                    delBtn.disabled = false;
+                    delBtn.textContent = 'Delete model from disk';
+                }
+            });
+            delRow.appendChild(delBtn);
+            body.appendChild(delRow);
+        }
+    },
+
+    /**
+     * Manage body for a server entry: model name, base URL, per-entry API
+     * key, Auto-detect / Test / Save. Saving writes the URL + model onto the
+     * ENTRY and the key into main's encrypted per-entry store; a blank key
+     * field leaves any stored key untouched.
+     */
+    _renderServerManage(body, entry) {
+        body.innerHTML = '';
+
+        const desc = document.createElement('p');
+        desc.className = 'settings-section-desc';
+        desc.innerHTML = 'Connection details for this model\'s server &mdash; any endpoint that speaks the OpenAI <code>/v1/chat/completions</code> API (<code>llama-server</code>, vLLM, LM Studio) on a computer you own. Auto-detect finds one running on this Mac.';
+        body.appendChild(desc);
+
+        const modelRow = document.createElement('div');
+        modelRow.className = 'settings-input-row';
+        modelRow.style.marginBottom = 'var(--space-md)';
+        const modelInput = document.createElement('input');
+        modelInput.type = 'text';
+        modelInput.className = 'settings-input';
+        modelInput.placeholder = 'Model name on your server, e.g. qwen3.6:35b';
+        modelInput.value = entry.model || '';
+        modelRow.appendChild(modelInput);
+        body.appendChild(modelRow);
+
+        const urlRow = document.createElement('div');
+        urlRow.className = 'settings-input-row';
+        urlRow.style.marginBottom = 'var(--space-md)';
+        const urlInput = document.createElement('input');
+        urlInput.type = 'text';
+        urlInput.className = 'settings-input';
+        urlInput.placeholder = 'http://your-server:8080/v1';
+        urlInput.value = entry.baseUrl || '';
+        urlRow.appendChild(urlInput);
+        body.appendChild(urlRow);
+
+        const keyRow = document.createElement('div');
+        keyRow.className = 'settings-input-row';
+        const keyInput = document.createElement('input');
+        keyInput.type = 'password';
+        keyInput.className = 'settings-input';
+        keyInput.placeholder = 'API key (optional)';
+        window.electronLLM?.entryKeyStatus?.(entry.id).then((r) => {
+            if (r?.unreadable) keyInput.placeholder = 'Saved key unreadable — enter it again';
+            else if (r?.hasKey) keyInput.placeholder = '•••••••• (saved)';
+        }).catch(() => {});
+        const detectBtn = document.createElement('button');
+        detectBtn.type = 'button';
+        detectBtn.className = 'secondary-btn';
+        detectBtn.textContent = 'Auto-detect';
+        detectBtn.title = 'Scan localhost for a running OpenAI-compatible server';
+        const testBtn = document.createElement('button');
+        testBtn.type = 'button';
+        testBtn.className = 'secondary-btn';
+        testBtn.textContent = 'Test';
+        const saveBtn = document.createElement('button');
+        saveBtn.type = 'button';
+        saveBtn.className = 'secondary-btn';
+        saveBtn.textContent = 'Save';
+        keyRow.append(keyInput, detectBtn, testBtn, saveBtn);
+        body.appendChild(keyRow);
+
+        const status = document.createElement('p');
+        status.className = 'settings-key-status';
+        status.textContent = entry.baseUrl
+            ? `Endpoint: ${entry.baseUrl}`
+            : 'No server URL yet. Enter one or use Auto-detect.';
+        body.appendChild(status);
+
+        const hint = document.createElement('p');
+        hint.className = 'settings-hint';
+        hint.innerHTML = 'The URL can be the base (<code>http://host:8080</code>), the <code>/v1</code> path, or the full <code>/v1/chat/completions</code>. An API key is only needed if your server requires one (e.g. <code>llama-server --api-key</code>) &mdash; it is stored encrypted, per model. App-action tools work only if the server supports OpenAI function-calling for the model.';
+        body.appendChild(hint);
+
+        detectBtn.addEventListener('click', async () => {
+            status.textContent = 'Scanning localhost (8080, 1234, 8000…)…';
+            const res = await window.electronLLM?.detectCustom?.();
+            if (res?.found) {
+                urlInput.value = res.baseUrl;
+                if (res.model && !modelInput.value.trim()) modelInput.value = res.model;
+                status.textContent = `Found a server at ${res.baseUrl}${res.model ? ` (serving: ${res.model})` : ''}. Click Save to use it.`;
+                UIUtils.showToast('Server detected — review and Save', 'success');
+            } else {
+                status.textContent = 'No local OpenAI-compatible server found on common ports (8080, 1234, 8000, 5000, 8081).';
+                UIUtils.showToast('No server found', 'error');
+            }
+        });
+
+        testBtn.addEventListener('click', async () => {
+            const baseUrl = urlInput.value.trim();
+            if (!baseUrl) { status.textContent = 'Enter a server URL first.'; return; }
+            status.textContent = 'Testing…';
+            const cfg = { baseUrl, model: modelInput.value.trim() || entry.model || '', entryId: entry.id };
+            const key = keyInput.value.trim();
+            if (key) cfg.apiKey = key;
+            const res = await window.electronLLM?.testCustom?.(cfg);
+            if (res?.ok) {
+                status.textContent = `✓ Connected${res.model ? ` (${res.model})` : ''}${res.reply ? ` — reply: "${res.reply}"` : ''}`;
+                UIUtils.showToast('Server reachable', 'success');
+            } else {
+                status.textContent = `✗ ${res?.error || 'Connection failed'}`;
+                UIUtils.showToast('Server test failed', 'error');
+            }
+        });
+
+        saveBtn.addEventListener('click', async () => {
+            const baseUrl = urlInput.value.trim();
+            const model = modelInput.value.trim();
+            if (!model) { UIUtils.showToast('Enter the model name on your server', 'error'); return; }
+            // updateEntry persists via saveModelList, which write-throughs to
+            // the legacy provider settings when this entry is the default.
+            AgentService.updateEntry(entry.id, { model, baseUrl });
+            const key = keyInput.value.trim();
+            if (key) {
+                const res = await window.electronLLM?.setEntryKey?.(entry.id, key);
+                if (res && res.success === false) { UIUtils.showToast(res.error || 'Could not save the key', 'error'); return; }
+                keyInput.value = '';
+                keyInput.placeholder = '•••••••• (saved)';
+            }
+            status.textContent = baseUrl ? `Endpoint saved: ${baseUrl}` : 'No server URL yet — enter one or Auto-detect.';
+            UIUtils.showToast('Server details saved', 'success');
+            if (typeof AgentUI !== 'undefined') {
+                AgentUI.updateModelChip?.();
+                AgentUI.startReadinessWatch?.();
+            }
+            this._renderModelLibrary();
+        });
+    },
+
+    /**
+     * Manage body for a cloud entry (OpenAI / Anthropic API): model id, the
+     * per-entry API key (encrypted in main), live model listing with the
+     * key, and a connection test. Mirrors _renderServerManage minus the URL —
+     * the endpoint is fixed per provider.
+     */
+    _renderCloudManage(body, entry) {
+        body.innerHTML = '';
+        const label = entry.engine === 'openai' ? 'OpenAI' : 'Anthropic';
+        const keysUrl = entry.engine === 'openai'
+            ? 'https://platform.openai.com/api-keys'
+            : 'https://console.anthropic.com/settings/keys';
+
+        const desc = document.createElement('p');
+        desc.className = 'settings-section-desc';
+        desc.textContent = `${label}'s official API with your own key. Whatever runs on this model — chats, email insights, builds — is sent to ${label}'s servers under your account.`;
+        body.appendChild(desc);
+
+        const modelRow = document.createElement('div');
+        modelRow.className = 'settings-input-row';
+        modelRow.style.marginBottom = 'var(--space-md)';
+        const modelInput = document.createElement('input');
+        modelInput.type = 'text';
+        modelInput.className = 'settings-input';
+        modelInput.placeholder = entry.engine === 'openai' ? 'Model id, e.g. gpt-5.2' : 'Model id, e.g. claude-opus-4-8';
+        modelInput.value = entry.model || '';
+        const listBtn = document.createElement('button');
+        listBtn.type = 'button';
+        listBtn.className = 'secondary-btn';
+        listBtn.textContent = 'List models';
+        listBtn.title = `Fetch the models your ${label} key can use`;
+        modelRow.append(modelInput, listBtn);
+        body.appendChild(modelRow);
+
+        const modelSel = document.createElement('select');
+        modelSel.className = 'settings-select';
+        modelSel.style.display = 'none';
+        modelSel.style.marginBottom = 'var(--space-md)';
+        modelSel.addEventListener('change', () => { if (modelSel.value) modelInput.value = modelSel.value; });
+        body.appendChild(modelSel);
+
+        const keyRow = document.createElement('div');
+        keyRow.className = 'settings-input-row';
+        const keyInput = document.createElement('input');
+        keyInput.type = 'password';
+        keyInput.className = 'settings-input';
+        keyInput.placeholder = 'API key';
+        window.electronLLM?.entryKeyStatus?.(entry.id).then((r) => {
+            if (r?.unreadable) keyInput.placeholder = 'Saved key unreadable — enter it again';
+            else if (r?.hasKey) keyInput.placeholder = '•••••••• (saved)';
+        }).catch(() => {});
+        const testBtn = document.createElement('button');
+        testBtn.type = 'button';
+        testBtn.className = 'secondary-btn';
+        testBtn.textContent = 'Test';
+        const saveBtn = document.createElement('button');
+        saveBtn.type = 'button';
+        saveBtn.className = 'secondary-btn';
+        saveBtn.textContent = 'Save';
+        keyRow.append(keyInput, testBtn, saveBtn);
+        body.appendChild(keyRow);
+
+        const status = document.createElement('p');
+        status.className = 'settings-key-status';
+        body.appendChild(status);
+
+        const hint = document.createElement('p');
+        hint.className = 'settings-hint';
+        hint.innerHTML = `The key is stored encrypted on this Mac, per model — it never syncs. Create or manage keys at <a href="#" class="settings-model-license">${keysUrl.replace('https://', '')}</a>. API usage is billed by ${label} to your account.`;
+        hint.querySelector('a').addEventListener('click', (e) => {
+            e.preventDefault();
+            window.electronAuth?.openExternal?.(keysUrl);
+        });
+        body.appendChild(hint);
+
+        listBtn.addEventListener('click', async () => {
+            status.textContent = 'Fetching model list…';
+            const res = await window.electronLLM?.cloudModels?.({
+                engine: entry.engine, apiKey: keyInput.value.trim(), entryId: entry.id
+            });
+            if (res?.models?.length) {
+                modelSel.innerHTML = '';
+                const ph = document.createElement('option');
+                ph.value = '';
+                ph.textContent = `Pick from ${res.models.length} models…`;
+                modelSel.appendChild(ph);
+                for (const m of res.models) {
+                    const opt = document.createElement('option');
+                    opt.value = m.id;
+                    opt.textContent = m.label && m.label !== m.id ? `${m.label} (${m.id})` : m.id;
+                    modelSel.appendChild(opt);
+                }
+                modelSel.style.display = '';
+                status.textContent = `Loaded ${res.models.length} models from ${label}.`;
+            } else {
+                status.textContent = `✗ ${res?.error || 'Could not list models'}`;
+            }
+        });
+
+        testBtn.addEventListener('click', async () => {
+            const model = modelInput.value.trim() || entry.model;
+            status.textContent = 'Testing…';
+            const res = await window.electronLLM?.testCloud?.({
+                engine: entry.engine, model, apiKey: keyInput.value.trim(), entryId: entry.id
+            });
+            if (res?.ok) {
+                status.textContent = `✓ Connected${res.model ? ` (${res.model})` : ''}${res.reply ? ` — reply: "${res.reply}"` : ''}`;
+                UIUtils.showToast(`${label} reachable`, 'success');
+            } else {
+                status.textContent = `✗ ${res?.error || 'Connection failed'}`;
+                UIUtils.showToast(`${label} test failed`, 'error');
+            }
+        });
+
+        saveBtn.addEventListener('click', async () => {
+            const model = modelInput.value.trim();
+            if (!model) { UIUtils.showToast('Enter the model id', 'error'); return; }
+            AgentService.updateEntry(entry.id, { model });
+            const key = keyInput.value.trim();
+            if (key) {
+                const res = await window.electronLLM?.setEntryKey?.(entry.id, key);
+                if (res && res.success === false) { UIUtils.showToast(res.error || 'Could not save the key', 'error'); return; }
+                keyInput.value = '';
+                keyInput.placeholder = '•••••••• (saved)';
+            }
+            status.textContent = 'Saved.';
+            UIUtils.showToast(`${label} model saved`, 'success');
+            if (typeof AgentUI !== 'undefined') {
+                AgentUI.updateModelChip?.();
+                AgentUI.startReadinessWatch?.();
+            }
+            this._renderModelLibrary();
+        });
+    },
+
+    /**
+     * Manage body for the nenva cloud entry: nothing to configure — the
+     * machine's Connect key mints itself on first use — so the panel is the
+     * consent copy, the free-tier meter (the same /v1/usage call the Web
+     * Search card makes, reading its llm block), and a Test button.
+     */
+    _renderAnjadheManage(body, entry) {
+        body.innerHTML = '';
+
+        const desc = document.createElement('p');
+        desc.className = 'settings-section-desc';
+        desc.textContent = 'An open-weight model served by nenva Connect (api.nenva.co). '
+            + 'What runs on this model — chats, email insights, builds — goes to nenva’s server, '
+            + 'which forwards it to a zero-data-retention inference provider, without '
+            + 'your identity. The service keeps usage counts, never what you asked.';
+        body.appendChild(desc);
+
+        // The commitment, in checkable sentences (docs/CLOUD_PRIVACY.md P5):
+        // each line maps to a test, an endpoint or a switch in this app.
+        const promise = document.createElement('ul');
+        promise.className = 'settings-hint settings-cloud-promise';
+        for (const line of [
+            'Prompts and answers are not logged and not stored. A test in the public server code fails if any request text reaches a log line, an error body or the database.',
+            'Nothing you send is used to train models, and nothing is sold or shared.',
+            'What is stored: requests and token counts per install per month, keyed by a hash. They age out after 400 days.',
+            'Work nenva starts on its own sends only the kinds of data you allow in Cloud Privacy; chat sends what you typed.',
+            'Any change to what the service stores is announced at least 30 days before it takes effect.',
+            'Switching back to a model on this Mac is one click, and nothing stops working.'
+        ]) {
+            const li = document.createElement('li');
+            li.textContent = line;
+            promise.appendChild(li);
+        }
+        body.appendChild(promise);
+
+        const status = document.createElement('p');
+        status.className = 'settings-key-status';
+        status.textContent = 'Checking usage…';
+        body.appendChild(status);
+
+        const row = document.createElement('div');
+        row.className = 'settings-input-row';
+        const testBtn = document.createElement('button');
+        testBtn.type = 'button';
+        testBtn.className = 'secondary-btn';
+        testBtn.textContent = 'Test';
+        testBtn.title = 'Send a one-line test request to nenva cloud';
+        row.appendChild(testBtn);
+        body.appendChild(row);
+
+        const hint = document.createElement('p');
+        hint.className = 'settings-hint';
+        hint.textContent = 'When the monthly allowance runs out, requests pause until the 1st — '
+            + 'you can also run a model on this Mac, or add your own key or server. '
+            + 'Removing this model stops anything from reaching nenva cloud.';
+        body.appendChild(hint);
+
+        // The ledger door: every request that left this Mac, with the exact
+        // messages it carried (LLM Logs filtered to "Left this Mac").
+        const ledger = document.createElement('p');
+        ledger.className = 'settings-hint';
+        const ledgerBtn = document.createElement('button');
+        ledgerBtn.type = 'button';
+        ledgerBtn.className = 'settings-link-btn';
+        ledgerBtn.textContent = 'See everything this Mac has sent to nenva cloud';
+        ledgerBtn.addEventListener('click', () => this.openLlmLogs('left'));
+        ledger.appendChild(ledgerBtn);
+        body.appendChild(ledger);
+
+        // Name the deployment this app actually talks to — "api.nenva.co"
+        // on the card is the default, and a staging test run (via
+        // ANJADHE_CONNECT_URL) should be distinguishable at a glance. Also
+        // the moment a fresh catalog is in hand, so a renamed label lands.
+        const server = document.createElement('p');
+        server.className = 'settings-hint';
+        body.appendChild(server);
+        window.electronLLM?.anjadheModels?.().then(async (res) => {
+            if (res?.host) {
+                const host = res.host.replace(/^https?:\/\//, '');
+                server.textContent = `Server: ${host}`;
+                if (host !== 'api.nenva.co' && host !== 'api.anjadhe.com') server.textContent += ' (overridden via ANJADHE_CONNECT_URL)';
+            }
+            // The running commit beside the host: compare it with the public
+            // repo and the privacy claims above are about THIS deployment.
+            window.electronLLM?.anjadheVersion?.().then((v) => {
+                if (!v || v.error) return;
+                server.textContent += v.commit
+                    ? ` · running commit ${v.commit.slice(0, 7)} of ${(v.source || 'github.com/Anjadhe/anjadhe-connect').replace(/^https?:\/\//, '')}`
+                    : ' · commit not stamped on this deployment';
+            }).catch(() => {});
+            const changed = await AgentService.refreshAnjadheLabels?.(res);
+            if (changed) this._renderModelLibrary();
+        }).catch(() => {});
+
+        const refreshUsage = async () => {
+            const u = await window.electronSearch?.connectUsage?.(false).catch(() => null);
+            if (!u || u.error) {
+                status.textContent = u?.error ? `Can't reach nenva Connect — ${u.error}` : 'Usage unavailable.';
+                return;
+            }
+            if (u.notProvisioned) {
+                status.textContent = 'No usage yet — access sets itself up on the first request.';
+                return;
+            }
+            const plan = (u.tier || 'free').replace(/^./, c => c.toUpperCase());
+            const llm = u.llm || {};
+            status.textContent = `${plan} plan — ${llm.requests ?? 0} of ${llm.requestQuota ?? '—'} AI requests used this month · resets ${u.resetsAt || '—'}`;
+        };
+        refreshUsage();
+
+        testBtn.addEventListener('click', async () => {
+            status.textContent = 'Testing…';
+            testBtn.disabled = true;
+            try {
+                const res = await window.electronLLM?.chat?.({
+                    engine: 'anjadhe',
+                    model: entry.model || this.ANJADHE_CLOUD_MODEL,
+                    messages: [{ role: 'user', content: 'Reply with the single word: ready' }],
+                    maxTokens: 10
+                });
+                if (res && !res.error) {
+                    UIUtils.showToast('nenva cloud reachable', 'success');
+                    await refreshUsage();
+                } else {
+                    status.textContent = `✗ ${res?.error || 'Connection failed'}`;
+                    UIUtils.showToast('nenva cloud test failed', 'error');
+                }
+            } finally {
+                testBtn.disabled = false;
+            }
+        });
+    },
+
+    // ── Downloads (engine install included) ──
+
+    /**
+     * Download an entry's model, installing the llama.cpp engine first when
+     * it's missing (~11 MB tarball). Progress paints inline on the entry's
+     * card, keyed by entry id so re-renders pick it right back up.
+     */
+    async _startEntryDownload(entryId) {
+        const entry = AgentService.getEntry(entryId);
+        if (!entry || AgentService.isRemoteEngine(entry.engine)) return;
+        if (this._activeDownloads.has(entryId)) return;
+        const api = this._engineApiFor(entry.engine);
+        if (!api) return;
+
+        const setProgress = (text, percent) => {
+            this._activeDownloads.set(entryId, { text, percent });
+            this._paintCardProgress(entryId);
+        };
+        setProgress('Starting…', null);
+
+        try {
+            // 1. Engine present? Install inline when we can.
+            let status = null;
+            try { status = await api.status(); } catch { /* treat as missing */ }
+            if (!status?.isInstalled) {
+                setProgress('Installing llama.cpp engine…', null);
+                const res = await api.install((p) => {
+                    if (p.phase === 'download' && p.percent != null) setProgress(`Installing llama.cpp engine… ${p.percent}%`, null);
+                    else if (p.message) setProgress(p.message, null);
+                });
+                if (res?.error) throw new Error(res.error);
+            }
+            // 2. Pull, rAF-throttled so fast progress events can't flood layout.
+            let latest = null;
+            let rafPending = false;
+            const flush = () => {
+                rafPending = false;
+                if (!latest) return;
+                if (latest.percent !== null && latest.percent !== undefined) setProgress(`${latest.percent}%`, latest.percent);
+                else setProgress(latest.status || 'Downloading…', null);
+            };
+            const result = await api.pullModel(entry.model, (progress) => {
+                latest = progress;
+                if (!rafPending) { rafPending = true; requestAnimationFrame(flush); }
+            });
+            if (result?.error) throw new Error(result.error);
+
+            this._activeDownloads.delete(entryId);
+            if (this._pendingDefaultId === entryId) {
+                // Chosen as the default while it downloaded — switch now.
+                this._pendingDefaultId = null;
+                await AgentService.setDefaultEntry(entryId);
+                if (typeof AgentUI !== 'undefined') {
+                    AgentUI.updateModelChip?.();
+                    AgentUI.startReadinessWatch?.();
+                }
+                UIUtils.showToast(`${AgentService.displayModelName(entry)} downloaded and is now your default model`, 'success');
+            } else {
+                UIUtils.showToast(`${AgentService.displayModelName(entry)} downloaded`, 'success');
+                const def = AgentService.getDefaultEntry();
+                if (def && def.id === entryId) AgentService.warmOnIntent?.();
+            }
+            await this._renderModelLibrary();
+        } catch (e) {
+            this._activeDownloads.delete(entryId);
+            if (this._pendingDefaultId === entryId) this._pendingDefaultId = null;
+            await this._handleEntryPullError(entry, e?.message || 'Download failed');
+        }
+    },
+
+    /** A download's status line; says so when it will become the default. */
+    _downloadText(entryId, p) {
+        const text = (p && p.text) || 'Downloading…';
+        return this._pendingDefaultId === entryId ? `${text} · default when done` : text;
+    },
+
+    /** Paint an in-flight download onto its card (found by entry id). */
+    _paintCardProgress(entryId) {
+        const card = document.querySelector(`.settings-model-card[data-entry-id="${CSS.escape(entryId)}"]`);
+        if (!card) return;
+        const p = this._activeDownloads.get(entryId);
+        if (!p) return;
+        card.dataset.state = 'downloading';
+        const statusEl = card.querySelector('.settings-model-card-status');
+        if (statusEl) {
+            statusEl.textContent = this._downloadText(entryId, p);
+            statusEl.classList.add('is-downloading');
+        }
+        const btn = card.querySelector('.settings-model-card-download');
+        if (btn) btn.remove();
+        let strip = card.querySelector('.settings-model-progress');
+        if (!strip) {
+            strip = document.createElement('div');
+            strip.className = 'settings-model-progress';
+            strip.innerHTML = '<div class="settings-model-progress-fill"></div>';
+            card.appendChild(strip);
+        }
+        const fill = strip.querySelector('.settings-model-progress-fill');
+        if (fill && p.percent !== null && p.percent !== undefined) fill.style.width = p.percent + '%';
+    },
+
+    async _handleEntryPullError(entry, errorMsg) {
+        UIUtils.showToast('Download failed: ' + errorMsg, 'error', 6000);
+        // Re-render resets the card to its real state (Download reappears —
+        // the entry stays in the list, so the user can just retry).
+        await this._renderModelLibrary();
+    },
+
+    // ── Add-model flow (full page) ──
+    //
+    // #add-model-view: a sources nav (where the model runs) beside the step
+    // pane. Each _renderAdd*Step takes (body, ctx) where ctx.close() means
+    // "done" — the page passes a navigate-back-to-Models ctx; the setup
+    // wizard (app-manager.js) still hosts the same steps inside a modal,
+    // whose ctx is the modal itself. Incomplete state lives in the pane, so
+    // a half-finished add can never persist a blank entry.
+
+    // Which door the current add-model flow was opened from ('settings' |
+    // 'wizard') — analytics label only, never behavior.
+    _addModelSource: 'settings',
+
+    ADD_MODEL_SOURCES: {
+        local: { title: 'On this Mac' },
+        anjadhe: { title: 'nenva cloud' },
+        server: { title: 'Your server' },
+        openai: { title: 'OpenAI API' },
+        anthropic: { title: 'Anthropic API' }
+    },
+
+    async _openAddModelPage() {
+        this._addModelSource = 'settings';
+        const view = document.getElementById('add-model-view');
+        if (!view) return;
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        view.classList.add('active');
+        this._stopLibraryWatch();
+        // The masthead's serif title names the page — the breadcrumb stops
+        // at the lineage rather than saying "Add a model" twice.
+        // Opened from the simple Settings' Model page (SimpleSettings), the
+        // way back is that page, not the full Settings' Models section.
+        this._renderPageHeader('add-model-breadcrumb', this._addModelReturn
+            ? [{ label: 'Model', action: () => this._addModelReturn?.() }]
+            : [
+                ...this._crumbRoot(view),
+                { label: 'Models', action: () => this.openLLMSection('llm-sec-models') }
+            ]);
+        this._bindAddModelNav();
+        // The local catalog needs the engine probe (installed set, RAM cap)
+        // when the page is entered before the library ever rendered.
+        if (!this._engines) { try { await this._refreshEngineState(); } catch { /* pane shows empty catalog */ } }
+        // A Mac under the catalog's local floor gets no local offering, so the
+        // nav must not call that path "Recommended" over an empty list.
+        const localBadge = document.querySelector('#add-model-nav [data-add-src="local"] .add-model-src-badge');
+        if (localBadge) localBadge.style.display = this._localBelowFloor() ? 'none' : '';
+        // …and opens on nenva cloud, the same first offer the wizard's
+        // low-RAM step makes (the alternative there is no AI at all).
+        this._selectAddModelSource(this._localBelowFloor() ? 'anjadhe' : 'local');
+        view.scrollTop = 0;
+    },
+
+    _bindAddModelNav() {
+        const nav = document.getElementById('add-model-nav');
+        if (!nav || nav._bound) return;
+        nav._bound = true;
+        nav.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-add-src]');
+            if (btn) this._selectAddModelSource(btn.dataset.addSrc);
+        });
+        // Esc leaves the page — unless a layer above it (a dialog, ⌘K, the
+        // app switcher) owns the key right now.
+        document.addEventListener('keydown', (e) => {
+            if (e.key !== 'Escape') return;
+            const view = document.getElementById('add-model-view');
+            if (!view || !view.classList.contains('active')) return;
+            if (document.querySelector('dialog[open], .cmdk-overlay.is-open, .app-switcher.is-open')) return;
+            if (this._addModelReturn) { this._addModelReturn(); return; }
+            this.openLLMSection('llm-sec-models');
+        });
+    },
+
+    _selectAddModelSource(src) {
+        const spec = this.ADD_MODEL_SOURCES[src];
+        const body = document.getElementById('add-model-pane-body');
+        if (!spec || !body) return;
+        document.querySelectorAll('#add-model-nav .add-model-src').forEach(b =>
+            b.classList.toggle('is-active', b.dataset.addSrc === src));
+        const title = document.getElementById('add-model-pane-title');
+        if (title) title.textContent = spec.title;
+        const ctx = { close: () => (this._addModelReturn ? this._addModelReturn() : this.openLLMSection('llm-sec-models')) };
+        if (src === 'local') this._renderAddLocalStep(body, ctx, 'llamacpp');
+        else if (src === 'anjadhe') this._renderAddAnjadheStep(body, ctx);
+        else if (src === 'server') this._renderAddServerStep(body, ctx);
+        else this._renderAddCloudStep(body, ctx, src);
+    },
+
+    // The public model name nenva Connect has served on /v1/llm since
+    // launch — the fallback when the catalog can't be fetched (offline, or
+    // a deployment predating /v1/llm/models). The server maps each public
+    // name to whatever open weights it currently runs, so better weights
+    // need no app release.
+    ANJADHE_CLOUD_MODEL: 'nenva-cloud-lite',   // ModelNames.DEFAULT_CLOUD_MODEL
+
+    /**
+     * Add step for nenva cloud: no key — the Connect key mints itself on
+     * the first request (clicking Add is the opt-in; nothing reaches the
+     * service until the model is actually used). The model list comes from
+     * the server's own catalog (/v1/llm/models), so which models are on
+     * offer is the operator's call, never an app release: one model renders
+     * as plain consent copy + Add, several render as a picker.
+     */
+    _renderAddAnjadheStep(body, ctx) {
+        body.innerHTML = '';
+
+        const desc = document.createElement('p');
+        desc.className = 'settings-section-desc';
+        desc.textContent = 'Open-weight models served by nenva Connect (api.nenva.co). '
+            + 'What runs on them — chats, email insights, builds — goes to nenva’s server, '
+            + 'which forwards it to a zero-data-retention inference provider, without your '
+            + 'identity: nothing is stored, and nothing is used to train models. The service keeps '
+            + 'usage counts, never what you asked; its source code is public so that can be checked.';
+        body.appendChild(desc);
+
+        const listWrap = document.createElement('div');
+        body.appendChild(listWrap);
+        const loading = document.createElement('p');
+        loading.className = 'settings-hint';
+        loading.textContent = 'Checking which models are available…';
+        listWrap.appendChild(loading);
+
+        const quota = document.createElement('p');
+        quota.className = 'settings-hint';
+        quota.textContent = 'nenva cloud is in preview: the free plan includes 1,000 AI requests a '
+            + 'month across these models. When it runs out you can wait for the next month, run a '
+            + 'model on this Mac, or add your own key or server.';
+        body.appendChild(quota);
+
+        const footer = document.createElement('div');
+        footer.className = 'settings-input-row settings-add-model-footer';
+        body.appendChild(footer);
+
+        const render = (models) => {
+            listWrap.innerHTML = '';
+            footer.innerHTML = '';
+            const mine = new Set(AgentService.getModelList()
+                .filter(e => e.engine === 'anjadhe').map(e => e.model));
+            const addable = models.filter(m => !mine.has(m.id));
+
+            let selected = addable[0] || null;
+            // Several models on offer → a picker in the local add step's
+            // row mould; one model keeps the old copy-and-a-button shape.
+            if (models.length > 1) {
+                const list = document.createElement('div');
+                list.className = 'settings-model-list settings-add-model-list';
+                for (const m of models) {
+                    const item = document.createElement('div');
+                    item.className = 'settings-model-item'
+                        + (mine.has(m.id) ? ' installed' : '')
+                        + (selected && selected.id === m.id ? ' active' : '');
+                    const radio = document.createElement('span');
+                    radio.className = 'settings-model-radio';
+                    const info = document.createElement('div');
+                    info.className = 'settings-model-info';
+                    const nameEl = document.createElement('span');
+                    nameEl.className = 'settings-model-name';
+                    nameEl.textContent = m.label;
+                    info.appendChild(nameEl);
+                    if (m.description) {
+                        const descEl = document.createElement('span');
+                        descEl.className = 'settings-model-desc';
+                        descEl.textContent = m.description;
+                        info.appendChild(descEl);
+                    }
+                    const statusEl = document.createElement('span');
+                    statusEl.className = 'settings-model-status';
+                    statusEl.textContent = mine.has(m.id) ? 'In your list' : '';
+                    item.append(radio, info, statusEl);
+                    item.addEventListener('click', () => {
+                        if (mine.has(m.id)) return;
+                        list.querySelectorAll('.settings-model-item.active').forEach(el => el.classList.remove('active'));
+                        item.classList.add('active');
+                        selected = m;
+                    });
+                    list.appendChild(item);
+                }
+                listWrap.appendChild(list);
+            } else if (models.length === 1 && mine.has(models[0].id)) {
+                const done = document.createElement('p');
+                done.className = 'settings-key-status';
+                const entry = AgentService.getModelList().find(e => e.engine === 'anjadhe' && e.model === models[0].id);
+                const def = AgentService.getDefaultEntry?.();
+                done.textContent = def && entry && def.id === entry.id
+                    ? '✓ Already in your list — it’s your default model.'
+                    : '✓ Already in your list.';
+                listWrap.appendChild(done);
+            }
+
+            if (!addable.length) {
+                if (models.length > 1) {
+                    const done = document.createElement('p');
+                    done.className = 'settings-key-status';
+                    done.textContent = '✓ All nenva cloud models are in your list.';
+                    listWrap.appendChild(done);
+                }
+                const goBtn = document.createElement('button');
+                goBtn.type = 'button';
+                goBtn.className = 'secondary-btn';
+                goBtn.textContent = 'View your models';
+                goBtn.addEventListener('click', () => ctx.close());
+                footer.appendChild(goBtn);
+                return;
+            }
+
+            const addBtn = document.createElement('button');
+            addBtn.type = 'button';
+            addBtn.className = 'primary-btn';
+            addBtn.textContent = models.length > 1 ? 'Add selected model' : `Add ${addable[0].label}`;
+            addBtn.addEventListener('click', () => {
+                if (!selected) return;
+                this._finishAddModel(ctx, {
+                    engine: 'anjadhe', model: selected.id, label: selected.label
+                });
+            });
+            footer.appendChild(addBtn);
+        };
+
+        window.electronLLM?.anjadheModels?.().then((res) => {
+            const models = (res && Array.isArray(res.models) && res.models.length)
+                ? res.models
+                : [ModelNames.catalogRow({ id: this.ANJADHE_CLOUD_MODEL })];
+            // A fresh catalog in hand — carry any renamed labels onto the
+            // entries already in the list (no extra request; see
+            // refreshAnjadheLabels).
+            AgentService.refreshAnjadheLabels?.(res).catch?.(() => {});
+            render(models);
+        }).catch(() => {
+            render([ModelNames.catalogRow({ id: this.ANJADHE_CLOUD_MODEL })]);
+        });
+    },
+
+    /** Finish an add: create the entry, close, render, start the download. */
+    async _finishAddModel(ctx, { engine, model, baseUrl, key, label }) {
+        const before = AgentService.getModelList().length;
+        const entry = AgentService.addEntry({ engine, model, baseUrl, label });
+        if (!entry) { UIUtils.showToast('Enter a model name first', 'error'); return; }
+        const isNew = AgentService.getModelList().length > before;
+        if (!isNew) UIUtils.showToast(`${AgentService.displayModelName(entry)} is already in your list`, 'info');
+        if (isNew && typeof AnalyticsManager !== 'undefined') {
+            // Adoption funnel (opt-in analytics): which engine, which door.
+            // _addModelSource is stamped 'wizard' by the setup flow that
+            // reuses these steps; the modal opener resets it to 'settings'.
+            AnalyticsManager.record('model.added', { engine, source: this._addModelSource || 'settings' });
+        }
+        if (key && AgentService.isRemoteEngine(engine)) {
+            const res = await window.electronLLM?.setEntryKey?.(entry.id, key);
+            if (res && res.success === false) UIUtils.showToast(res.error || 'Could not save the key', 'error');
+        }
+        // Awaited so the page ctx (navigate back to Models, which renders
+        // the library) finishes before the render below — two interleaved
+        // _renderModelLibrary calls could double-append cards.
+        await ctx.close();
+        if (typeof AgentUI !== 'undefined') {
+            AgentUI.updateModelChip?.();
+            AgentUI.startReadinessWatch?.();
+        }
+        await this._renderModelLibrary();
+        if (isNew && !AgentService.isRemoteEngine(engine)) {
+            const eng = this._engines && this._engines[engine];
+            if (!eng?.installed?.has(entry.model)) {
+                const cat = this._catalogFor(entry);
+                // llama.cpp models without a GGUF source can't be downloaded —
+                // the card shows the drop-in hint instead.
+                if (engine !== 'llamacpp' || (cat && cat.gguf)) this._startEntryDownload(entry.id);
+            }
+        }
+    },
+
+    // Below the catalog's local floor: every local catalog model needs more
+    // RAM than this Mac has. The floor is whatever the catalog's smallest
+    // minRam says (8 GB since 2026-08-26 — the qwen3.5 small tiers reopened
+    // what the 2026-08-06 32 GB floor closed). Distinct from a catalog
+    // that failed to load, which deserves a different message.
+    _localBelowFloor() {
+        const totalRam = this._engines?.totalMemGB || 8;
+        const cat = (this._engines?.catalog || []).filter(m => m.gguf);
+        return cat.length > 0 && !cat.some(m => (m.minRam || 0) <= totalRam);
+    },
+
+    _renderAddLocalStep(body, ctx, engine) {
+        body.innerHTML = '';
+
+        const eng = this._engines && this._engines[engine];
+        const installedSet = eng?.installed || new Set();
+        const totalRam = this._engines?.totalMemGB || 8;
+        const catalog = (this._engines?.catalog || [])
+            .filter(m => (m.minRam || 0) <= totalRam)
+            .filter(m => engine !== 'llamacpp' || m.gguf);
+        const inList = new Set(AgentService.getModelList()
+            .filter(e => e.engine === engine).map(e => e.model));
+        const belowFloor = engine === 'llamacpp' && this._localBelowFloor();
+
+        const desc = document.createElement('p');
+        desc.className = 'settings-section-desc';
+        desc.textContent = belowFloor
+            ? `Running a model on the Mac itself takes more memory than this Mac has (${totalRam} GB), so none is offered here. nenva cloud, a server you own, or your own API key (in the list on the left) are the ways to run the AI on a Mac this size.`
+            : `These models run on this Mac, free, and your data stays here. Best picks first, sized to fit this Mac's ${totalRam} GB of memory.`;
+        body.appendChild(desc);
+
+        let selectedName = null;
+        let addBtn = null;
+        const list = document.createElement('div');
+        list.className = 'settings-model-list settings-add-model-list';
+
+        // Catalog rows + any installed models the catalog doesn't know
+        // (GGUF drop-ins, custom pulls) so they can become entries too.
+        const catalogNames = new Set(catalog.map(m => m.name));
+        const sizes = eng?.sizes || new Map();
+        const gb = (bytes) => Number.isFinite(bytes) && bytes > 0 ? `${(bytes / 1e9).toFixed(1)} GB` : '';
+        const extras = [...installedSet].filter(n => !catalogNames.has(n)).map(name => ({
+            name,
+            desc: engine === 'llamacpp' ? 'Your own model file, added to ~/.nenva_llamacpp/models' : 'Installed model',
+            size: gb(sizes.get(name)),
+            extra: true
+        }));
+        for (const m of [...catalog, ...extras]) {
+            const item = document.createElement('div');
+            item.className = 'settings-model-item ' + (installedSet.has(m.name) ? 'installed' : 'not-installed');
+            const radio = document.createElement('span');
+            radio.className = 'settings-model-radio';
+            const info = document.createElement('div');
+            info.className = 'settings-model-info';
+            const nameEl = document.createElement('span');
+            nameEl.className = 'settings-model-name';
+            // Every local model is "nenva local" (model-names.js): the
+            // options differ by size, the memory they need and whether they
+            // read images — never by the model's own name.
+            nameEl.textContent = engine === 'llamacpp' ? ModelNames.LOCAL_LABEL : m.name;
+            const descEl = document.createElement('span');
+            descEl.className = 'settings-model-desc';
+            const facts = [];
+            // The download size sits in the status column; a file already
+            // here carries its size in the line instead.
+            if (m.extra && m.size) facts.push(m.size);
+            if (m.minRam) facts.push(`needs ${m.minRam} GB of memory`);
+            if (m.extra) facts.push('your own model file');
+            // A local option shows only facts — the catalog's prose (and an
+            // older cached catalog's vendor names) never reaches the page.
+            descEl.textContent = engine === 'llamacpp' ? facts.join(' · ') : (m.desc || '');
+            info.append(nameEl, descEl);
+            if (m.gguf && m.gguf.mmproj) {
+                const vis = document.createElement('span');
+                vis.className = 'settings-model-vision';
+                vis.textContent = 'Reads images';
+                vis.title = 'A regular chat model that can also read attached images';
+                info.appendChild(vis);
+            }
+            if (m.license) {
+                const lic = document.createElement('a');
+                lic.href = '#';
+                lic.className = 'settings-model-license';
+                lic.textContent = m.license;
+                lic.title = 'View license';
+                lic.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (m.licenseUrl) window.electronAuth?.openExternal?.(m.licenseUrl);
+                });
+                info.appendChild(lic);
+            }
+            const statusEl = document.createElement('span');
+            statusEl.className = 'settings-model-status';
+            statusEl.textContent = inList.has(m.name) ? 'In your list'
+                : installedSet.has(m.name) ? 'Downloaded' : (m.size || '');
+            item.append(radio, info, statusEl);
+            item.addEventListener('click', () => {
+                list.querySelectorAll('.settings-model-item.active').forEach(el => el.classList.remove('active'));
+                item.classList.add('active');
+                selectedName = m.name;
+                if (addBtn) addBtn.disabled = false;
+            });
+            list.appendChild(item);
+        }
+        if (!catalog.length && !extras.length && !belowFloor) {
+            const none = document.createElement('p');
+            none.className = 'settings-hint';
+            none.textContent = 'No recommended models for this engine yet.';
+            list.appendChild(none);
+        }
+        body.appendChild(list);
+
+        // GGUF drop-in hint for models outside the catalog.
+        const nameInput = null;
+        const hint = document.createElement('p');
+        hint.className = 'settings-hint';
+        hint.innerHTML = 'To use a model file of your own, drop a <code>.gguf</code> file into <code>~/.nenva_llamacpp/models</code> and come back to this page.';
+        body.appendChild(hint);
+
+        const license = document.createElement('p');
+        license.className = 'settings-hint';
+        license.textContent = 'Each model has its own license (shown above). Downloading one means accepting its terms.';
+        body.appendChild(license);
+
+        const footer = document.createElement('div');
+        footer.className = 'settings-input-row settings-add-model-footer';
+        addBtn = document.createElement('button');
+        addBtn.type = 'button';
+        addBtn.className = 'primary-btn';
+        addBtn.textContent = 'Add model';
+        addBtn.disabled = true;
+        addBtn.addEventListener('click', () => {
+            const model = selectedName || (nameInput && nameInput.value.trim());
+            if (!model) return;
+            this._finishAddModel(ctx, { engine, model });
+        });
+        footer.appendChild(addBtn);
+        body.appendChild(footer);
+    },
+
+    _renderAddServerStep(body, ctx) {
+        body.innerHTML = '';
+
+        const desc = document.createElement('p');
+        desc.className = 'settings-section-desc';
+        desc.innerHTML = 'Any endpoint that speaks the OpenAI <code>/v1/chat/completions</code> API on a computer you own. Auto-detect finds one running on this Mac.';
+        body.appendChild(desc);
+
+        const urlRow = document.createElement('div');
+        urlRow.className = 'settings-input-row';
+        urlRow.style.marginBottom = 'var(--space-md)';
+        const urlInput = document.createElement('input');
+        urlInput.type = 'text';
+        urlInput.className = 'settings-input';
+        urlInput.placeholder = 'http://your-server:8080/v1';
+        urlRow.appendChild(urlInput);
+        body.appendChild(urlRow);
+
+        const modelRow = document.createElement('div');
+        modelRow.className = 'settings-input-row';
+        modelRow.style.marginBottom = 'var(--space-md)';
+        const modelInput = document.createElement('input');
+        modelInput.type = 'text';
+        modelInput.className = 'settings-input';
+        modelInput.placeholder = 'Model name on the server, e.g. qwen3.6:35b';
+        modelRow.appendChild(modelInput);
+        body.appendChild(modelRow);
+
+        const keyRow = document.createElement('div');
+        keyRow.className = 'settings-input-row';
+        const keyInput = document.createElement('input');
+        keyInput.type = 'password';
+        keyInput.className = 'settings-input';
+        keyInput.placeholder = 'API key (optional)';
+        const detectBtn = document.createElement('button');
+        detectBtn.type = 'button';
+        detectBtn.className = 'secondary-btn';
+        detectBtn.textContent = 'Auto-detect';
+        const testBtn = document.createElement('button');
+        testBtn.type = 'button';
+        testBtn.className = 'secondary-btn';
+        testBtn.textContent = 'Test';
+        keyRow.append(keyInput, detectBtn, testBtn);
+        body.appendChild(keyRow);
+
+        const status = document.createElement('p');
+        status.className = 'settings-key-status';
+        body.appendChild(status);
+
+        detectBtn.addEventListener('click', async () => {
+            status.textContent = 'Scanning localhost (8080, 1234, 8000…)…';
+            const res = await window.electronLLM?.detectCustom?.();
+            if (res?.found) {
+                urlInput.value = res.baseUrl;
+                if (res.model && !modelInput.value.trim()) modelInput.value = res.model;
+                status.textContent = `Found a server at ${res.baseUrl}${res.model ? ` (serving: ${res.model})` : ''}.`;
+            } else {
+                status.textContent = 'No local OpenAI-compatible server found on common ports (8080, 1234, 8000, 5000, 8081).';
+            }
+        });
+        testBtn.addEventListener('click', async () => {
+            const baseUrl = urlInput.value.trim();
+            if (!baseUrl) { status.textContent = 'Enter a server URL first.'; return; }
+            status.textContent = 'Testing…';
+            const cfg = { baseUrl, model: modelInput.value.trim() };
+            const key = keyInput.value.trim();
+            if (key) cfg.apiKey = key;
+            const res = await window.electronLLM?.testCustom?.(cfg);
+            status.textContent = res?.ok
+                ? `✓ Connected${res.model ? ` (${res.model})` : ''}`
+                : `✗ ${res?.error || 'Connection failed'}`;
+        });
+
+        const footer = document.createElement('div');
+        footer.className = 'settings-input-row settings-add-model-footer';
+        const addBtn = document.createElement('button');
+        addBtn.type = 'button';
+        addBtn.className = 'primary-btn';
+        addBtn.textContent = 'Add model';
+        addBtn.addEventListener('click', () => {
+            const baseUrl = urlInput.value.trim();
+            const model = modelInput.value.trim();
+            if (!baseUrl || !model) {
+                UIUtils.showToast('Enter the server URL and model name', 'error');
+                return;
+            }
+            this._finishAddModel(ctx, { engine: 'server', model, baseUrl, key: keyInput.value.trim() });
+        });
+        footer.appendChild(addBtn);
+        body.appendChild(footer);
+    },
+
+    /**
+     * Add-model step for a cloud provider (OpenAI / Anthropic API): paste a
+     * key, list the models the key can use live (no hardcoded catalog to
+     * rot), pick one or type an id, optional test, add. The key is saved
+     * onto the new entry (encrypted in main) by _finishAddModel.
+     */
+    _renderAddCloudStep(body, ctx, engine) {
+        body.innerHTML = '';
+        const label = engine === 'openai' ? 'OpenAI' : 'Anthropic';
+        const keysUrl = engine === 'openai'
+            ? 'https://platform.openai.com/api-keys'
+            : 'https://console.anthropic.com/settings/keys';
+
+        const desc = document.createElement('p');
+        desc.className = 'settings-section-desc';
+        desc.textContent = `${label}'s official API with your own key. Anything that runs on this model — chats, email insights, builds — is sent to ${label}'s servers under your account, and API usage is billed by ${label}.`;
+        body.appendChild(desc);
+
+        const keyRow = document.createElement('div');
+        keyRow.className = 'settings-input-row';
+        keyRow.style.marginBottom = 'var(--space-md)';
+        const keyInput = document.createElement('input');
+        keyInput.type = 'password';
+        keyInput.className = 'settings-input';
+        keyInput.placeholder = `${label} API key`;
+        const loadBtn = document.createElement('button');
+        loadBtn.type = 'button';
+        loadBtn.className = 'secondary-btn';
+        loadBtn.textContent = 'List models';
+        keyRow.append(keyInput, loadBtn);
+        body.appendChild(keyRow);
+
+        let selectedId = null;
+        let addBtn = null;
+        let testBtn = null;
+        const list = document.createElement('div');
+        list.className = 'settings-model-list settings-add-model-list';
+        body.appendChild(list);
+
+        const modelRow = document.createElement('div');
+        modelRow.className = 'settings-input-row';
+        modelRow.style.marginTop = 'var(--space-md)';
+        const modelInput = document.createElement('input');
+        modelInput.type = 'text';
+        modelInput.className = 'settings-input';
+        modelInput.placeholder = engine === 'openai'
+            ? 'Or type a model id, e.g. gpt-5.2'
+            : 'Or type a model id, e.g. claude-opus-4-8';
+        modelInput.addEventListener('input', () => {
+            if (modelInput.value.trim()) {
+                list.querySelectorAll('.settings-model-item.active').forEach(el => el.classList.remove('active'));
+                selectedId = null;
+            }
+            const has = !!(selectedId || modelInput.value.trim());
+            if (addBtn) addBtn.disabled = !has;
+            if (testBtn) testBtn.disabled = !has;
+        });
+        modelRow.appendChild(modelInput);
+        body.appendChild(modelRow);
+
+        const status = document.createElement('p');
+        status.className = 'settings-key-status';
+        body.appendChild(status);
+
+        const hint = document.createElement('p');
+        hint.className = 'settings-hint';
+        hint.innerHTML = `The key is stored encrypted on this Mac, per model — it never syncs. Create a key at <a href="#" class="settings-model-license">${keysUrl.replace('https://', '')}</a>.`;
+        hint.querySelector('a').addEventListener('click', (e) => {
+            e.preventDefault();
+            window.electronAuth?.openExternal?.(keysUrl);
+        });
+        body.appendChild(hint);
+
+        loadBtn.addEventListener('click', async () => {
+            const apiKey = keyInput.value.trim();
+            if (!apiKey) { status.textContent = 'Paste your API key first.'; return; }
+            status.textContent = `Fetching models from ${label}…`;
+            const res = await window.electronLLM?.cloudModels?.({ engine, apiKey });
+            list.innerHTML = '';
+            if (!res?.models?.length) {
+                status.textContent = `✗ ${res?.error || 'Could not list models'}`;
+                return;
+            }
+            status.textContent = `Your key can use ${res.models.length} models — pick one.`;
+            for (const m of res.models) {
+                const item = document.createElement('div');
+                item.className = 'settings-model-item';
+                const radio = document.createElement('span');
+                radio.className = 'settings-model-radio';
+                const info = document.createElement('div');
+                info.className = 'settings-model-info';
+                const nameEl = document.createElement('span');
+                nameEl.className = 'settings-model-name';
+                nameEl.textContent = m.label && m.label !== m.id ? m.label : m.id;
+                info.appendChild(nameEl);
+                if (m.label && m.label !== m.id) {
+                    const descEl = document.createElement('span');
+                    descEl.className = 'settings-model-desc';
+                    descEl.textContent = m.id;
+                    info.appendChild(descEl);
+                }
+                item.append(radio, info);
+                item.addEventListener('click', () => {
+                    list.querySelectorAll('.settings-model-item.active').forEach(el => el.classList.remove('active'));
+                    item.classList.add('active');
+                    selectedId = m.id;
+                    modelInput.value = '';
+                    if (addBtn) addBtn.disabled = false;
+                    if (testBtn) testBtn.disabled = false;
+                });
+                list.appendChild(item);
+            }
+        });
+
+        const footer = document.createElement('div');
+        footer.className = 'settings-input-row settings-add-model-footer';
+        testBtn = document.createElement('button');
+        testBtn.type = 'button';
+        testBtn.className = 'secondary-btn';
+        testBtn.textContent = 'Test';
+        testBtn.disabled = true;
+        testBtn.addEventListener('click', async () => {
+            const model = selectedId || modelInput.value.trim();
+            const apiKey = keyInput.value.trim();
+            if (!apiKey) { status.textContent = 'Paste your API key first.'; return; }
+            status.textContent = 'Testing…';
+            const res = await window.electronLLM?.testCloud?.({ engine, model, apiKey });
+            status.textContent = res?.ok
+                ? `✓ Connected${res.model ? ` (${res.model})` : ''}`
+                : `✗ ${res?.error || 'Connection failed'}`;
+        });
+        addBtn = document.createElement('button');
+        addBtn.type = 'button';
+        addBtn.className = 'primary-btn';
+        addBtn.textContent = 'Add model';
+        addBtn.disabled = true;
+        addBtn.addEventListener('click', () => {
+            const model = selectedId || modelInput.value.trim();
+            const key = keyInput.value.trim();
+            if (!model) { UIUtils.showToast('Pick or type a model id', 'error'); return; }
+            if (!key) { UIUtils.showToast(`Paste your ${label} API key`, 'error'); return; }
+            this._finishAddModel(ctx, { engine, model, key });
+        });
+        footer.append(testBtn, addBtn);
+        body.appendChild(footer);
+    },
+
+    // ── Library status watch ──
+    //
+    // A light polling loop that keeps the status texts honest (warming →
+    // ready, llama-server loading a model, engine installed outside the app).
+    // Text-only repaints; a structural change (e.g. a model appeared on
+    // disk) triggers one full re-render — skipped while the user is typing
+    // in a card, so it can't eat their input.
+
+    _startLibraryWatch() {
+        this._stopLibraryWatch();
+        const tick = async () => {
+            const view = document.getElementById('llm-settings-view');
+            if (!view || !view.classList.contains('active')) { this._stopLibraryWatch(); return; }
+            try {
+                await this._refreshEngineState();
+                this._refreshCardStatuses();
+            } catch { /* next tick */ }
+            const busy = (typeof AgentService !== 'undefined' && AgentService._warming) || this._activeDownloads.size > 0;
+            this._libraryWatchTimer = setTimeout(tick, busy ? 2500 : 8000);
+        };
+        this._libraryWatchTimer = setTimeout(tick, 2500);
+    },
+
+    _stopLibraryWatch() {
+        if (this._libraryWatchTimer) clearTimeout(this._libraryWatchTimer);
+        this._libraryWatchTimer = null;
+    },
+
+    _refreshCardStatuses() {
+        const cardsHost = document.getElementById('settings-model-cards');
+        if (!cardsHost) return;
+        const typing = cardsHost.contains(document.activeElement)
+            && /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName || '');
+        let structuralChange = false;
+        cardsHost.querySelectorAll('.settings-model-card').forEach(card => {
+            const entry = AgentService.getEntry(card.dataset.entryId);
+            if (!entry) { structuralChange = true; return; }
+            if (this._activeDownloads.has(entry.id)) return; // download owns the card
+            const st = this._computeEntryStatus(entry);
+            if (st.state !== card.dataset.state) { structuralChange = true; return; }
+            const statusEl = card.querySelector('.settings-model-card-status');
+            if (statusEl && statusEl.textContent !== st.text) statusEl.textContent = st.text;
+        });
+        if (structuralChange && !typing) this._renderModelLibrary();
+    },
+
+    // ─────────────────── Web-search providers page ───────────────────
+    //
+    // The Add Model page's design (2026-08-05, shared add-model-* classes):
+    // masthead with the master switch, a providers nav grouped by where
+    // queries go (Included / Your own key), and a detail pane holding the
+    // key + Save/Test, signup link and the active-provider action. The
+    // registry is fixed in main.js — no add flow. All controls are
+    // closures over the provider id.
+
+    // The provider being VIEWED in the pane (not necessarily active).
+    _searchSel: null,
+
+    // Renderer-side extras for each provider; labels + key state come from
+    // main (search-get-status), which owns the registry. group/navHint feed
+    // the sources nav (where queries go — the add-model nav's job), desc is
+    // the pane's opening paragraph.
+    _searchProviderMeta: {
+        anjadhe: {
+            group: 'Included',
+            navHint: 'No key — via nenva, without your identity'
+        },
+        // signupText is honest-copy per provider: Tavily's free plan needs no
+        // card; Brave requires one and bills past its monthly credit.
+        tavily: {
+            group: 'Your own key',
+            navHint: 'Straight to Tavily — free plan, no card',
+            desc: 'Tavily’s search API with your own key. Queries go directly to Tavily under your account; the free plan needs no credit card.',
+            placeholder: 'tvly-...', signupUrl: 'https://tavily.com/', signupLabel: 'tavily.com', signupText: 'Get a free key (no credit card) at '
+        },
+        brave: {
+            group: 'Your own key',
+            navHint: 'Straight to Brave — card required',
+            desc: 'Brave Search’s API with your own key. Queries go directly to Brave under your account; a key requires a credit card, and use past the monthly credit is billed by Brave.',
+            placeholder: 'BSA...', signupUrl: 'https://api.search.brave.com/app/keys', signupLabel: 'api.search.brave.com', signupText: 'Get a key (credit card required) at '
+        }
+    },
+
+    async _renderSearchProviders() {
+        const layout = document.getElementById('settings-search-layout');
+        if (!layout || !window.electronSearch) return;
+        let status = null;
+        try { status = await window.electronSearch.getStatus(); } catch { return; }
+        // Master switch: the providers layout (and the key hint) only shows
+        // when web search is on — off means no feature sends queries
+        // anywhere, so there is nothing to configure. `.onchange` (not
+        // addEventListener) because this render runs repeatedly.
+        const enabled = status.enabled !== false;
+        const toggle = document.getElementById('settings-search-enabled');
+        if (toggle) {
+            toggle.checked = enabled;
+            toggle.onchange = async () => {
+                await window.electronSearch.setEnabled?.(toggle.checked);
+                UIUtils.showToast(toggle.checked ? 'Web search on' : 'Web search off — nothing will query the web', 'success');
+                this._renderSearchProviders();
+            };
+        }
+        const keysHint = document.getElementById('settings-search-keys-hint');
+        if (keysHint) keysHint.hidden = !enabled;
+        const offHint = document.getElementById('settings-search-off-hint');
+        if (offHint) offHint.hidden = enabled;
+        layout.hidden = !enabled;
+        if (!enabled) return;
+        const ids = Object.keys(status.providers || {});
+        if (!ids.length) { layout.hidden = true; return; }
+        if (!this._searchSel || !ids.includes(this._searchSel)) {
+            this._searchSel = (status.provider && ids.includes(status.provider)) ? status.provider : ids[0];
+        }
+        this._renderSearchNav(status);
+        this._renderSearchPane(status);
+    },
+
+    _renderSearchNav(status) {
+        const nav = document.getElementById('settings-search-nav');
+        if (!nav) return;
+        nav.innerHTML = '';
+        let lastGroup = null;
+        for (const id of Object.keys(status.providers)) {
+            const info = status.providers[id];
+            const meta = this._searchProviderMeta[id] || {};
+            const group = meta.group || (info.builtin ? 'Included' : 'Your own key');
+            if (group !== lastGroup) {
+                const label = document.createElement('div');
+                label.className = 'add-model-nav-label';
+                label.textContent = group;
+                nav.appendChild(label);
+                lastGroup = group;
+            }
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'add-model-src' + (id === this._searchSel ? ' is-active' : '');
+            const name = document.createElement('span');
+            name.className = 'add-model-src-name';
+            name.textContent = info.label;
+            if (id === status.provider) {
+                const badge = document.createElement('span');
+                badge.className = 'add-model-src-badge';
+                badge.textContent = 'Active';
+                badge.title = 'Web searches go to this provider';
+                name.appendChild(badge);
+            }
+            const hint = document.createElement('span');
+            hint.className = 'add-model-src-hint';
+            hint.textContent = meta.navHint || (info.builtin ? 'Included with nenva' : 'Your own key');
+            btn.append(name, hint);
+            btn.addEventListener('click', () => {
+                this._searchSel = id;
+                this._renderSearchNav(status);
+                this._renderSearchPane(status);
+            });
+            nav.appendChild(btn);
+        }
+    },
+
+    _renderSearchPane(status) {
+        const id = this._searchSel;
+        const info = status.providers[id];
+        const title = document.getElementById('settings-search-pane-title');
+        const body = document.getElementById('settings-search-pane-body');
+        if (!info || !body) return;
+        if (title) title.textContent = info.label;
+        body.innerHTML = '';
+
+        if (info.builtin) {
+            this._renderConnectManage(body, id, info);
+        } else {
+            const meta = this._searchProviderMeta[id] || {};
+            const desc = document.createElement('p');
+            desc.className = 'settings-section-desc';
+            desc.textContent = meta.desc
+                || `${info.label}’s search API with your own key. Queries go directly to ${info.label} under your account.`;
+            body.appendChild(desc);
+            this._renderSearchKeyManage(body, id, info);
+        }
+
+        // Active state / the way to make it so — the add-model footer shape.
+        // The active line sits right under the description (the "already
+        // added" slot on the Add Model page), not below the controls.
+        if (id === status.provider) {
+            const active = document.createElement('p');
+            active.className = 'settings-key-status';
+            active.textContent = `✓ Active — web searches go to ${info.label}.`;
+            body.insertBefore(active, body.children[1] || null);
+        } else {
+            const footer = document.createElement('div');
+            footer.className = 'settings-input-row settings-add-model-footer';
+            const useBtn = document.createElement('button');
+            useBtn.type = 'button';
+            useBtn.className = 'primary-btn';
+            useBtn.textContent = 'Use for web searches';
+            useBtn.addEventListener('click', async () => {
+                await window.electronSearch.setProvider(id);
+                UIUtils.showToast(`Search provider: ${info.label}`, 'success');
+                this._renderSearchProviders();
+            });
+            footer.appendChild(useBtn);
+            body.appendChild(footer);
+        }
+    },
+
+    _renderSearchKeyManage(body, id, info) {
+        const meta = this._searchProviderMeta[id] || {};
+
+        const keyRow = document.createElement('div');
+        keyRow.className = 'settings-input-row';
+        const keyInput = document.createElement('input');
+        keyInput.type = 'password';
+        keyInput.className = 'settings-input';
+        keyInput.placeholder = info.hasKey ? '••••••••••••••••' : (meta.placeholder || 'API key');
+        const saveBtn = document.createElement('button');
+        saveBtn.type = 'button';
+        saveBtn.className = 'secondary-btn';
+        saveBtn.textContent = 'Save Key';
+        const testBtn = document.createElement('button');
+        testBtn.type = 'button';
+        testBtn.className = 'secondary-btn';
+        testBtn.textContent = 'Test';
+        keyRow.append(keyInput, saveBtn, testBtn);
+        body.appendChild(keyRow);
+
+        const status = document.createElement('p');
+        status.className = 'settings-key-status';
+        status.textContent = info.hasKey ? 'API key saved' : 'No API key configured';
+        body.appendChild(status);
+
+        if (meta.signupUrl) {
+            const hint = document.createElement('p');
+            hint.className = 'settings-hint';
+            hint.textContent = meta.signupText || 'Get a key at ';
+            const link = document.createElement('a');
+            link.href = '#';
+            link.style.color = 'var(--color-text-secondary)';
+            link.textContent = meta.signupLabel || meta.signupUrl;
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                window.electronAuth.openExternal(meta.signupUrl);
+            });
+            hint.appendChild(link);
+            hint.appendChild(document.createTextNode('.'));
+            body.appendChild(hint);
+        }
+
+        this._buildSearchParallelRow(body, id, info);
+
+        saveBtn.addEventListener('click', async () => {
+            const key = keyInput.value.trim();
+            await window.electronSearch.setApiKey(id, key);
+            info.hasKey = !!key;
+            if (key) {
+                keyInput.value = '';
+                keyInput.placeholder = '••••••••••••••••';
+                status.textContent = 'API key saved';
+                UIUtils.showToast(`${info.label} API key saved`, 'success');
+            } else {
+                // An empty save deliberately removes the stored key.
+                keyInput.placeholder = meta.placeholder || 'API key';
+                status.textContent = 'API key removed';
+            }
+        });
+
+        testBtn.addEventListener('click', async () => {
+            status.textContent = 'Testing…';
+            const res = await window.electronSearch.test?.(id);
+            if (res?.ok) {
+                status.textContent = `✓ Connected — ${info.label} answered a test query`;
+                UIUtils.showToast(`${info.label} reachable`, 'success');
+            } else {
+                status.textContent = `✗ ${res?.error || 'Test failed'}`;
+                UIUtils.showToast('Search test failed', 'error');
+            }
+        });
+    },
+
+    // Parallel searches — how many requests this provider may have in
+    // flight at once. 1 (default) keeps the app-wide serial queue with
+    // 1s spacing; raising it is for paid plans that allow concurrency.
+    _buildSearchParallelRow(body, id, info) {
+        const parRow = document.createElement('div');
+        parRow.className = 'settings-toggle-row';
+        const parLabel = document.createElement('label');
+        parLabel.className = 'settings-toggle-label';
+        parLabel.textContent = 'Parallel searches';
+        const parSel = document.createElement('select');
+        parSel.className = 'settings-select settings-inline-select';
+        for (const [value, label] of [
+            [1, 'Off — one at a time (default)'],
+            [2, '2 at once'], [3, '3 at once'], [4, '4 at once'],
+            [6, '6 at once'], [8, '8 at once']
+        ]) {
+            const opt = document.createElement('option');
+            opt.value = String(value);
+            opt.textContent = label;
+            parSel.appendChild(opt);
+        }
+        parSel.value = String(info.concurrency || 1);
+        if (![...parSel.options].some(o => o.value === parSel.value)) parSel.value = '1';
+        parSel.addEventListener('change', async () => {
+            const n = Number(parSel.value) || 1;
+            await window.electronSearch.setConcurrency?.(id, n);
+            info.concurrency = n;
+        });
+        parRow.append(parLabel, parSel);
+        body.appendChild(parRow);
+        const parHint = document.createElement('p');
+        parHint.className = 'settings-hint';
+        parHint.textContent = 'When the assistant fires several searches at once, this is how many actually run in parallel. Most free plans allow only about one request per second — leave this off unless your plan supports more, or searches start failing with rate-limit errors.';
+        body.appendChild(parHint);
+    },
+
+    // nenva Connect card body: plan + usage instead of a key field. The
+    // per-machine key mints automatically on the first search or an explicit
+    // Test — nothing to paste. Merely opening this card never mints one
+    // (web access is opt-in; browsing Settings isn't consent). Copy follows
+    // docs/POSITIONING.md honest-copy rules: say where searches go, present
+    // tense, no promises.
+    _renderConnectManage(body, id, info) {
+        // Description first — on the search page this is the pane's opening
+        // paragraph, the same slot the key providers' desc fills.
+        const hint = document.createElement('p');
+        hint.className = 'settings-section-desc';
+        hint.textContent = 'Included with nenva — no signup, no key. Searches route through nenva’s server (api.nenva.co), which forwards them to a search provider without your identity and doesn’t log what you search. Prefer to keep nenva out of the loop? Use your own key with one of the other providers.';
+        body.appendChild(hint);
+
+        const status = document.createElement('p');
+        status.className = 'settings-key-status';
+        status.textContent = 'Checking plan…';
+        body.appendChild(status);
+
+        const testRow = document.createElement('div');
+        testRow.className = 'settings-input-row';
+        const testBtn = document.createElement('button');
+        testBtn.type = 'button';
+        testBtn.className = 'secondary-btn';
+        testBtn.textContent = 'Test';
+        testRow.appendChild(testBtn);
+        body.appendChild(testRow);
+
+        // Anonymous install id (the SHA-256 hash the server stores — the raw
+        // id never leaves this Mac's settings). Shown so a plan upgrade can
+        // name the right install; matches the Connect dashboard's id column.
+        const idRow = document.createElement('p');
+        idRow.className = 'settings-hint';
+        idRow.hidden = true;
+        body.appendChild(idRow);
+
+        this._buildSearchParallelRow(body, id, info);
+
+        const refreshUsage = async () => {
+            const u = await window.electronSearch.connectUsage?.(false);
+            if (!u || u.error) {
+                status.textContent = `Can’t reach nenva Connect${u?.error ? ` — ${u.error}` : ''}`;
+                return;
+            }
+            if (u.notProvisioned) { status.textContent = 'Not set up yet — the key mints itself on the first search, or press Test'; return; }
+            const tier = String(u.tier || 'free');
+            const plan = tier.charAt(0).toUpperCase() + tier.slice(1);
+            status.textContent = `${plan} plan — ${u.used} of ${u.quota} searches used this month · resets ${u.resetsAt}`;
+            if (u.installIdHash) {
+                idRow.hidden = false;
+                idRow.innerHTML = '';
+                idRow.append('Install id (anonymous): ');
+                const code = document.createElement('code');
+                code.textContent = `${u.installIdHash.slice(0, 12)}…`;
+                code.title = 'Click to copy the full id';
+                code.style.cursor = 'pointer';
+                code.addEventListener('click', () => {
+                    navigator.clipboard.writeText(u.installIdHash);
+                    UIUtils.showToast('Install id copied', 'success');
+                });
+                idRow.appendChild(code);
+            }
+        };
+        refreshUsage();
+
+        testBtn.addEventListener('click', async () => {
+            status.textContent = 'Testing…';
+            const res = await window.electronSearch.test?.(id);
+            if (res?.ok) {
+                UIUtils.showToast('nenva Connect reachable', 'success');
+                refreshUsage();
+            } else {
+                status.textContent = `✗ ${res?.error || 'Test failed'}`;
+                UIUtils.showToast('Search test failed', 'error');
+            }
+        });
+    },
+
+    // Keep the memories badge in sync without building the full list. The
+    // log counts left the doors 2026-10-07: a number on a "Logs" row read as
+    // telemetry, and the logs are the developer's view now.
+    _refreshAssistantBadges() {
+        const memBadge = document.getElementById('settings-memories-count');
+        if (memBadge && typeof MemoryManager !== 'undefined') {
+            try { memBadge.textContent = MemoryManager.all().length; } catch {}
+        }
+    },
+
+    async openMemoriesSettings() {
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        document.getElementById('memories-settings-view').classList.add('active');
+        this._renderPageHeader('memories-settings-breadcrumb', [
+            ...this._crumbRoot('memories-settings-view'),
+            { label: 'Memory' }
+        ]);
+        this._ensureLlmBindings();
+        this._renderMemories();
+    },
+
+    /**
+     * @param {'all'|'left'|'local'} [scope] — preset the Where filter. The
+     * nenva cloud card opens 'left': the Sent-to-Cloud ledger IS this
+     * view filtered to what left the Mac (docs/CLOUD_PRIVACY.md P2).
+     */
+    async openLlmLogs(scope) {
+        const scopeSel = document.getElementById('settings-logs-scope');
+        if (scopeSel && typeof scope === 'string') scopeSel.value = scope;
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        document.getElementById('llm-logs-view').classList.add('active');
+        this._renderPageHeader('llm-logs-breadcrumb', [
+            ...this._crumbDeveloper('llm-logs-view'),
+            { label: 'LLM Logs' }
+        ]);
+        this._ensureLlmBindings();
+        this.renderLogs();
+    },
+
+    async openSearchLogs() {
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        document.getElementById('search-logs-view').classList.add('active');
+        this._renderPageHeader('search-logs-breadcrumb', [
+            ...this._crumbDeveloper('search-logs-view'),
+            { label: 'Web Search Logs' }
+        ]);
+        this._ensureLlmBindings();
+        this.renderSearchLogs();
+    },
+
+    async openNetworkLogs() {
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        document.getElementById('network-logs-view').classList.add('active');
+        this._renderPageHeader('network-logs-breadcrumb', [
+            ...this._crumbDeveloper('network-logs-view'),
+            { label: 'Network Logs' }
+        ]);
+        this.renderNetworkLogs();
+    },
+
+    // One-time event wiring for every control inside the two split sub-views.
+    // Kept as a single block because many controls historically lived together;
+    // splitting them by view adds only friction — the IDs are unique globally
+    // regardless of which sub-view they landed in after the split.
+    _attachLlmBindings() {
+        // Model library: the guided add-model wizard. Everything else on a
+        // card (Manage, downloads, default radio) binds per-card at render
+        // time — no global ids.
+        this._bindBtn('settings-add-model-btn', () => this._openAddModelPage());
+
+        // Web-search provider cards bind per-card at render time
+        // (_renderSearchProviders) — no global ids here.
+
+        // LLM Logs
+        this._bindBtn('settings-logs-refresh-btn', () => this.renderLogs());
+        this._bindBtn('settings-logs-clear-btn', () => {
+            LLMLogger.clear();
+            this.renderLogs();
+            UIUtils.showToast('LLM logs cleared', 'success');
+        });
+        document.getElementById('settings-logs-search')
+            ?.addEventListener('input', () => this.renderLogs());
+        document.getElementById('settings-logs-scope')
+            ?.addEventListener('change', () => this.renderLogs());
+
+        // Web Search Logs
+        this._bindBtn('settings-search-logs-refresh-btn', () => this.renderSearchLogs());
+        this._bindBtn('settings-search-logs-clear-btn', () => {
+            SearchLogger.clear();
+            this.renderSearchLogs();
+            UIUtils.showToast('Search logs cleared', 'success');
+        });
+        document.getElementById('settings-search-logs-search')
+            ?.addEventListener('input', () => this.renderSearchLogs());
+
+        // Memories
+    },
+
+    // Engine status (running / installed / not installed) with the inline
+    // Install action, rendered INTO the given host element — one per open
+    // Manage body, no global ids. llama.cpp has no daemon to "start":
+    // llama-server spawns lazily on the first chat, so installed-but-idle
+    // is a healthy state, not a problem to fix.
+    async _renderEngineStatusInto(host) {
+        host.innerHTML = '';
+        const line = document.createElement('div');
+        line.className = 'settings-ollama-status';
+        const extra = document.createElement('div');
+        extra.className = 'settings-ollama-version';
+        host.append(line, extra);
+        const dot = (active) => `<span class="ollama-status-dot${active ? ' active' : ''}"></span> `;
+        const hint = (text) => { extra.innerHTML = `<span class="settings-hint">${UIUtils.escapeHtml(text)}</span>`; };
+        try {
+            const status = await window.electronLlamaCpp?.status?.();
+            if (!status) return;
+            if (status.isReady) {
+                line.innerHTML = dot(true) + `llama.cpp running on port ${status.port}${status.loadedModel ? ` (${UIUtils.escapeHtml(status.loadedModel)})` : ''}`;
+                if (status.version) hint(`llama.cpp build ${status.version}`);
+            } else if (status.isInstalled) {
+                line.innerHTML = dot(false) + 'llama.cpp installed — the model loads on your first chat';
+                if (status.version) hint(`llama.cpp build ${status.version}`);
+            } else {
+                line.innerHTML = dot(false) + 'llama.cpp engine not installed ';
+                const installBtn = document.createElement('button');
+                installBtn.type = 'button';
+                installBtn.className = 'secondary-btn ollama-start-btn';
+                installBtn.textContent = 'Install engine (~11 MB)';
+                installBtn.addEventListener('click', async () => {
+                    installBtn.disabled = true;
+                    installBtn.textContent = 'Installing…';
+                    try {
+                        const result = await window.electronLlamaCpp.install((p) => {
+                            if (p.phase === 'download' && p.percent != null) installBtn.textContent = `Downloading… ${p.percent}%`;
+                            else if (p.message) installBtn.textContent = p.message;
+                        });
+                        if (result?.error) throw new Error(result.error);
+                        UIUtils.showToast('llama.cpp engine installed', 'success');
+                        await this._renderModelLibrary();
+                    } catch (e) {
+                        installBtn.disabled = false;
+                        installBtn.textContent = 'Install engine (~11 MB)';
+                        UIUtils.showToast(e.message || 'Engine install failed', 'error');
+                    }
+                });
+                line.appendChild(installBtn);
+            }
+            if (status.isInstalled) this._renderShareControls(host, status);
+        } catch { /* engine bridge unavailable */ }
+    },
+
+    // Share on local network — rebinds llama-server to 0.0.0.0 with a
+    // persistent key, so another device you own (e.g. a MacBook running
+    // nenva with a "Your server" model entry) can use whatever model this
+    // Mac has loaded. Off by default; the model then answers only this Mac.
+    _renderShareControls(host, status) {
+        const share = status.share || { enabled: false };
+
+        const row = document.createElement('div');
+        row.className = 'settings-toggle-row settings-share-row';
+        const label = document.createElement('label');
+        label.className = 'settings-toggle-label';
+        label.textContent = 'Share on local network';
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.checked = !!share.enabled;
+        input.title = 'Let devices on your network use this Mac’s model with the URL and key below';
+        input.addEventListener('change', async () => {
+            input.disabled = true;
+            const wasLoaded = !!status.loadedModel;
+            if (input.checked && wasLoaded) UIUtils.showToast('Restarting the AI server for network access…', 'info');
+            const res = await window.electronLlamaCpp?.setShare?.(input.checked);
+            if (!res || res.error) {
+                UIUtils.showToast(res?.error || 'Could not update network sharing', 'error');
+                input.checked = !input.checked;
+                input.disabled = false;
+                return;
+            }
+            UIUtils.showToast(res.share?.enabled
+                ? 'This Mac’s model is now available on your local network'
+                : 'Network sharing is off', 'success');
+            this._renderEngineStatusInto(host);
+        });
+        row.append(label, input);
+        host.appendChild(row);
+
+        const hint = document.createElement('p');
+        hint.className = 'settings-hint';
+        host.appendChild(hint);
+
+        if (!share.enabled) {
+            hint.textContent = 'Off — the local AI server answers only this Mac. '
+                + 'Turn on to use this Mac’s model from another device on your network '
+                + '(add it there as a “Your server” model). Turning it on reloads the model.';
+            return;
+        }
+
+        const addr = (share.addresses && share.addresses[0]) || null;
+        const url = addr ? `http://${addr}:${status.port}/v1` : null;
+        const copyRow = (name, value, shown) => {
+            const r = document.createElement('div');
+            r.className = 'settings-share-value';
+            const n = document.createElement('span');
+            n.className = 'settings-share-value-name';
+            n.textContent = name;
+            const v = document.createElement('code');
+            v.textContent = shown || value;
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'secondary-btn settings-share-copy';
+            btn.textContent = 'Copy';
+            btn.addEventListener('click', async () => {
+                try {
+                    await navigator.clipboard.writeText(value);
+                    btn.textContent = 'Copied';
+                    setTimeout(() => { btn.textContent = 'Copy'; }, 1500);
+                } catch { UIUtils.showToast('Copy failed', 'error'); }
+            });
+            r.append(n, v, btn);
+            host.appendChild(r);
+        };
+        if (url) copyRow('Server URL', url);
+        else {
+            hint.textContent = 'Sharing is on, but this Mac has no network address right now — connect to Wi-Fi or Ethernet.';
+        }
+        if (share.key) copyRow('API key', share.key, share.key.slice(0, 8) + '…');
+        if (url) {
+            hint.textContent = 'Any device on your network with this key can use the model. '
+                + 'On your other Mac, add a “Your server” model with this URL and key'
+                + (status.loadedModel ? ` and the model name “${status.loadedModel}”` : '')
+                + '. It serves whatever model this Mac has loaded. While sharing is on, '
+                + 'nenva loads your default model at launch and keeps it loaded.';
+        }
+    },
+
+    // ── Memory (2026-10-01): the page is MemoryUI (js/agent/memory-ui.js) ──
+
+    _renderMemories() {
+        const countEl = document.getElementById('settings-memories-count');
+        if (countEl && typeof MemoryManager !== 'undefined') countEl.textContent = MemoryManager.all().length;
+        if (typeof MemoryUI !== 'undefined') MemoryUI.render();
+    },
+
+    _relativeTime(iso) {
+        const then = Date.parse(iso);
+        if (!then) return '';
+        const diff = Date.now() - then;
+        const mins = Math.round(diff / 60000);
+        if (mins < 1) return 'just now';
+        if (mins < 60) return `${mins}m ago`;
+        const hrs = Math.round(mins / 60);
+        if (hrs < 24) return `${hrs}h ago`;
+        const days = Math.round(hrs / 24);
+        if (days < 7) return `${days}d ago`;
+        return new Date(iso).toLocaleDateString();
+    },
+
+
+    // ── Storage & Backup sub-view ──
+
+    _storageBackupBound: false,
+
+    // Master list of the five storage settings — same pattern as the AI
+    // Assistant page (openLLMSection): rows with current values, one
+    // section per page.
+    SB_SECTIONS: {
+        'sb-sec-location': { label: 'Storage Location' },
+        'sb-sec-files': { label: 'Text Documents as Files' },
+        'sb-sec-usage': { label: 'Data Usage' }
+    },
+
+    openStorageSection(secId) {
+        const spec = this.SB_SECTIONS[secId];
+        const view = document.getElementById('storage-backup-view');
+        const sec = document.getElementById(secId);
+        if (!spec || !view || !sec) return;
+        view.classList.add('sb-in-section');
+        view.querySelectorAll('.settings-section').forEach(s => s.classList.toggle('active', s === sec));
+        this._renderPageHeader('storage-backup-breadcrumb', [
+            ...this._crumbRoot(view),
+            { label: 'Storage', action: () => this.openStorageBackup() },
+            { label: spec.label }
+        ]);
+    },
+
+    _bindSbRoot() {
+        const root = document.getElementById('sb-root');
+        if (!root || root._bound) return;
+        root._bound = true;
+        root.addEventListener('click', (e) => {
+            const row = e.target.closest('[data-sb-sec]');
+            if (row) this.openStorageSection(row.dataset.sbSec);
+        });
+    },
+
+    async openStorageBackup() {
+        // Show the sub-view in master-list mode
+        const sbView = document.getElementById('storage-backup-view');
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        sbView.classList.add('active');
+        sbView.classList.remove('sb-in-section');
+        sbView.querySelectorAll('.settings-section').forEach(s => s.classList.remove('active'));
+        this._bindSbRoot();
+        this._renderPageHeader('storage-backup-breadcrumb', [
+            ...this._crumbRoot(sbView),
+            { label: 'Storage' }
+        ]);
+
+        // Load current state
+        const storageFolder = window.electronStore.getStorageFolder();
+        const customPath = window.electronStore.getCustomStoragePath();
+
+        const pathEl = document.getElementById('storage-backup-path');
+        if (pathEl) pathEl.textContent = storageFolder;
+
+        const locHint = document.getElementById('sb-hint-location');
+        if (locHint) locHint.textContent = storageFolder + (customPath ? ' · custom location' : '');
+
+        const customNote = document.getElementById('storage-backup-custom-note');
+        if (customNote) customNote.style.display = customPath ? '' : 'none';
+
+        const resetBtn = document.getElementById('settings-reset-storage-btn');
+        if (resetBtn) resetBtn.style.display = customPath ? '' : 'none';
+
+        this._renderStorageUsage();
+        await this._renderContentFilesToggle();
+
+        // Bind events once
+        if (!this._storageBackupBound) {
+            this._storageBackupBound = true;
+
+            this._bindBtn('settings-change-storage-btn', () => AppManager.changeStorageLocation());
+            this._bindBtn('settings-reset-storage-btn', () => AppManager.resetStorageLocation());
+
+            this._bindBtn('settings-browse-db-btn', () => this.openDbBrowser());
+        }
+    },
+
+    // ── Notes + Journal as Markdown files (docs/CONTENT_FILES.md) ──
+
+    async _renderContentFilesToggle() {
+        const toggle = document.getElementById('settings-content-files-toggle');
+        if (!toggle || !window.electronContentFiles) return;
+        let info;
+        try { info = await window.electronContentFiles.getEnabled(); } catch { return; }
+        toggle.checked = info.enabled === true;
+        const pathEl = document.getElementById('settings-content-files-path');
+        if (pathEl) pathEl.textContent = info.root ? `${info.root}/Documents` : '';
+        const rowHint = document.getElementById('sb-hint-files');
+        if (rowHint) rowHint.textContent = info.enabled ? 'On · Markdown in ~/nenva' : 'Off';
+        if (!toggle.dataset.bound) {
+            toggle.dataset.bound = '1';
+            toggle.addEventListener('change', async () => {
+                toggle.disabled = true;
+                try {
+                    if (typeof ContentFiles !== 'undefined') await ContentFiles.setEnabled(toggle.checked);
+                    else await window.electronContentFiles.setEnabled(toggle.checked);
+                } finally {
+                    toggle.disabled = false;
+                    this._renderContentFilesToggle();
+                }
+            });
+            this._bindBtn('settings-content-files-open-btn', () => {
+                if (typeof ContentFiles !== 'undefined') ContentFiles.reveal(null);
+                else window.electronContentFiles.reveal(null);
+            });
+        }
+    },
+
+    // ── Backup passphrase (H6) ──
+    // The key that used to encrypt the sync journal now protects backups
+    // only (sync between Macs retired 2026-09-30, docs/SYNC.md). Ids and IPC
+    // keep their sync- names.
+
+    async _renderSyncEncryption() {
+        const statusEl = document.getElementById('settings-sync-enc-status');
+        const setBtn = document.getElementById('settings-sync-enc-set-btn');
+        const unlockBtn = document.getElementById('settings-sync-enc-unlock-btn');
+        const changeBtn = document.getElementById('settings-sync-enc-change-btn');
+        const recoverBtn = document.getElementById('settings-sync-enc-recover-btn');
+        if (!statusEl || !window.electronSync?.encryptionStatus) return;
+        let st;
+        try { st = await window.electronSync.encryptionStatus(); } catch { return; }
+        const show = (el, on) => { if (el) el.style.display = on ? '' : 'none'; };
+        const messages = {
+            passphrase: 'Protected: your backups can be opened on any Mac with your passphrase.',
+            mismatch: 'This Mac is using a different key from the one your passphrase protects, so your passphrase would not open its newest backups. Enter your passphrase to fix it; backups made so far stay readable on this Mac.',
+            locked: 'Locked. This Mac needs your passphrase before it can back up; enter it to resume.',
+            plaintext: 'Not protected yet. Your backup key sits unprotected in iCloud; set a passphrase to secure it.',
+            'local-only': 'Your backups can be opened only on this Mac. Set a passphrase to be able to open them on another Mac.',
+            none: 'No backup key on this Mac.'
+        };
+        statusEl.textContent = messages[st.state] || '';
+        statusEl.style.color = (st.state === 'locked' || st.state === 'mismatch') ? 'var(--color-red)'
+            : st.state === 'passphrase' ? 'var(--color-green)' : '';
+        const rowHint = document.getElementById('sb-hint-enc');
+        if (rowHint) {
+            rowHint.textContent = ({
+                passphrase: 'Protected with a passphrase',
+                mismatch: 'Needs your passphrase',
+                locked: 'Locked — passphrase needed',
+                plaintext: 'Not protected yet',
+                'local-only': 'This Mac only',
+                none: 'No backup key'
+            })[st.state] || '';
+        }
+        show(setBtn, st.upgradeable);
+        show(unlockBtn, st.locked);
+        show(changeBtn, st.state === 'passphrase');
+        // Re-entering the passphrase is always safe and is the fix for a Mac
+        // on the wrong key, including one whose iCloud key predates `check`
+        // and so cannot say so on its own.
+        show(recoverBtn, st.state === 'passphrase' || st.state === 'mismatch');
+    },
+
+    // One flow for set / change / unlock. `mode` picks the copy + IPC call.
+    // Resolves true once the operation succeeds (used by the startup unlock).
+    _syncEncPrompt(mode) {
+        const cfg = {
+            set: { title: 'Set a backup passphrase', label: 'Choose a passphrase (8+ characters)', confirm: true, save: 'Set passphrase',
+                note: 'With it, your backups can be opened on any Mac. It isn’t stored in iCloud, so keep it somewhere safe — it can’t be recovered.',
+                run: (p) => window.electronSync.setPassphrase(p), ok: 'Passphrase set — your backup key is now protected.' },
+            change: { title: 'Change backup passphrase', label: 'New passphrase (8+ characters)', confirm: true, save: 'Change passphrase',
+                note: 'Backups keep the same key; only the passphrase that opens it changes.',
+                run: (p) => window.electronSync.changePassphrase(p), ok: 'Passphrase changed.' },
+            unlock: { title: 'Unlock backups on this Mac', label: 'Enter your backup passphrase', confirm: false, save: 'Unlock',
+                note: 'This unlocks your backup key on this Mac and resumes backups.',
+                run: (p) => window.electronSync.unlock(p), ok: 'Unlocked — backups resumed.' },
+            recover: { title: 'Check your backup passphrase', label: 'Your backup passphrase (the one you set for Sync Encryption, if you set it before)', confirm: false, save: 'Check and fix',
+                note: 'Your backups are encrypted with a key, and your passphrase protects a copy of that key in iCloud, so you can open a backup on another Mac. Enter the passphrase to make sure this Mac uses that same key. If it was using a different one, nenva switches it, and backups this Mac already made still open here.',
+                run: (p) => window.electronSync.unlock(p),
+                ok: (res) => res && res.changed
+                    ? 'Fixed. This Mac was on a different key; new backups now open with your passphrase.'
+                    : 'All set. This Mac was already on your passphrase’s key.' }
+        }[mode];
+        return new Promise((resolve) => {
+            const body = document.createElement('div');
+            body.innerHTML = `
+                <p class="settings-section-desc">${UIUtils.escapeHtml(cfg.note)}</p>
+                <p class="settings-hint" style="margin-bottom:4px;">${UIUtils.escapeHtml(cfg.label)}</p>
+                <input type="password" id="sync-enc-pass" class="settings-input" autocomplete="new-password" style="width:100%;margin-bottom:var(--space-sm);">
+                ${cfg.confirm ? '<p class="settings-hint" style="margin-bottom:4px;">Confirm passphrase</p><input type="password" id="sync-enc-pass2" class="settings-input" autocomplete="new-password" style="width:100%;">' : ''}
+                <p id="sync-enc-err" class="settings-hint" style="color:#dc2626;display:none;"></p>`;
+            let done = false;
+            const err = body.querySelector('#sync-enc-err');
+            const showErr = (m) => { err.textContent = m; err.style.display = ''; };
+            const submit = async () => {
+                const p = body.querySelector('#sync-enc-pass').value;
+                if (cfg.confirm) {
+                    if (p !== body.querySelector('#sync-enc-pass2').value) return showErr('Passphrases don’t match.');
+                    if (p.length < 8) return showErr('Use at least 8 characters.');
+                }
+                if (!p) return showErr('Enter your passphrase.');
+                const saveBtn = body.closest('.modal')?.querySelector('.modal-footer .primary-btn');
+                if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Working…'; }
+                let res;
+                try { res = await cfg.run(p); } catch (e) { res = { error: e.message }; }
+                if (res && res.ok) {
+                    done = true;
+                    modal.close();
+                    UIUtils.showToast(typeof cfg.ok === 'function' ? cfg.ok(res) : cfg.ok, 'success');
+                    this._renderSyncEncryption();
+                    resolve(true);
+                } else {
+                    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = cfg.save; }
+                    showErr((res && res.error) || 'Something went wrong.');
+                }
+            };
+            const modal = Modal.create({
+                title: cfg.title, content: body,
+                buttons: [
+                    { text: 'Cancel', className: 'secondary-btn', onClick: () => modal.close() },
+                    { text: cfg.save, className: 'primary-btn', onClick: submit }
+                ],
+                onClose: () => { if (!done) resolve(false); }
+            });
+            body.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); submit(); } });
+            setTimeout(() => body.querySelector('#sync-enc-pass')?.focus(), 50);
+        });
+    },
+
+    // ── Database Browser ──
+
+    openDbBrowser() {
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        document.getElementById('db-browser-view').classList.add('active');
+        this._renderPageHeader('db-browser-breadcrumb', [
+            ...this._crumbRoot('db-browser-view'),
+            { label: 'Storage', action: () => this.openStorageBackup() },
+            { label: 'Browse Database' }
+        ]);
+
+        const allData = StorageManager.getAll();
+        const keys = Object.keys(allData).sort();
+        this._dbBrowserData = allData;
+        this._dbBrowserKeys = keys;
+
+        this._renderDbList(keys, allData);
+
+        // Search filter
+        if (!this._dbSearchBound) {
+            this._dbSearchBound = true;
+            const searchInput = document.getElementById('db-browser-search');
+            searchInput.addEventListener('input', () => {
+                const q = searchInput.value.toLowerCase().trim();
+                const filtered = q
+                    ? this._dbBrowserKeys.filter(k => k.toLowerCase().includes(q))
+                    : this._dbBrowserKeys;
+                this._renderDbList(filtered, this._dbBrowserData);
+            });
+        }
+        document.getElementById('db-browser-search').value = '';
+    },
+
+    _renderDbList(keys, allData) {
+        const container = document.getElementById('db-browser-list');
+        const countEl = document.getElementById('db-browser-count');
+        countEl.textContent = `${keys.length} key${keys.length !== 1 ? 's' : ''}`;
+
+        if (keys.length === 0) {
+            container.innerHTML = '<div class="db-browser-empty">No keys found</div>';
+            return;
+        }
+
+        container.innerHTML = keys.map(key => {
+            const val = allData[key];
+            const size = this._formatSize(JSON.stringify(val));
+            const type = Array.isArray(val) ? 'array' : typeof val;
+            let itemCount = '';
+            if (Array.isArray(val)) {
+                itemCount = ` (${val.length})`;
+            } else if (val && typeof val === 'object') {
+                const innerArrays = Object.values(val).filter(v => Array.isArray(v));
+                if (innerArrays.length === 1) {
+                    itemCount = ` (${innerArrays[0].length} items)`;
+                }
+            }
+            return `<div class="db-browser-item" data-key="${this._esc(key)}">
+                <div class="db-browser-key">
+                    <span class="db-browser-key-arrow">&#9654;</span>
+                    <span class="db-browser-key-name">${this._esc(key)}</span>
+                    <span class="db-browser-key-meta">${type}${itemCount} &middot; ${size}</span>
+                </div>
+                <div class="db-browser-value"><pre></pre></div>
+            </div>`;
+        }).join('');
+
+        // Toggle expand on click
+        container.querySelectorAll('.db-browser-key').forEach(el => {
+            el.addEventListener('click', () => {
+                const item = el.closest('.db-browser-item');
+                const wasExpanded = item.classList.contains('expanded');
+                if (!wasExpanded) {
+                    const key = item.dataset.key;
+                    const pre = item.querySelector('pre');
+                    if (!pre.textContent) {
+                        pre.textContent = JSON.stringify(allData[key], null, 2);
+                    }
+                }
+                item.classList.toggle('expanded');
+            });
+        });
+    },
+
+    _formatSize(str) {
+        const bytes = new Blob([str]).size;
+        return this._formatBytes(bytes);
+    },
+
+    _formatBytes(bytes) {
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    },
+
+    // ── Per-app data usage (Storage & Backup page) ──
+
+    // Map a raw storage key to a user-facing app name. Exact matches
+    // first, then prefix rules for the namespaced / dynamic keys.
+    // Anything unrecognized falls into "Other" so the totals always
+    // add up even as new keys are introduced.
+    _appForStorageKey(key) {
+        const exact = {
+            email: 'Email', emailPriorityTerms: 'Email', emailSearchHistory: 'Email',
+            schedule: 'Schedule', calendar: 'Schedule',
+            notes: 'Text Documents', notesPrefs: 'Text Documents', tags: 'Text Documents',
+            journal: 'Journal',
+            goals: 'Projects',
+            links: 'Projects',
+            portfolio: 'Finance',
+            focus: 'Focus',
+            dictionary: 'Vocabulary', 'dictionary-cache': 'Vocabulary',
+            prompts: 'Prompts', promptFeed: 'Prompts',
+            // Assistant internals — chat history and model/search logs are
+            // often the heaviest keys, so attributing them correctly keeps
+            // the breakdown honest.
+            'agent-settings': 'Assistant', 'agent-conversations': 'Assistant',
+            'agent-memories': 'Assistant',
+            // Diagnostic logs — every LLM/search call app-wide, capped and
+            // machine-local. Kept separate from Assistant so chat/memory
+            // size isn't conflated with debug logging (and it's clearable
+            // from Settings - LLM Logs).
+            'llm-logs': 'Logs', 'search-logs': 'Logs', 'network-logs': 'Logs',
+            // Cross-cutting app/system state — not owned by any sub-app.
+            profiles: 'System', accounts: 'System', analytics: 'System',
+            'favorite-apps': 'System', 'hidden-apps': 'System',
+            dashTab: 'System', 'dismissed-announcements': 'System'
+        };
+        if (exact[key]) return exact[key];
+        if (key.startsWith('browse')) return 'Browser';        // leftovers from the removed Web Browser app
+        if (key.startsWith('app_browse')) return 'Browser';
+        if (key.startsWith('llm') || key.startsWith('search-log')) return 'Logs';
+        if (key.startsWith('agent')) return 'Assistant';
+        if (key.startsWith('email')) return 'Email';
+        if (key.startsWith('calendar')) return 'Schedule';
+        if (key.startsWith('journal')) return 'Journal';
+        if (key.startsWith('notes')) return 'Text Documents';
+        if (key.startsWith('dictionary')) return 'Vocabulary';
+        if (key.startsWith('prompt')) return 'Prompts';
+        // Truly unrecognized (new/future keys) — keep them visible rather
+        // than hiding them inside System so the breakdown stays auditable.
+        return 'Other';
+    },
+
+    async _renderStorageUsage() {
+        const listEl = document.getElementById('storage-usage-list');
+        const totalEl = document.getElementById('storage-usage-total');
+        if (!listEl) return;
+
+        let all = {};
+        try { all = StorageManager.getAll() || {}; } catch {}
+
+        const byApp = {};
+        let total = 0;
+        for (const key of Object.keys(all)) {
+            // Same measurement as the DB browser: serialized byte length.
+            let bytes = 0;
+            try { bytes = new Blob([JSON.stringify(all[key] ?? null)]).size; } catch {}
+            const app = this._appForStorageKey(key);
+            byApp[app] = (byApp[app] || 0) + bytes;
+            total += bytes;
+        }
+
+        // Email's cached messages live in a dedicated SQLite table, not the
+        // app_email kv blob, so StorageManager.getAll() above only sees
+        // Email's small metadata. Fold in the message-table size so Email
+        // isn't drastically under-reported.
+        try {
+            const eml = await window.electronEmailDb?.dbSize?.();
+            if (eml && eml.bytes > 0) {
+                byApp['Email'] = (byApp['Email'] || 0) + eml.bytes;
+                total += eml.bytes;
+            }
+        } catch {}
+
+        const rows = Object.entries(byApp)
+            .map(([app, bytes]) => ({ app, bytes }))
+            .sort((a, b) => b.bytes - a.bytes);
+
+        const usageHint = document.getElementById('sb-hint-usage');
+        if (rows.length === 0 || total === 0) {
+            listEl.innerHTML = '<p class="settings-hint">No app data stored yet.</p>';
+            if (totalEl) totalEl.textContent = '';
+            if (usageHint) usageHint.textContent = 'No app data stored yet';
+            return;
+        }
+        if (usageHint) usageHint.textContent = `${this._formatBytes(total)} across ${rows.length} app${rows.length !== 1 ? 's' : ''}`;
+
+        const max = rows[0].bytes || 1;
+        listEl.innerHTML = rows.map(r => {
+            const pct = Math.max(2, Math.round((r.bytes / max) * 100));
+            const appId = this._launchIdForApp(r.app);
+            const name = appId
+                ? `<a href="#" class="storage-usage-link" data-app="${this._esc(appId)}" title="Open ${this._esc(r.app)}">${this._esc(r.app)}</a>`
+                : `<span class="storage-usage-name-plain">${this._esc(r.app)}</span>`;
+            return `<div class="storage-usage-row">
+                <span class="storage-usage-name">${name}</span>
+                <span class="storage-usage-bar"><span class="storage-usage-bar-fill" style="width: ${pct}%;"></span></span>
+                <span class="storage-usage-size">${this._formatBytes(r.bytes)}</span>
+            </div>`;
+        }).join('');
+
+        if (totalEl) totalEl.textContent = `Total: ${this._formatBytes(total)} across ${rows.length} app${rows.length !== 1 ? 's' : ''}`;
+
+        // Delegated once: clicking an app name launches that sub-app.
+        // Non-app buckets (System, Logs, Other) render as plain text and
+        // have no data-app, so they're inert.
+        if (!this._storageUsageBound) {
+            this._storageUsageBound = true;
+            listEl.addEventListener('click', (e) => {
+                const link = e.target.closest('[data-app]');
+                if (!link) return;
+                e.preventDefault();
+                const appId = link.getAttribute('data-app');
+                if (appId && typeof AppManager !== 'undefined') AppManager.openApp(appId);
+            });
+        }
+    },
+
+    // Map a Data Usage bucket label to the canonical AppManager id, or
+    // null for buckets that aren't launchable sub-apps (System, Logs,
+    // Other). Keys mirror the labels produced by _appForStorageKey().
+    _launchIdForApp(app) {
+        const map = {
+            Email: 'email', Schedule: 'schedule', Notes: 'notes',
+            Projects: 'goals',
+            Portfolio: 'portfolio', Finance: 'portfolio',
+            Focus: 'goals', Vocabulary: 'dictionary',
+            Prompts: 'prompts',
+            Assistant: 'agent'
+        };
+        return map[app] || null;
+    },
+
+    // ── LLM Logs rendering ──
+
+    renderLogs() {
+        const container = document.getElementById('settings-logs-container');
+        if (!container) return;
+
+        const logs = LLMLogger.logs;
+
+        if (logs.length === 0) {
+            container.innerHTML = '<p class="settings-hint" style="text-align:center; padding: var(--space-lg) 0;">No LLM calls recorded yet.</p>';
+            return;
+        }
+
+        // Filter at render time; rows keep their ORIGINAL index because the
+        // detail view resolves data-log-index against LLMLogger.logs.
+        const query = (document.getElementById('settings-logs-search')?.value || '').trim().toLowerCase();
+        // Scope: everything, only what LEFT this Mac (the Sent-to-Cloud
+        // ledger, docs/CLOUD_PRIVACY.md), or only what stayed local.
+        // Entries logged before the stamp existed have no `left` field
+        // and show under All only.
+        const scope = document.getElementById('settings-logs-scope')?.value || 'all';
+        const rows = logs.map((log, i) => ({ log, i }))
+            .filter(({ log }) => scope === 'all' || (scope === 'left' ? log.left === true : log.left === false))
+            .filter(({ log }) => !query || this._logMatchesQuery(log, query));
+
+        if (rows.length === 0) {
+            container.innerHTML = `<p class="settings-hint" style="text-align:center; padding: var(--space-lg) 0;">${
+                scope === 'left' && !query ? 'Nothing has left this Mac in the last ' + logs.length + ' calls.'
+                : 'No log entries match your search.'}</p>`;
+            return;
+        }
+
+        container.innerHTML = `
+            <table class="llm-logs-table">
+                <thead>
+                    <tr>
+                        <th>Source</th>
+                        <th>Model</th>
+                        <th>Where</th>
+                        <th>Prompt</th>
+                        <th>Duration</th>
+                        <th>Tokens</th>
+                        <th>Time</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rows.map(({ log, i }) => this._renderLogEntry(log, i)).join('')}
+                </tbody>
+            </table>
+        `;
+
+        // Attach row click to show detail
+        container.querySelectorAll('[data-log-index]').forEach(row => {
+            row.addEventListener('click', () => {
+                this._showLogDetail(parseInt(row.dataset.logIndex));
+            });
+        });
+    },
+
+    // A log names its model the way every surface does (model-names.js):
+    // the raw id stays in the stored log, the person reads the tier name.
+    // A row that ran on this Mac ran on "nenva local".
+    _logModel(log) {
+        if (!log.model) return '?';
+        const engine = log.left === false ? 'llamacpp' : log.provider;
+        return AgentService.displayForStoredModel(log.model, engine) || '?';
+    },
+
+    // Old nenva cloud rows stored the entry's catalog label as the
+    // destination; the fixed destinations pass through.
+    _logDest(log) {
+        const d = log.destination;
+        if (!d || !log.left) return d;
+        if (/^(OpenAI|Anthropic) \(your key\)$|^Your server$|^Left this Mac$/.test(d)) return d;
+        return ModelNames.cloudLabel(log.model, d);
+    },
+
+    // A log search matches any text the row or its detail view shows: who
+    // called, which model, what was sent, and what came back. Fields can be
+    // null (errors, streams cut early), so only strings are tested.
+    _logMatchesQuery(log, query) {
+        const haystack = [
+            log.source, this._logModel(log), log.provider, this._logDest(log),
+            log.userPrompt, log.systemPrompt, log.response, log.error,
+            ...(log.toolCalls || []).flatMap(tc => [tc.name, tc.args])
+        ];
+        return haystack.some(v => typeof v === 'string' && v.toLowerCase().includes(query));
+    },
+
+    _renderLogEntry(log, index) {
+        const time = new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const date = new Date(log.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' });
+        const duration = log.durationMs != null ? `${(log.durationMs / 1000).toFixed(1)}s` : '--';
+        const status = log.error ? 'error' : '';
+
+        const sourceLabels = { agent: 'Agent', email: 'Email', 'slack-monitor': 'Slack' };
+        // "Agent · Daily News Summary": the source is the code path, the
+        // subject is what the caller said the work was about.
+        const sourceLabel = this._esc((sourceLabels[log.source] || log.source || '?') + (log.subject ? ` · ${log.subject}` : ''));
+        const sourceClass = `source-${log.source || 'agent'}`;
+
+        const tokens = log.totalTokens != null
+            ? `${log.promptTokens?.toLocaleString() || '?'} / ${log.completionTokens?.toLocaleString() || '?'}`
+            : `~${Math.round((log.requestChars || 0) / 4).toLocaleString()}`;
+
+        const prompt = this._esc((log.userPrompt || '').slice(0, 80)) + ((log.userPrompt || '').length > 80 ? '...' : '');
+
+        const modelName = this._logModel(log);
+
+        return `
+            <tr class="llm-log-row ${status}" data-log-index="${index}">
+                <td><span class="log-source ${sourceClass}">${sourceLabel}</span></td>
+                <td class="log-model-cell" title="${this._esc(modelName)}">${this._esc(modelName)}</td>
+                <td class="log-where-cell${log.left ? ' is-left' : ''}" title="${log.left ? 'This request left this Mac' : log.left === false ? 'Ran on this Mac' : 'Logged before destinations were recorded'}">${
+                    log.left ? '&#8599; ' + this._esc(this._logDest(log) || 'Left this Mac')
+                    : log.left === false ? 'This Mac' : '—'}</td>
+                <td class="log-prompt-cell">${prompt}</td>
+                <td>${duration}</td>
+                <td>${tokens}</td>
+                <td>${date} ${time}</td>
+                <td>${log.error ? '<span class="log-error-dot"></span>' : ''}</td>
+            </tr>
+        `;
+    },
+
+    renderSearchLogs() {
+        const container = document.getElementById('settings-search-logs-container');
+        if (!container) return;
+
+        const logs = SearchLogger.logs;
+
+        if (logs.length === 0) {
+            container.innerHTML = '<p class="settings-hint" style="text-align:center; padding: var(--space-lg) 0;">No web searches recorded yet.</p>';
+            return;
+        }
+
+        const query = (document.getElementById('settings-search-logs-search')?.value || '').trim().toLowerCase();
+        const rows = logs.filter(log => !query ||
+            [log.query, log.provider, log.error]
+                .some(v => typeof v === 'string' && v.toLowerCase().includes(query)));
+
+        if (rows.length === 0) {
+            container.innerHTML = '<p class="settings-hint" style="text-align:center; padding: var(--space-lg) 0;">No log entries match your search.</p>';
+            return;
+        }
+
+        container.innerHTML = `
+            <table class="llm-logs-table">
+                <thead>
+                    <tr>
+                        <th>Query</th>
+                        <th>Provider</th>
+                        <th>Results</th>
+                        <th>Duration</th>
+                        <th>Time</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rows.map(log => this._renderSearchLogEntry(log)).join('')}
+                </tbody>
+            </table>
+        `;
+    },
+
+    _renderSearchLogEntry(log) {
+        const time = new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const date = new Date(log.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' });
+        const duration = log.durationMs != null ? `${(log.durationMs / 1000).toFixed(1)}s` : '--';
+        const status = log.error ? 'error' : '';
+        const resultsCell = log.error ? this._esc(log.error) : String(log.resultCount ?? 0);
+        const providerLabels = { tavily: 'Tavily', brave: 'Brave' };
+        const providerCell = log.provider ? (providerLabels[log.provider] || this._esc(log.provider)) : '--';
+
+        return `
+            <tr class="llm-log-row ${status}">
+                <td class="log-prompt-cell">${this._esc(log.query)}</td>
+                <td>${providerCell}</td>
+                <td>${resultsCell}</td>
+                <td>${duration}</td>
+                <td>${date} ${time}</td>
+                <td>${log.error ? '<span class="log-error-dot"></span>' : ''}</td>
+            </tr>
+        `;
+    },
+
+    // ── Network Logs rendering ──
+
+    async renderNetworkLogs() {
+        const container = document.getElementById('settings-network-logs-container');
+        if (!container) return;
+
+        let logs = [];
+        try { logs = await window.electronNetLog.getLogs(); } catch {}
+        if (!Array.isArray(logs)) logs = [];
+        this._netLogs = logs;
+
+        if (logs.length === 0) {
+            container.innerHTML = '<p class="settings-hint" style="text-align:center; padding: var(--space-lg) 0;">No network calls recorded yet.</p>';
+            return;
+        }
+
+        container.innerHTML = `
+            <table class="llm-logs-table">
+                <thead>
+                    <tr>
+                        <th>Service</th>
+                        <th>Request</th>
+                        <th>Status</th>
+                        <th>Size</th>
+                        <th>Duration</th>
+                        <th>Time</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${logs.map((log, i) => this._renderNetLogEntry(log, i)).join('')}
+                </tbody>
+            </table>
+        `;
+
+        container.querySelectorAll('[data-net-index]').forEach(row => {
+            row.addEventListener('click', () => this._showNetLogDetail(parseInt(row.dataset.netIndex)));
+        });
+    },
+
+    _fmtBytes(n) {
+        if (n == null) return '--';
+        if (n < 1024) return `${n} B`;
+        if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+        return `${(n / 1024 / 1024).toFixed(1)} MB`;
+    },
+
+    _renderNetLogEntry(log, index) {
+        const time = new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const date = new Date(log.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' });
+        const duration = log.durationMs != null ? `${(log.durationMs / 1000).toFixed(2)}s` : '--';
+        const status = !log.ok ? 'error' : '';
+        const statusCell = log.error ? this._esc(log.error) : (log.status != null ? String(log.status) : '--');
+        const reqPath = (log.path || '/') + (log.hadQuery ? '?…' : '');
+        const reqCell = `<span class="log-source">${this._esc(log.method || 'GET')}</span> ${this._esc(log.host || '')}${this._esc(reqPath.length > 60 ? reqPath.slice(0, 60) + '…' : reqPath)}`;
+        const size = this._fmtBytes(log.resBytes);
+
+        return `
+            <tr class="llm-log-row ${status}" data-net-index="${index}">
+                <td>${this._esc(log.service || 'Other')}</td>
+                <td class="log-prompt-cell">${reqCell}</td>
+                <td>${statusCell}</td>
+                <td>${size}</td>
+                <td>${duration}</td>
+                <td>${date} ${time}</td>
+                <td>${!log.ok ? '<span class="log-error-dot"></span>' : ''}</td>
+            </tr>
+        `;
+    },
+
+    _showNetLogDetail(index) {
+        const log = (this._netLogs || [])[index];
+        if (!log) return;
+
+        const status = !log.ok ? 'error' : 'success';
+        const sourceLabel = log.source === 'renderer' ? 'Renderer (fetch)' : 'Main process';
+        const fullUrl = `${log.protocol || 'https:'}//${log.host || ''}${log.port ? ':' + log.port : ''}${log.path || '/'}${log.hadQuery ? '?…' : ''}`;
+
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        document.getElementById('net-log-detail-view').classList.add('active');
+        window.scrollTo(0, 0);
+
+        const content = document.getElementById('net-log-detail-content');
+        content.innerHTML = `
+            <div class="log-detail-overview">
+                <span class="log-source">${this._esc(log.service || 'Other')}</span>
+                <span class="log-model">${this._esc(log.method || 'GET')}</span>
+                <span class="log-duration">${log.durationMs != null ? (log.durationMs / 1000).toFixed(2) + 's' : '—'}</span>
+                <span class="log-status-dot ${status}"></span>
+            </div>
+
+            <div class="log-detail-section">
+                <div class="log-detail-label">Destination</div>
+                <pre class="log-detail-pre">${this._esc(fullUrl)}</pre>
+            </div>
+
+            <div class="log-detail-section">
+                <div class="log-detail-label">Summary</div>
+                <p class="log-detail-text">Initiated by: ${this._esc(sourceLabel)}</p>
+                <p class="log-detail-text">Status: ${log.status != null ? log.status : '—'}${log.ok ? ' (ok)' : ' (failed)'}</p>
+                <p class="log-detail-text">Request sent: ${this._fmtBytes(log.reqBytes)} | Response received: ${this._fmtBytes(log.resBytes)}</p>
+                <p class="log-detail-text">Query string: ${log.hadQuery ? 'present (not logged)' : 'none'}</p>
+                <p class="log-detail-text">When: ${new Date(log.timestamp).toLocaleString()}</p>
+            </div>
+
+            ${log.error ? `
+                <div class="log-detail-section">
+                    <div class="log-detail-label">Error</div>
+                    <pre class="log-detail-pre log-error">${this._esc(log.error)}</pre>
+                </div>
+            ` : ''}
+
+            <div class="log-detail-section">
+                <div class="log-detail-label">Privacy</div>
+                <p class="log-detail-text">Only the metadata above is recorded. Request and response bodies, headers, cookies, and authentication tokens are not logged, and the query string is stripped before storage.</p>
+            </div>
+        `;
+
+        this._renderPageHeader('net-log-detail-breadcrumb', [
+            { label: 'Settings', action: () => { document.querySelectorAll('.view').forEach(v => v.classList.remove('active')); document.getElementById('settings-view').classList.add('active'); this.render(); } },
+            { label: 'Network Logs', action: () => this.openNetworkLogs() },
+            { label: 'Request Detail' }
+        ]);
+    },
+
+    _showLogDetail(index) {
+        const log = LLMLogger.logs[index];
+        if (!log) return;
+
+        const systemPrompt = log.systemPrompt || 'None';
+        const messages = log.requestMessages || [];
+        const sourceLabels = { agent: 'Agent', email: 'Email', 'slack-monitor': 'Slack' };
+        // "Agent · Daily News Summary": the source is the code path, the
+        // subject is what the caller said the work was about.
+        const sourceLabel = this._esc((sourceLabels[log.source] || log.source || '?') + (log.subject ? ` · ${log.subject}` : ''));
+        const sourceClass = `source-${log.source || 'agent'}`;
+        const status = log.error ? 'error' : 'success';
+
+        // Navigate to detail view
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        const view = document.getElementById('llm-log-detail-view');
+        view.classList.add('active');
+        window.scrollTo(0, 0);
+
+        const content = document.getElementById('llm-log-detail-content');
+        content.innerHTML = `
+            <div class="log-detail-overview">
+                <span class="log-source ${sourceClass}">${sourceLabel}</span>
+                <span class="log-model">${this._esc(this._logModel(log))}</span>
+                <span class="log-duration">${log.durationMs != null ? (log.durationMs / 1000).toFixed(1) + 's' : '—'}</span>
+                <span class="log-status-dot ${status}"></span>
+            </div>
+
+            <div class="log-detail-section">
+                <div class="log-detail-label">Sent to</div>
+                <p class="log-detail-text">${
+                    log.left ? `&#8599; ${this._esc(this._logDest(log) || 'Left this Mac')} — every message below left this Mac exactly as shown.`
+                    : log.left === false ? 'This Mac — nothing left the machine.'
+                    : 'Not recorded (logged before destinations were tracked).'}</p>
+            </div>
+
+            <div class="log-detail-section">
+                <div class="log-detail-label">Tokens</div>
+                <p class="log-detail-text">Prompt: ${log.promptTokens?.toLocaleString() || '—'} | Completion: ${log.completionTokens?.toLocaleString() || '—'} | Total: ${log.totalTokens?.toLocaleString() || '—'}</p>
+            </div>
+
+            <div class="log-detail-section">
+                <div class="log-detail-label">System Prompt <span class="log-detail-count">${systemPrompt.length.toLocaleString()} chars</span></div>
+                <pre class="log-detail-pre">${this._esc(systemPrompt)}</pre>
+            </div>
+
+            <div class="log-detail-section">
+                <div class="log-detail-label">Messages <span class="log-detail-count">${messages.length}</span></div>
+                ${messages.map(m => `
+                    <div class="log-detail-msg">
+                        <strong>${this._esc(m.role)}</strong> <span class="log-detail-count">${m.chars.toLocaleString()} chars${m.toolCalls ? `, ${m.toolCalls} tool calls` : ''}</span>
+                        <pre class="log-detail-pre">${this._esc(m.preview)}</pre>
+                    </div>
+                `).join('')}
+            </div>
+
+            ${log.toolCalls ? `
+                <div class="log-detail-section">
+                    <div class="log-detail-label">Tool Calls</div>
+                    <pre class="log-detail-pre">${this._esc(JSON.stringify(log.toolCalls, null, 2))}</pre>
+                </div>
+            ` : ''}
+
+            <div class="log-detail-section">
+                <div class="log-detail-label">Full Response <span class="log-detail-count">${(log.responseChars || 0).toLocaleString()} chars</span></div>
+                <pre class="log-detail-pre">${this._esc(log.response || log.error || 'No response')}</pre>
+            </div>
+
+            ${log.error ? `
+                <div class="log-detail-section">
+                    <div class="log-detail-label">Error</div>
+                    <pre class="log-detail-pre log-error">${this._esc(log.error)}</pre>
+                </div>
+            ` : ''}
+        `;
+
+        // Breadcrumb for log detail — threads through the new LLM Logs sub-view
+        // so Back goes log-list → assistant page → settings, matching how the
+        // user navigated in.
+        this._renderPageHeader('llm-log-detail-breadcrumb', [
+            { label: 'Settings', action: () => { document.querySelectorAll('.view').forEach(v => v.classList.remove('active')); document.getElementById('settings-view').classList.add('active'); } },
+            { label: 'LLM Logs', action: () => this.openLlmLogs() },
+            { label: 'Log Detail' }
+        ]);
+    },
+
+    _esc(text) {
+        const div = document.createElement('div');
+        div.textContent = text || '';
+        return div.innerHTML;
+    },
+
+    // Helper: bind click with clone-and-replace
+    _bindBtn(id, handler) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const newEl = el.cloneNode(true);
+        el.parentNode.replaceChild(newEl, el);
+        newEl.addEventListener('click', handler);
+    },
+
+    _renderPortfolioSettings() {
+        // The switches became tap questions and Memory sentences (2026-10-02,
+        // js/apps/portfolio/portfolio-prefs.js); nothing to wire if they are gone.
+        const input = document.getElementById('settings-portfolio-ai');
+        if (!input || typeof PortfolioApp === 'undefined') return;
+        input.checked = PortfolioApp.aiWritingEnabled();
+        input.onchange = () => {
+            PortfolioApp.setAiWritingEnabled(input.checked);
+            UIUtils.showToast(input.checked
+                ? 'Stock profiles and the daily brief are on'
+                : 'Stock profiles and the daily brief are off, and hidden',
+                'success');
+        };
+        // "Current headlines from CNBC" (PortfolioHeadlines) — default off.
+        const hl = document.getElementById('settings-portfolio-headlines');
+        if (hl) {
+            hl.checked = PortfolioApp.headlinesEnabled();
+            hl.onchange = () => {
+                PortfolioApp.setHeadlinesEnabled(hl.checked);
+                UIUtils.showToast(hl.checked
+                    ? 'Current headlines are on — see Portfolio › All Accounts'
+                    : 'Current headlines are off, and hidden',
+                    'success');
+            };
+        }
+    },
+
+    // Helper: bind change with clone-and-replace
+    _bindChange(id, handler, isCheckbox = false) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const newEl = el.cloneNode(true);
+        el.parentNode.replaceChild(newEl, el);
+        newEl.addEventListener('change', (e) => {
+            handler(isCheckbox ? e.target.checked : e.target.value);
+        });
+    }
+};
+
+AppManager.register('settings', SettingsApp);
