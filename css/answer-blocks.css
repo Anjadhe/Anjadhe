@@ -1,0 +1,183 @@
+/* Answer blocks — charts, stat rows and sortable tables drawn inside an
+   assistant answer from the turn's own tool results (js/components/
+   answer-blocks.js, laws B1–B5). Ink and hairlines; red/green only where a
+   value carries a sign (DESIGN_SYSTEM: colour is state, never theme). */
+
+.ab {
+    margin: var(--space-md) 0;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    padding: var(--space-sm) var(--space-md);
+    font-family: var(--font-sans);
+    font-size: var(--text-sm);
+    color: var(--color-text);
+}
+.ab-pending {
+    height: 56px;
+    border-style: dashed;
+    background: transparent;
+}
+.ab-title {
+    font-size: var(--text-xs);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-text-secondary);
+    margin-bottom: var(--space-sm);
+}
+.ab .is-up { color: var(--color-green); }
+.ab .is-down { color: var(--color-red); }
+
+/* Stats: a row of tiles */
+.ab-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: var(--space-sm) var(--space-md);
+}
+.ab-stat-label {
+    font-size: var(--text-xs);
+    color: var(--color-text-secondary);
+    margin-bottom: 2px;
+}
+.ab-stat-value {
+    font-size: var(--text-xl);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.2;
+}
+.ab-stat-sub {
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    margin-top: 2px;
+}
+
+/* Table: sortable headers, numbers right-aligned and tabular */
+.ab-table { padding: 0; overflow: hidden; }
+.ab-table .ab-title { padding: var(--space-sm) var(--space-md) 0; }
+.ab-table table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0;
+    font-size: var(--text-sm);
+}
+.ab-table th,
+.ab-table td {
+    border: 0;
+    border-bottom: 1px solid var(--color-border-light);
+    padding: var(--space-xs) var(--space-md);
+    text-align: left;
+    line-height: 1.5;
+    white-space: nowrap;
+}
+.ab-table tr:last-child td { border-bottom: 0; }
+.ab-table th {
+    position: sticky;
+    top: 0;
+    background: var(--color-surface);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    user-select: none;
+}
+.ab-table th:hover { color: var(--color-text); }
+.ab-table th.is-sorted::after {
+    content: '\25B4';
+    margin-left: 4px;
+    font-size: 9px;
+    color: var(--color-text-tertiary);
+}
+.ab-table th.is-sorted.is-desc::after { content: '\25BE'; }
+.ab-table .is-num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+.ab-table tbody tr:hover td { background: var(--color-surface-hover); }
+.ab-more {
+    padding: var(--space-xs) var(--space-md);
+    font-size: var(--text-xs);
+    font-style: italic;
+    color: var(--color-text-tertiary);
+}
+
+/* Bar: label · track · value */
+.ab-bar-row {
+    display: grid;
+    grid-template-columns: minmax(80px, 30%) 1fr auto;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: 3px 0;
+}
+.ab-bar-label {
+    color: var(--color-text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.ab-bar-track {
+    height: 10px;
+    background: var(--color-border-light);
+    border-radius: 999px;
+    overflow: hidden;
+}
+.ab-bar-fill {
+    height: 100%;
+    background: var(--color-text);
+    border-radius: 999px;
+    min-width: 2px;
+}
+.ab-bar-value {
+    font-variant-numeric: tabular-nums;
+    min-width: 48px;
+    text-align: right;
+}
+
+/* Line: one series, its sign as its colour */
+.ab-line-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-xs);
+}
+.ab-line-label { color: var(--color-text-secondary); }
+.ab-line-now {
+    font-size: var(--text-lg);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+.ab-line-change {
+    font-size: var(--text-xs);
+    font-weight: 400;
+    margin-left: var(--space-xs);
+}
+.ab-line-svg {
+    display: block;
+    width: 100%;
+    height: 120px;
+    color: var(--color-text);
+}
+.ab-line-svg.is-up { color: var(--color-green); }
+.ab-line-svg.is-down { color: var(--color-red); }
+.ab-line-path {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.5;
+    vector-effect: non-scaling-stroke;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+}
+.ab-line-area {
+    fill: currentColor;
+    opacity: 0.07;
+}
+.ab-line-dot { fill: currentColor; }
+.ab-line-axis {
+    display: flex;
+    justify-content: space-between;
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    margin-top: 2px;
+    font-variant-numeric: tabular-nums;
+}
