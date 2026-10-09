@@ -1,0 +1,1889 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <!--
+      SECURITY (M1): Content-Security-Policy for the app shell (defense-in-depth
+      backstop for renderer XSS reaching the contextBridge APIs).
+        - script-src has NO 'unsafe-inline': injected inline <script> and inline
+          event handlers (the H4/H5 XSS class) cannot execute.
+        - connect-src stays broad by necessity — the renderer fetches arbitrary
+          public hosts (portfolio prices, news feeds) and the sync relay (wss).
+        - style-src allows 'unsafe-inline' (inline style="" is used throughout).
+          No web font is loaded (2026-09-11: system sans + the OS serif stack,
+          the website's language), so neither directive needs a font origin —
+          don't add one.
+      If a view breaks, check the devtools console for the violated directive.
+    -->
+    <meta http-equiv="Content-Security-Policy" content="
+      default-src 'self';
+      script-src 'self';
+      style-src 'self' 'unsafe-inline';
+      font-src 'self' data:;
+      img-src 'self' data: blob: https:;
+      media-src 'self' data: blob:;
+      connect-src 'self' https: http: ws: wss: data: blob:;
+      frame-src 'self' https: data: blob:;
+      worker-src 'self' blob:;
+      object-src 'none';
+      base-uri 'self';
+    ">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>nenva</title>
+
+    <link rel="stylesheet" href="css/core.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/answer-blocks.css">
+    <link rel="stylesheet" href="css/spec-renderer.css">
+    <link rel="stylesheet" href="css/apps/notes.css">
+    <link rel="stylesheet" href="css/apps/prompts.css">
+    <link rel="stylesheet" href="css/apps/fyi.css">
+    <link rel="stylesheet" href="css/apps/commitments.css">
+    <link rel="stylesheet" href="css/apps/documents.css">
+    <link rel="stylesheet" href="css/apps/schedule.css">
+    <link rel="stylesheet" href="css/apps/agent.css">
+    <link rel="stylesheet" href="css/apps/settings.css">
+    <link rel="stylesheet" href="css/apps/links.css">
+    <link rel="stylesheet" href="css/simple-experience.css">
+</head>
+
+<body class="app-loading">
+    <!-- Initial loading indicator shown until AppManager.init() has routed to
+         the correct view. Prevents a flash of the wrong view (e.g. dashboard
+         or a list page with "no items" empty state) before the router swaps
+         to the target view/detail page on refresh. -->
+    <div id="app-initial-loader" class="app-initial-loader" aria-hidden="true">
+        <img src="build/icon.png" alt="" class="app-initial-loader-logo" />
+        <div class="app-initial-loader-spinner"></div>
+    </div>
+    <!-- Lock Screen Overlay -->
+    <div id="lock-screen" style="display: none;">
+        <div class="lock-screen-content">
+            <h1 class="lock-screen-title">nenva</h1>
+            <p class="lock-screen-subtitle">Locked</p>
+            <button id="lock-screen-unlock-btn" class="lock-screen-btn">Unlock with Touch ID</button>
+            <p id="lock-screen-fallback" class="lock-screen-fallback" style="display: none;">Touch ID is not available on this device</p>
+        </div>
+    </div>
+
+
+    <!-- App Header -->
+    <header class="app-titlebar">
+        <div class="titlebar-drag-region"></div>
+        <!-- Centre cluster: the wordmark (the way home) with the app
+             switcher beside it — the pair centres together, reading as one
+             "nenva ▦" control group. The switcher (added 2026-07-30, the
+             same day the Apps button went) is the one-click, mouse-first
+             door for switching apps; ⌘K stays the keyboard launcher. Its
+             popover is js/components/app-switcher.js, fed by the app
+             registry below. -->
+        <button id="titlebar-home" class="titlebar-title" type="button" title="Home">
+            nenva
+        </button>
+        <!-- The way back, and only when there is a way back. It sits AFTER the
+             wordmark and switcher in the DOM (2026-09-22): the simple shell
+             lays this bar out in flow, so a Back button before the brand
+             pushed both it and the app switcher ~85px sideways every time
+             it appeared, and the switcher is a muscle-memory target. After
+             them nothing moves, because .titlebar-actions is margin-left:
+             auto and absorbs the slack. The full shell is unaffected —
+             this button is absolutely positioned there, so its DOM place
+             does not decide where it lands; keeping it here means the
+             DEFAULT shell is the one whose focus order matches the eye.
+             The Apps
+             switcher that used to sit here went 2026-07-30 along with the All
+             apps sheet it opened — ⌘K is the launcher now. Since 2026-08-05
+             this is a real BACK button: AppManager keeps a navigation stack
+             and the label names where you came from ("← Assistant"); with no
+             history it is HIDDEN (2026-09-18 — a "Home" button duplicated
+             the wordmark in the centre, which already means home). AppManager
+             .updateSidebarActive swaps the label and toggles it hidden. -->
+        <button id="titlebar-home-btn" class="titlebar-home-btn" type="button"
+                title="Home" hidden>
+            <svg class="titlebar-back-home-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9.5"/></svg>
+            <svg class="titlebar-back-arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" hidden><path d="M19 12H5"/><path d="m11 18-6-6 6-6"/></svg>
+            <span>Home</span>
+        </button>
+        <div class="titlebar-actions">
+            <button id="titlebar-search" class="titlebar-btn titlebar-search-btn" type="button"
+                    title="Search everything (&#8984;K)" aria-label="Search everything">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.5" y2="16.5"/></svg>
+                <kbd>&#8984;K</kbd>
+            </button>
+            <span id="sync-indicator" class="sync-indicator" style="display: none;" title="Synced from another device">
+                <span class="sync-indicator-icon">&#8635;</span>
+                <span id="sync-indicator-text" class="sync-indicator-text"></span>
+            </span>
+            <span id="updater-pill" class="updater-pill" style="display: none;" title="A new version of nenva is ready to install">
+                <span class="updater-pill-icon">&#8679;</span>
+                <span id="updater-pill-text" class="updater-pill-text">Update ready</span>
+                <button id="updater-install-btn" class="updater-pill-btn" type="button">Install</button>
+            </span>
+            <button id="whats-new-chip" class="whats-new-chip" style="display: none;" type="button" title="See what changed in this version">
+                <span class="whats-new-chip-dot" aria-hidden="true"></span>What&rsquo;s new
+            </button>
+            <span class="titlebar-divider" aria-hidden="true"></span>
+            <!-- Default AI model — the same chip + dropdown as the assistant
+                 composer (AgentUI.updateModelChip / _toggleModelMenu), so
+                 switching here changes the app-wide default. The shared menu
+                 anchors to this wrapper; in the titlebar it opens downward. -->
+            <div class="agent-model-select titlebar-model-select">
+                <button id="titlebar-model-chip" class="agent-context-chip agent-model-chip" type="button"></button>
+            </div>
+            <span id="titlebar-readiness" class="agent-readiness" title="Assistant status">
+                <span class="agent-readiness-dot"></span>
+                <span class="agent-readiness-text"></span>
+            </span>
+            <!-- Sun/moon and the assistant sparkle are SVGs on the same 24
+                 viewBox and 1.75 stroke as their neighbours. They were text
+                 glyphs (&#9728; &#9790;) and an emoji (&#x2728;) until
+                 2026-07-30: the emoji rendered in full colour in a monochrome
+                 bar, and all three sat at a different optical size from the
+                 stroked icons beside them. -->
+            <button id="theme-toggle-btn" class="titlebar-btn" type="button" title="Toggle theme" aria-label="Toggle theme">
+                <span class="theme-icon-light"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2M12 19.5v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2.5 12h2M19.5 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span>
+                <span class="theme-icon-dark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></span>
+            </button>
+            <button id="agent-toggle-btn" class="titlebar-btn" type="button" title="AI Assistant (Cmd+/)" aria-label="AI Assistant">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l1.7 4.8L18.5 10.5l-4.8 1.7L12 17l-1.7-4.8L5.5 10.5l4.8-1.7z"/><path d="M18.5 15.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z"/></svg>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div id="app-container">
+
+        <!-- The app registry. NOT a visible surface any more.
+
+             This subtree started as the left rail, became the All apps sheet
+             on 2026-07-29, and stopped being drawn at all on 2026-07-30 when
+             the titlebar's Apps button went: ⌘K lists every app with nothing
+             typed, so a second launcher was a second thing to maintain and a
+             second answer to "where do I find my apps?".
+
+             The markup stays because it is the app *registry* — the one place
+             that knows every app's id, label, icon and group. GlobalSearch
+             (⌘K), the titlebar app switcher (js/components/app-switcher.js,
+             which builds its own popover from GlobalSearch.allApps),
+             applyHiddenApps, renderLockedApps, updateDashBadges,
+             _addUserAppTile all read
+             `.dash-apps-section .dash-app-tile[data-app]` out of it. Adding an
+             app here still adds it everywhere. Nothing paints this subtree
+             directly, so ordering and grouping serve the launchers' lists
+             rather than a grid.
+
+             Categories follow user-mental-model groups: Do / Stay on top /
+             Capture / Money / Web & builders / System. Pomodoro is
+             deliberately not here — it launches from the Tasks app header
+             instead, since starting a Pomodoro is always task-scoped. -->
+        <div id="app-registry" hidden>
+                <section class="dash-apps-section" aria-label="All apps">
+
+                    <!-- Everyday apps — grouped by what the user is trying
+                         to do, ordered by product priority: act first,
+                         then stay on top of email/calendar, capture
+                         thoughts, money, then the web + builders. System
+                         entries close the list (see the System group
+                         below "Your Apps"). -->
+                    <!-- The assistant sits ALONE at the top (2026-08-08, by
+                         request — it is the app's front door, not one of the
+                         "Do" apps). The group deliberately has NO label: the
+                         side nav renders an unlabeled group as a plain
+                         hairline, so the row reads as its own tier right
+                         under Home; the switcher grid puts it first. -->
+                    <div class="dash-apps-group">
+                        <div class="dash-apps-row">
+                            <button class="dash-app-tile" type="button" data-app="agent" data-desc="Chat with your AI about anything it can see or do in nenva.">
+                                <span class="dash-app-tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l1.7 4.8L18.5 10.5l-4.8 1.7L12 17l-1.7-4.8L5.5 10.5l4.8-1.7z"/><path d="M18.5 15.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z"/></svg></span>
+                                <span class="dash-app-tile-label">AI Assistant</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="dash-apps-group">
+                        <h3 class="dash-apps-group-label">Do</h3>
+                        <div class="dash-apps-row">
+                            <!-- Actions replaces the Focus/Tasks tiles: one door, Tasks up
+                                 front and Goals behind the Plan button. Goals keeps its OWN
+                                 tile (2026-08-03) — the Plan button is how you get there
+                                 while working, but a launcher entry is how you get there
+                                 when going to plan is the point, and without it Goals was
+                                 unreachable from both the app switcher and Cmd+K. -->
+                            <button class="dash-app-tile" type="button" data-app="actions" data-desc="Your day: tasks, dates, and the lists that keep them moving.">
+                                <span class="dash-app-tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>
+                                <span class="dash-app-tile-label">Tasks</span>
+                            </button>
+                            <button class="dash-app-tile" type="button" data-app="goals" data-desc="Bigger outcomes broken into tasks, with AI check-ins.">
+                                <span class="dash-app-tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></svg></span>
+                                <span class="dash-app-tile-label">Projects</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="dash-apps-group">
+                        <h3 class="dash-apps-group-label">Stay on top</h3>
+                        <div class="dash-apps-row">
+                            <!-- Insights (id `fyi`) is DETAIL ONLY since 2026-10-05 (the
+                                 fold, step 3): Now's cards and rows open one insight or
+                                 one trip here; it is no launcher entry (sub-app of the
+                                 assistant's home). -->
+                            <button class="dash-app-tile" type="button" data-app="fyi" data-subapp-of="agent" data-desc="What your mail and texts said: bills, receipts, reservations, deadlines.">
+                                <span class="dash-app-tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12a1 1 0 0 1 1 1v17l-2.6-1.6-2.2 1.4-2.2-1.4-2.2 1.4L7.6 20 5 21.5V4a1 1 0 0 1 1-1z"/><line x1="9" y1="8.5" x2="15" y2="8.5"/><line x1="9" y1="12.5" x2="15" y2="12.5"/></svg></span>
+                                <span class="dash-app-tile-label">Insights</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="dash-apps-group">
+                        <h3 class="dash-apps-group-label">Capture</h3>
+                        <div class="dash-apps-row">
+                            <button class="dash-app-tile" type="button" data-app="notes" data-desc="Text documents: the canvas for what the assistant writes for you, and anything you write yourself.">
+                                <span class="dash-app-tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></span>
+                                <span class="dash-app-tile-label">Text Documents</span>
+                            </button>
+                            <!-- Documents is the `reader` bundled package
+                                 (js/apps/reader/) — its tile comes from its
+                                 manifest, not from here. -->
+                        </div>
+                    </div>
+
+                    <!-- Bundled app packages (js/apps/bundled.json) add their
+                         groups/tiles here at startup — see js/core/bundled-apps.js. -->
+                    <!-- System entries, last on purpose — reached rarely,
+                         so they close the list under one quiet heading. -->
+                    <div class="dash-apps-group dash-apps-group--more">
+                        <h3 class="dash-apps-group-label">System</h3>
+                        <div class="dash-apps-row">
+                            <button class="dash-app-tile" type="button" data-app="settings" data-desc="Accounts, AI models, storage, privacy, and everything else.">
+                                <span class="dash-app-tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+                                <span class="dash-app-tile-label">Settings</span>
+                            </button>
+                            <button class="dash-app-tile" type="button" data-app="prompts" data-desc="Routines: everything nenva does on its own schedule.">
+                                <span class="dash-app-tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg></span>
+                                <span class="dash-app-tile-label">Routines</span>
+                            </button>
+                            <button class="dash-app-tile" type="button" data-app="about" data-desc="What nenva is and what leaves your Mac.">
+                                <span class="dash-app-tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></span>
+                                <span class="dash-app-tile-label">About</span>
+                            </button>
+                        </div>
+                    </div>
+
+                </section>
+        </div>
+
+        <!-- Global left nav (2026-08-07).
+
+             The one always-visible door to every app. Its list is the app
+             switcher's list — GlobalSearch.launcherApps() minus hidden and
+             feature-gated ids — so the rail, the ⌘K empty list and the
+             switcher popover can never disagree about what "your apps" means.
+
+             Only the SHELL is here; js/components/side-nav.js paints
+             #sidenav-list on every render (registry order, grouped by the
+             registry's own group labels). The footer is static markup like
+             the Email AI door, because the list above it is rewritten
+             wholesale and a binding made once must survive that. -->
+
+        <!-- Views Container -->
+        <div id="app-views">
+
+        <!-- First-Run Setup View -->
+        <div id="setup-view" class="view" style="display: none;">
+            <!-- First run is ONE page (2026-10-01, Ram: "instead of wizard,
+                 lets just make it a single page with line items for each
+                 default selection ... Dead Simple minimal inutitve
+                 frictionless"). Then only the model (same day: "lets show
+                 the only the model information alone"): web search asks on
+                 the assistant's first search, and the name nudge asks later.
+                 Registration was added 2026-10-07: email for a free license,
+                 required before continuing, with the shared contact disclosure. The
+                 model as a quiet "Runs on … · Change" line under it. It replaced Welcome / Your data / Connect your
+                 email; email is Home's first card, backups and the data
+                 folder live in Settings › Storage & Backup. The one privacy
+                 sentence is the POSITIONING.md 2026-09-18 disclosure that
+                 the AI starts on nenva cloud, kept to its honest minimum.
+                 Wired in AppManager.showSetup. -->
+            <div class="setup-container setup-one">
+                <h1 class="setup-one-title">Welcome to nenva</h1>
+                <p class="setup-one-lede">Your personal AI.</p>
+                <form id="setup-registration" class="setup-registration" novalidate>
+                    <label for="setup-email">Email address</label>
+                    <input id="setup-email" type="email" autocomplete="email" maxlength="200" required placeholder="you@example.com" aria-describedby="setup-registration-copy setup-registration-status">
+                    <p id="setup-registration-copy" class="setup-registration-copy"></p>
+                    <button id="setup-start-btn" class="primary-btn setup-one-start" type="submit">Get started</button>
+                    <p id="setup-registration-status" class="setup-registration-status" role="status" aria-live="polite"></p>
+                </form>
+                <!-- The one choice, as a quiet line under the button: the
+                     model it starts on, and a way to change it. The hidden
+                     select is the value; the pills draw it. -->
+                <p class="setup-one-model">Runs on <strong id="setup-model-name">nenva cloud lite</strong>
+                    <span aria-hidden="true">&middot;</span>
+                    <button type="button" id="setup-model-change" class="setup-one-change" aria-expanded="false" aria-controls="setup-model-choices">Change</button></p>
+                <div id="setup-model-choices" class="setup-one-choices" role="radiogroup" aria-label="AI model" hidden></div>
+                <p id="setup-model-hint" class="setup-one-hint"></p>
+                <select id="setup-model" hidden aria-hidden="true" tabindex="-1">
+                    <option value="cloud:nenva-cloud-lite">nenva cloud lite</option>
+                </select>
+                <p class="setup-one-foot">
+                    <a href="https://nenva.co/privacy" id="setup-what-leaves-link">Privacy</a>
+                    <span aria-hidden="true">&middot;</span>
+                    <a href="https://nenva.co/faq#pricing" id="setup-pricing-link">Pricing</a>
+                </p>
+            </div>
+        </div>
+
+        <!-- Dashboard View (Home) — a left app nav (rendered first via CSS
+             order:-1) beside the main feed column. The feed IS the home
+             stage: greeting, the Ask nenva composer, then the feed. -->
+        <main id="dashboard-view" class="view">
+            <div class="dash-shell">
+            <div class="dash-main">
+            <div class="dashboard-container">
+
+                <!-- Header: Date + Quote -->
+                <!-- Masthead: greeting and date on ONE baseline, left-aligned
+                     on the same axis as the composer and the grid below. -->
+                <header class="dash-header">
+                    <h1 id="dash-greeting" class="dash-greeting"></h1>
+                    <span class="dash-header-sep" aria-hidden="true">&middot;</span>
+                    <p id="dash-date-line" class="dash-date-line"></p>
+                </header>
+
+                <!-- Announcements (from remote-config.json) -->
+                <div id="dash-announcements" class="dash-announcements" style="display:none;"></div>
+
+                <!-- First-run welcome. Machine-local, dismissible, auto-hides
+                     once the user has any data. AppManager.updateFirstRunCard. -->
+                <!-- Bare host for SetupAssistant.renderCompact() — the strip brings its own card chrome -->
+
+                <!-- Update-ready card — second surface for the titlebar pill.
+                     Filled by UpdaterUI._renderHomeCard() once a downloaded
+                     update is waiting; dismiss hides it for that version only
+                     (machine-local — updates are per-Mac). -->
+                <div id="dash-update-card" style="display:none;"></div>
+
+                <!-- Ask nenva — routes to the Agent app with a fresh conversation.
+                     The SAME composer card as the assistant chat (attachments
+                     strip, auto-growing textarea, actions row: attach + model
+                     dropdown + readiness left, circular send right) so the two
+                     surfaces read as one assistant. Ids are dash-specific; the
+                     shared classes carry the design. -->
+                <section class="dash-agent-hero" aria-label="Ask nenva">
+                    <div class="agent-composer">
+                        <div id="dash-agent-attachments" class="agent-attachments" hidden></div>
+                        <textarea id="dash-agent-input" rows="1" placeholder="Ask nenva anything&hellip;"></textarea>
+                        <div class="agent-composer-actions">
+                            <button class="agent-attach-btn" type="button" title="Attach a file (text, CSV, PDF)" aria-label="Attach a file">+</button>
+                            <div class="agent-model-select">
+                                <button id="dash-agent-model-chip" class="agent-context-chip agent-model-chip" type="button"></button>
+                            </div>
+                            <span id="dash-agent-readiness" class="agent-readiness" title="Assistant status">
+                                <span class="agent-readiness-dot"></span>
+                                <span class="agent-readiness-text"></span>
+                            </span>
+                            <button id="dash-agent-send-btn" title="Send">&#x2191;</button>
+                        </div>
+                    </div>
+                    <!-- Quick-start pills (AgentUI.renderDashSuggestions):
+                         general pool, availability-filtered, day-stable
+                         rotation. A click sends through the composer's own
+                         path. -->
+                    <div id="dash-agent-suggestions" class="dash-agent-suggestions" hidden></div>
+                </section>
+
+                <!-- Widgets — home's attention surface (js/core/widgets.js).
+                     Each app speaks here instead of relying on the user to
+                     remember to visit it. A widget with nothing to say is
+                     ABSENT, not empty, so on a calm day this whole region
+                     collapses away. Registrations live with their apps
+                     (js/apps/<app>/*-widget.js). -->
+                <section id="dash-widgets" class="dash-widgets" aria-label="Needs your attention" hidden></section>
+
+
+                <!-- The Feed — background-prompt output plus posts published
+                     by nenva (remote-config `feedPosts`). Always visible;
+                     the left nav owns app launching. -->
+                <section class="dash-feed-section" aria-label="Feed">
+                    <div class="dash-feed-head">
+                        <h2 class="dash-panel-title">Feed</h2>
+                        <!-- Unread / All. Was a checkbox in the preferences
+                             modal; it belongs next to the thing it filters. -->
+                        <div id="feed-scope" class="feed-scope" role="group" aria-label="Show"></div>
+                        <div class="dash-feed-actions">
+                            <button id="prompt-feed-config" class="secondary-btn" type="button">Manage routines</button>
+                        </div>
+                    </div>
+                    <!-- One block per series (PromptFeed._renderSeries):
+                         newest edition summarised, older ones folded. The
+                         blocks are the navigation, so there is no nav. -->
+                    <div id="prompt-feed-list" class="prompt-feed-list"></div>
+                </section>
+
+            </div>
+            </div>
+
+
+            </div>
+        </main>
+
+        <!-- Routines View — scheduled prompts' standalone page (backend = notes blob, see js/apps/prompts/prompts-app.js; saved prompts live in Notes) -->
+        <div id="prompts-view" class="view app-view">
+            <div class="app-header-bar">
+                <h2 class="app-view-title">
+                    <span id="prompts-breadcrumb" class="app-breadcrumb">Routines</span>
+                </h2>
+                <div class="app-header-actions">
+                </div>
+            </div>
+            <div class="prompts-layout">
+                <!-- C10: a task-mode routine that stopped at an approval while
+                     nobody was here. Above the list on every view of this page
+                     because it is the only thing here blocked on the user. -->
+                <section class="routines-waiting-section" id="prompts-waiting-section" hidden>
+                    <h3 class="routines-waiting-header">Waiting on you <span class="routines-waiting-count" id="prompts-waiting-count"></span></h3>
+                    <div id="prompts-waiting"></div>
+                </section>
+                <div id="prompts-main"><!-- Rendered by JS --></div>
+            </div>
+        </div>
+
+        <!-- Notes List View -->
+        <div id="notes-view" class="view app-view">
+            <div class="app-header-bar">
+                <h2 class="app-view-title">
+                    <span id="notes-breadcrumb" class="app-breadcrumb">Text Documents</span>
+                </h2>
+                <div class="app-header-actions">
+                    <!-- Pane toggles: each icon is a mini-map of the page's
+                         three panes with the one THIS button controls shaded —
+                         three near-identical panel glyphs were reported as
+                         unreadable (2026-08-10). -->
+                    <button id="notes-toggle-nav-btn" class="icon-btn" title="Hide filters" aria-label="Show or hide the filters sidebar" aria-pressed="false"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="9" y1="4" x2="9" y2="20"/><line x1="15" y1="4" x2="15" y2="20"/><rect x="4.6" y="5.6" width="2.8" height="12.8" rx="0.8" fill="currentColor" stroke="none"/></svg></button>
+                    <button id="notes-toggle-list-btn" class="icon-btn" title="Hide note list" aria-label="Show or hide the note list" aria-pressed="false"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="9" y1="4" x2="9" y2="20"/><line x1="15" y1="4" x2="15" y2="20"/><rect x="10.6" y="5.6" width="2.8" height="12.8" rx="0.8" fill="currentColor" stroke="none"/></svg></button>
+                    <button id="notes-reader-toggle" class="icon-btn" title="Hide reading pane" aria-label="Show or hide the reading pane" aria-pressed="false"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="9" y1="4" x2="9" y2="20"/><line x1="15" y1="4" x2="15" y2="20"/><rect x="16.6" y="5.6" width="2.8" height="12.8" rx="0.8" fill="currentColor" stroke="none"/></svg></button>
+                    <button id="add-note-btn" class="primary-btn">+ New Note</button>
+                </div>
+            </div>
+
+            <div class="notes-layout">
+                <!-- Sidebar -->
+                <aside class="notes-sidebar">
+                    <div class="notes-sidebar-section">
+                        <div class="notes-sidebar-title">Filter</div>
+                        <div id="notes-filter-list" class="notes-filter-list">
+                            <!-- Rendered by JS -->
+                        </div>
+                    </div>
+
+                    <div class="notes-sidebar-section">
+                        <div class="notes-sidebar-title">Tags</div>
+                        <input type="text" id="notes-tag-search" class="notes-tag-search" placeholder="Find a tag&hellip;" autocomplete="off" aria-label="Find a tag">
+                        <div id="notes-tag-filter-list" class="notes-filter-list">
+                            <!-- Rendered by JS -->
+                        </div>
+                        <button id="create-theme-btn" class="notes-add-tag-btn">+ New Tag</button>
+                    </div>
+
+                </aside>
+
+                <div id="notes-nav-resizer" class="notes-nav-resizer" role="separator"
+                     aria-orientation="vertical" aria-label="Resize sidebar"
+                     title="Drag to resize &mdash; double-click to reset"></div>
+
+                <!-- Middle column: sort control and the note list. Finding a
+                     note is global search's job (&#8984;K), not a second search
+                     box here. -->
+                <div class="notes-list-col">
+                    <div class="notes-list-toolbar">
+                        <select id="notes-sort" class="sort-select" title="Sort notes" aria-label="Sort notes">
+                            <option value="modified">Modified</option>
+                            <option value="created">Created</option>
+                            <option value="title">Title</option>
+                        </select>
+                    </div>
+
+                    <!-- Way back to All notes when the filters sidebar is
+                         hidden (collapsed or responsive) and a filter is
+                         active — the FYI back-chip rule: a back affordance
+                         exactly when no list stands beside it as the way
+                         back. Filled by NotesUI.renderFilterCrumb. -->
+                    <div id="notes-filter-crumb"></div>
+
+                    <div id="notes-container" class="notes-list">
+                        <!-- Notes will be rendered here -->
+                    </div>
+
+                    <div id="notes-empty" class="notes-empty-state">
+                        <h3>No notes yet</h3>
+                        <p>Start one with New Note</p>
+                    </div>
+                </div>
+
+                <div id="notes-list-resizer" class="notes-nav-resizer notes-list-resizer" role="separator"
+                     aria-orientation="vertical" aria-label="Resize note list"
+                     title="Drag to resize &mdash; double-click to reset"></div>
+
+                <!-- Right pane: the always-editable note. The #note-editor-view
+                     host (declared below in this file) is moved inside this
+                     pane at runtime by NotesApp.init(). -->
+                <div class="notes-note-pane" id="notes-note-pane">
+                    <!-- Way back to the list when the reading pane is off and
+                         a note has taken the full width (CSS shows it only in
+                         that state). Static like the Email AI door: the pane's
+                         contents re-render per note, this is bound once. -->
+                    <button type="button" id="notes-reader-back" class="back-btn notes-reader-back">&#8592; All notes</button>
+                    <div id="notes-note-empty" class="notes-note-empty">
+                        <p class="notes-note-empty-title">Nothing open</p>
+                        <p class="notes-note-empty-hint">Pick a document, or ask nenva to write one. <button type="button" class="cm-link" data-notes-back>Documents</button></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- The always-editable note host. Declared here at top level but
+             moved inside #notes-note-pane at runtime by NotesApp.init() —
+             the old separate viewer/editor views are gone (2026-07-20). -->
+        <div id="note-editor-view" class="notes-note-host" hidden>
+            <div class="editor-header note-editor-header-bar">
+                <div class="editor-actions">
+                    <button id="note-focus-mode-btn" class="icon-btn note-focus-btn" title="Maximize &mdash; distraction-free writing (F)" aria-label="Maximize the note">Maximize</button>
+                    <button id="note-pin-btn" class="secondary-btn" aria-pressed="false">Pin</button>
+                    <button id="note-pdf-btn" class="secondary-btn" title="Export this note as a PDF">Export PDF</button>
+                    <button id="editor-delete-btn" class="secondary-btn">Delete</button>
+                </div>
+            </div>
+
+            <div class="note-editor-frame" id="note-editor-frame" data-template="blank">
+                <div class="note-editor-main">
+                    <textarea id="note-title-input" class="note-title-input" placeholder="Untitled" autocomplete="off" rows="1" spellcheck="true"></textarea>
+
+                    <!-- Quiet metadata strip — word count, save indicator, tags. -->
+                    <div class="note-meta-strip">
+                        <span id="note-word-count" class="note-meta-count">0 words</span>
+                        <span class="note-meta-sep" aria-hidden="true">&middot;</span>
+                        <span id="note-save-status" class="save-indicator" data-state="saved" aria-live="polite">
+                            <span class="save-indicator-icon" aria-hidden="true"></span>
+                            <span class="save-indicator-label">Saved</span>
+                        </span>
+                        <!-- Created / edited stamps; rendered by NotesApp._renderEditorDates
+                             (hidden for a draft that has no record yet). -->
+                        <span class="note-meta-sep note-meta-dates-sep" aria-hidden="true">&middot;</span>
+                        <span id="note-dates" class="note-meta-date"></span>
+                        <!-- Where an assistant-written note came from: the chat, with a
+                             door back to it. Rendered by NotesApp._renderEditorOrigin. -->
+                        <span class="note-meta-sep note-meta-origin-sep" aria-hidden="true" hidden>&middot;</span>
+                        <span id="note-origin" class="note-meta-origin" hidden></span>
+                        <span class="note-meta-sep" aria-hidden="true">&middot;</span>
+                        <button type="button" id="note-template-btn" class="note-template-btn" aria-haspopup="menu" aria-expanded="false" title="Change template">
+                            <span class="note-template-btn-icon" id="note-template-btn-icon"></span>
+                            <span class="note-template-btn-label" id="note-template-btn-label">Blank</span>
+                            <span class="note-template-btn-caret" aria-hidden="true">&#9662;</span>
+                        </button>
+
+                        <!-- Per-note "Numbered chapters" toggle. Visible only
+                             in book mode (CSS-gated on the frame). -->
+                        <button type="button" id="note-book-numbered-btn" class="note-book-numbered-btn is-active" aria-pressed="true" title="Toggle chapter numbering">
+                            <span class="note-book-numbered-check" aria-hidden="true">&#10003;</span>
+                            <span>Numbered</span>
+                        </button>
+
+                        <!-- Per-note reading layout: scroll vs paged. Same
+                             visibility gating as the Numbered toggle. -->
+                        <button type="button" id="note-book-layout-btn" class="note-book-layout-btn" aria-pressed="false" title="Edit one chapter at a time">
+                            <span class="note-book-layout-icon" aria-hidden="true">&#9776;</span>
+                            <span>Pages</span>
+                        </button>
+
+                        <!-- Side-panel toggles: collapsed by default, the
+                             choice persists per machine. Visible only for
+                             their template (CSS-gated on the frame). -->
+                        <button type="button" id="note-book-toc-toggle" class="note-panel-toggle-btn note-panel-toggle-book" aria-pressed="false" title="Show the chapters panel">
+                            <span class="note-panel-toggle-icon" aria-hidden="true">&#9782;</span>
+                            <span>Chapters</span>
+                        </button>
+
+                        <div id="note-tags-container" class="note-tags-strip">
+                            <button type="button" id="note-tag-add-btn" class="note-tag-add-btn">+ Add tag</button>
+                            <!-- Local-AI tag suggestions land here as dashed chips. -->
+                        </div>
+                    </div>
+
+                    <!-- Writing surface. No permanent toolbar — formatting via
+                         selection toolbar, slash menu, and markdown shortcuts. -->
+                    <div id="note-content-editor" class="note-content-editor" contenteditable="true"
+                        data-placeholder="Start writing&hellip; or type / for blocks, # for headings"></div>
+
+                    <!-- Editor prev/next chapter footer — populated only when
+                         the note uses the book template in paged layout. -->
+                    <nav class="note-book-chapter-nav" id="note-book-chapter-nav-editor" aria-label="Chapter navigation">
+                        <button type="button" class="note-book-chapter-nav-btn prev" id="note-book-prev-chapter-editor">
+                            <span class="note-book-chapter-nav-arrow">&larr;</span>
+                            <span class="note-book-chapter-nav-text">
+                                <span class="note-book-chapter-nav-caption">Previous</span>
+                                <span class="note-book-chapter-nav-title" id="note-book-prev-chapter-title-editor"></span>
+                            </span>
+                        </button>
+                        <span class="note-book-chapter-position" id="note-book-chapter-position-editor" aria-hidden="true"></span>
+                        <button type="button" class="note-book-chapter-nav-btn next" id="note-book-next-chapter-editor">
+                            <span class="note-book-chapter-nav-text">
+                                <span class="note-book-chapter-nav-caption">Next</span>
+                                <span class="note-book-chapter-nav-title" id="note-book-next-chapter-title-editor"></span>
+                            </span>
+                            <span class="note-book-chapter-nav-arrow">&rarr;</span>
+                        </button>
+                    </nav>
+
+                    <!-- Connections: backlinks, related notes, cross-app links,
+                         prompt/feed cross-references. Rendered per note. -->
+                    <div id="note-connections" class="note-viewer-links"></div>
+                </div>
+
+                <!-- Drag handle between the writing column and the TOC.
+                     Mirrors the Tasks left-nav resizer (drag to resize,
+                     dbl-click to reset). Hidden in non-book mode via CSS. -->
+                <div id="note-book-toc-resizer-editor" class="note-book-toc-resizer" role="separator"
+                     aria-orientation="vertical" aria-label="Resize chapters panel"
+                     title="Drag to resize &mdash; double-click to reset"></div>
+
+                <!-- Sticky TOC sidebar on the right — visible only for the
+                     book template (gated via [data-template="book"] on the
+                     frame). Width is driven by --note-book-toc-width. -->
+                <aside class="note-book-toc" id="note-book-toc-editor" aria-label="Chapters">
+                    <div class="note-book-toc-header">Chapters</div>
+                    <div class="note-book-toc-list" id="note-book-toc-list-editor"></div>
+                    <button type="button" id="note-book-add-chapter-btn" class="note-book-toc-add">+ Add Chapter</button>
+                </aside>
+
+            </div>
+        </div>
+
+
+
+
+        <!-- Email Insights — its own app since 2026-08-03 (it was the Actions
+             hub's FYI tab). EVERY insight the assistant found in email,
+             grouped by type (renewals, bills, deliveries...) — including ones
+             that became tasks, which also appear under Tasks. Organization,
+             not analysis: nothing here is model-written beyond the per-email
+             summary that already existed. The view id, the app id and every
+             storage key stay `fyi`. See docs/LIFE_ORG.md. -->
+        <div id="fyi-view" class="view app-view">
+            <!-- The folders from mail and texts (js/apps/fyi/fyi-page.js header), in
+                 the calm language of Chats and Commitments (2026-10-07): the shell's
+                 serif title, a lede joined from counts, one search box, sections
+                 as eyebrows over white panels. -->
+            <div class="fyi-column">
+                <header class="fyi-head">
+                    <h1 class="fyi-h1" id="fyi-breadcrumb">Insights</h1>
+                    <p class="fyi-lede" id="fyi-lede"></p>
+                </header>
+                <input type="search" id="fyi-search" class="fyi-search" placeholder="Search…" autocomplete="off" aria-label="Search">
+                <!-- Where reading stands (EmailHome.statusLine), the same line
+                     Home's "From your email" shows. -->
+                <div id="fyi-status" class="fyi-status" role="status" hidden></div>
+                <div id="fyi-body" class="fyi-body"></div>
+            </div>
+        </div>
+
+
+        <!-- Prompts are now a Notes template — the standalone Prompts view was
+             removed. The dashboard "Prompts" tile redirects into Notes filtered
+             to prompt-template notes (see AppManager.openApp). -->
+
+
+        <!-- Settings View -->
+        <div id="settings-view" class="view app-view">
+            <div class="app-header-bar">
+                <h2 class="app-view-title">
+                    <span id="settings-breadcrumb" class="app-breadcrumb">Settings</span>
+                </h2>
+            </div>
+
+            <!-- iOS-style shell: a ROOT LIST of category rows (label + current-
+                 value hint + chevron); tapping a row shows that category's
+                 panel as its own page with a Settings breadcrumb back. -->
+            <div class="settings-shell">
+
+                <div class="settings-root" id="settings-root">
+                    <div class="settings-search-wrap">
+                        <input id="settings-search" class="settings-search" type="text"
+                               placeholder="Search settings" spellcheck="false" autocomplete="off" aria-label="Search settings">
+                    </div>
+                    <div class="settings-root-list" id="settings-nav-list">
+                        <!-- Advanced (2026-10-06, the simplification): ONLY what
+                             the one Settings page (js/core/simple-settings.js) does
+                             not cover. Anything a person needs day to day is a row
+                             THERE; this list is reached through its Developer
+                             options switch. A card with data-open opens one
+                             sub-view or one AI Assistant section directly; a card
+                             with data-cat opens a category panel below. -->
+                        <div class="settings-group-label">Assistant</div>
+                        <div class="settings-card-group">
+                            <button class="settings-card settings-card-nav" data-open="llm-sec-name">
+                                <div class="settings-card-body">
+                                    <div class="settings-card-title">Name</div>
+                                    <p class="settings-card-detail settings-card-detail-wrap">What to call your AI</p>
+                                </div>
+                                <span class="settings-card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></span>
+                            </button>
+                            <button class="settings-card settings-card-nav" data-open="llm-sec-models">
+                                <div class="settings-card-body">
+                                    <div class="settings-card-title">Model options</div>
+                                    <p class="settings-card-detail settings-card-detail-wrap">Keys, model options and the local engine</p>
+                                </div>
+                                <span class="settings-card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></span>
+                            </button>
+                            <button class="settings-card settings-card-nav" data-open="settings-search-section">
+                                <div class="settings-card-body">
+                                    <div class="settings-card-title">Web search</div>
+                                    <p class="settings-card-detail settings-card-detail-wrap">Search providers and API keys</p>
+                                </div>
+                                <span class="settings-card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></span>
+                            </button>
+                            <button class="settings-card settings-card-nav" data-open="llm-sec-mcp" data-feature="mcp">
+                                <div class="settings-card-body">
+                                    <div class="settings-card-title">Tool servers</div>
+                                    <p class="settings-card-detail settings-card-detail-wrap">MCP servers the assistant may use</p>
+                                </div>
+                                <span class="settings-card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></span>
+                            </button>
+                            <button class="settings-card settings-card-nav" data-open="llm-sec-permissions">
+                                <div class="settings-card-body">
+                                    <div class="settings-card-title">Permissions</div>
+                                    <p class="settings-card-detail settings-card-detail-wrap">Review actions allowed without asking</p>
+                                </div>
+                                <span class="settings-card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></span>
+                            </button>
+                        </div>
+
+                        <div class="settings-group-label">Connections</div>
+                        <div class="settings-card-group">
+                            <button class="settings-card settings-card-nav" data-cat="accounts">
+                                <div class="settings-card-body">
+                                    <div class="settings-card-title">Telegram</div>
+                                    <p class="settings-card-detail settings-card-detail-wrap">Chat with your AI from Telegram</p>
+                                </div>
+                                <span class="settings-card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></span>
+                            </button>
+                            <button class="settings-card settings-card-nav" data-cat="devices" data-feature="mobilesync">
+                                <div class="settings-card-body">
+                                    <div class="settings-card-title">Paired devices</div>
+                                    <p class="settings-card-detail settings-card-detail-wrap">The iPhone app, paired with this Mac</p>
+                                </div>
+                                <span class="settings-card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></span>
+                            </button>
+                        </div>
+
+                        <div class="settings-group-label">Storage</div>
+                        <div class="settings-card-group">
+                            <button class="settings-card settings-card-nav" data-open="storage">
+                                <div class="settings-card-body">
+                                    <div class="settings-card-title">Storage</div>
+                                    <p class="settings-card-detail settings-card-detail-wrap">Location, space used and files</p>
+                                </div>
+                                <span class="settings-card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></span>
+                            </button>
+                        </div>
+
+                        <div class="settings-group-label">Apps</div>
+                        <div class="settings-card-group">
+                            <button class="settings-card settings-card-nav" data-cat="library">
+                                <div class="settings-card-body">
+                                    <div class="settings-card-title">Documents</div>
+                                    <p class="settings-card-detail settings-card-detail-wrap">Search index, model and library folder</p>
+                                </div>
+                                <span class="settings-card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></span>
+                            </button>
+                        </div>
+
+                        <div class="settings-group-label">Developer</div>
+                        <div class="settings-card-group">
+                            <button class="settings-card settings-card-nav" data-cat="build">
+                                <div class="settings-card-body">
+                                    <div class="settings-card-title">Developer</div>
+                                    <p class="settings-card-detail settings-card-detail-wrap">App building, diagnostics and experiments</p>
+                                </div>
+                                <span class="settings-card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></span>
+                            </button>
+                        </div>
+
+</div>
+                    <p id="settings-search-empty" class="settings-search-empty" style="display: none;">No matching settings.</p>
+                </div>
+
+                <!-- Category panels (one shown at a time in category mode; all stacked while searching) -->
+                <div class="settings-detail" id="settings-detail">
+
+
+                    <!-- Panel: AI -->
+                    <!-- Search-only stub: no nav row targets "ai" anymore (the
+                         root card drills straight into the AI Assistant page),
+                         but this panel keeps AI terms findable in Settings
+                         search — the card matches and clicking it opens the
+                         page (same settings-open-llm-btn binding). -->
+                    <section class="settings-panel" data-cat="ai">
+                        <h3 class="settings-panel-title">AI</h3>
+                        <div class="settings-card-group">
+                            <button id="settings-open-llm-btn" class="settings-card settings-card-nav" data-keywords="ai assistant provider routing web search models local nenva cloud lite pro server openai anthropic context mcp tool servers permissions grants memory logs">
+                                <div class="settings-card-body">
+                                    <div class="settings-card-title">AI Assistant</div>
+                                    <div class="settings-kv-row">
+                                        <span class="settings-kv">
+                                            <span class="settings-kv-label">Brain</span>
+                                            <span id="settings-llm-provider-display" class="settings-kv-value">Auto</span>
+                                        </span>
+                                        <span class="settings-kv">
+                                            <span class="settings-kv-label">Model</span>
+                                            <span id="settings-llm-local-display" class="settings-kv-value">--</span>
+                                        </span>
+                                    </div>
+                                </div>
+                                <span class="settings-card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+                            </button>
+                        </div>
+                    </section>
+
+                    <!-- Panel: Accounts -->
+                    <section class="settings-panel" data-cat="accounts">
+                        <h3 class="settings-panel-title">Telegram</h3>
+                        <!-- Telegram remote channel: chat with the assistant on
+                             this Mac from the Telegram app, through a bot the
+                             user creates. Token is machine-local + encrypted;
+                             content rendered by SettingsApp._renderTelegram(). -->
+                        <div class="settings-card-group">
+                            <div class="settings-card" data-keywords="telegram bot remote message phone chat assistant channel">
+                                <div id="settings-telegram" class="settings-connected-accounts">
+                                    <!-- Populated by SettingsApp._renderTelegram() -->
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Panel: Paired Devices -->
+                    <section class="settings-panel" data-cat="devices" data-feature="mobilesync">
+                        <h3 class="settings-panel-title">Paired Devices</h3>
+                        <div class="settings-subhead">Your phone</div>
+                        <div class="settings-card-group">
+                            <div class="settings-card" data-keywords="paired devices phone iphone pair qr code channel sync ai mobile tailscale funnel remote anywhere">
+                                <div id="settings-paired-devices-list" class="settings-paired-devices">
+                                    <!-- Populated by SettingsApp._renderPairedDevices() -->
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Panel: Documents (engine/maintenance for the Documents
+                         package; the page itself is for organizing/reading) -->
+                    <section class="settings-panel" data-cat="library">
+                        <h3 class="settings-panel-title">Documents</h3>
+                        <div class="settings-card-group">
+                            <div class="settings-card" data-keywords="library documents reader semantic search embedding model download index">
+                                <div class="settings-card-row">
+                                    <div>
+                                        <div class="settings-card-title">Semantic search</div>
+                                        <p class="settings-card-hint">A small local model (~330&nbsp;MB, one download) lets search find passages in your documents by meaning. Without it, search is keyword-only.</p>
+                                        <p id="settings-library-embed-status" class="settings-card-detail"></p>
+                                    </div>
+                                    <button id="settings-library-embed-btn" class="secondary-btn" type="button" hidden>Download</button>
+                                </div>
+                            </div>
+                            <div class="settings-card" data-keywords="library index rescan rebuild passages documents status">
+                                <div class="settings-card-row">
+                                    <div>
+                                        <div class="settings-card-title">Index</div>
+                                        <p id="settings-library-index-status" class="settings-card-detail"></p>
+                                    </div>
+                                    <span class="settings-card-actions">
+                                        <button id="settings-library-rescan-btn" class="secondary-btn" type="button" title="Scan the folder for new or changed files">Rescan</button>
+                                        <button id="settings-library-reindex-btn" class="secondary-btn" type="button" title="Re-read and re-index every document (slow; use after a model change or if search seems off)">Re-index all</button>
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="settings-card" data-keywords="library folder location finder anjadhe">
+                                <div class="settings-card-row">
+                                    <div>
+                                        <div class="settings-card-title">Folder</div>
+                                        <p id="settings-library-folder-path" class="settings-card-detail settings-card-detail-wrap"></p>
+                                    </div>
+                                    <button id="settings-library-folder-btn" class="secondary-btn" type="button">Open in Finder</button>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Panel: Data & Storage — search-only stub, like the "ai"
+                         panel above: the root row drills straight into the
+                         Storage & Backup view, but this keeps storage terms
+                         findable in Settings search (the card opens the view). -->
+                    <section class="settings-panel" data-cat="data">
+                        <h3 class="settings-panel-title">Data &amp; Storage</h3>
+                        <div class="settings-card-group">
+                            <button id="settings-open-storage-btn" class="settings-card settings-card-nav" data-keywords="storage backup database location data usage disk size">
+                                <div class="settings-card-body">
+                                    <div class="settings-card-title">Storage &amp; Backup</div>
+                                    <p id="settings-storage-path" class="settings-card-detail settings-card-detail-wrap"></p>
+                                </div>
+                                <span class="settings-card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+                            </button>
+                        </div>
+                    </section>
+
+                    <!-- Panel: Developer -->
+                    <section class="settings-panel" data-cat="build">
+                        <h3 class="settings-panel-title">Developer</h3>
+                        <div class="settings-card-group">
+                            <!-- Data activity and the detailed logs live together under Developer:
+                                 machine-local, with no counts on the door (docs/CLOUD_PRIVACY.md L1). -->
+                            <button class="settings-card settings-card-nav" id="settings-open-data-activity-btn" data-keywords="data activity ledger sent kept left this mac developer">
+                                <div class="settings-card-body">
+                                    <div class="settings-card-title">Data activity</div>
+                                    <p class="settings-card-detail settings-card-detail-wrap">Recent AI and web search activity by service</p>
+                                </div>
+                                <span class="settings-card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></span>
+                            </button>
+                            <button class="settings-card settings-card-nav" id="settings-open-llm-logs-btn" data-keywords="llm logs ai calls prompts requests left this mac ledger developer">
+                                <div class="settings-card-body">
+                                    <div class="settings-card-title">LLM Logs</div>
+                                    <p class="settings-card-detail settings-card-detail-wrap">Every AI call this Mac made, with the messages it carried and the reply</p>
+                                </div>
+                                <span class="settings-card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></span>
+                            </button>
+                            <button class="settings-card settings-card-nav" id="settings-open-search-logs-btn" data-keywords="web search logs queries developer">
+                                <div class="settings-card-body">
+                                    <div class="settings-card-title">Web Search Logs</div>
+                                    <p class="settings-card-detail settings-card-detail-wrap">Every web search query that left this Mac</p>
+                                </div>
+                                <span class="settings-card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></span>
+                            </button>
+                            <button class="settings-card settings-card-nav" id="settings-open-network-logs-btn" data-keywords="network logs requests servers developer">
+                                <div class="settings-card-body">
+                                    <div class="settings-card-title">Network Logs</div>
+                                    <p class="settings-card-detail settings-card-detail-wrap">Every server this app connected to</p>
+                                </div>
+                                <span class="settings-card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></span>
+                            </button>
+                            <div class="settings-card" data-keywords="advanced developer tools devtools debug inspect">
+                                <div class="settings-card-row">
+                                    <div>
+                                        <div class="settings-card-title">Developer Tools</div>
+                                        <p class="settings-card-hint">Chrome DevTools for debugging</p>
+                                    </div>
+                                    <label class="settings-switch">
+                                        <input type="checkbox" id="settings-devtools">
+                                        <span class="settings-switch-track"></span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+
+
+
+
+
+                </div>
+            </div>
+        </div>
+
+        <!-- Storage & Backup View -->
+        <div id="storage-backup-view" class="view app-view">
+            <div class="app-header-bar">
+                <h2 class="app-view-title">
+                    <span id="storage-backup-breadcrumb" class="app-breadcrumb"></span>
+                </h2>
+            </div>
+            <div class="settings-page">
+                <!-- Master list (2026-07-30): same pattern as the AI Assistant
+                     page — one row per setting with its current value, each row
+                     opening that setting's own page (openStorageSection). -->
+                <div id="sb-root">
+                    <div class="settings-card-group">
+                        <button class="settings-card settings-card-nav" data-sb-sec="sb-sec-location">
+                            <div class="settings-card-body">
+                                <div class="settings-card-title">Storage Location</div>
+                                <p class="settings-card-detail settings-card-detail-wrap" id="sb-hint-location"></p>
+                            </div>
+                            <span class="settings-card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+                        </button>
+                        <button class="settings-card settings-card-nav" data-sb-sec="sb-sec-files">
+                            <div class="settings-card-body">
+                                <div class="settings-card-title">Text Documents as Files</div>
+                                <p class="settings-card-detail" id="sb-hint-files"></p>
+                            </div>
+                            <span class="settings-card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+                        </button>
+                        <button class="settings-card settings-card-nav" data-sb-sec="sb-sec-usage">
+                            <div class="settings-card-body">
+                                <div class="settings-card-title">Data Usage</div>
+                                <p class="settings-card-detail" id="sb-hint-usage"></p>
+                            </div>
+                            <span class="settings-card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Storage Location -->
+                <div class="settings-section" id="sb-sec-location">
+                    <div class="settings-section-title">Storage Location</div>
+                    <p class="settings-section-desc">
+                        Your data lives in a private folder on this device. It leaves this Mac only through backup, and only when you turn it on.
+                    </p>
+                    <p id="storage-backup-path" class="settings-path"></p>
+                    <p id="storage-backup-custom-note" class="settings-custom-note" style="display: none;">Using custom location</p>
+                    <div class="settings-btn-row">
+                        <button id="settings-change-storage-btn" class="secondary-btn">Change Location</button>
+                        <button id="settings-reset-storage-btn" class="secondary-btn" style="display: none;">Reset to Default</button>
+                        <button id="settings-browse-db-btn" class="secondary-btn">Browse Database</button>
+                    </div>
+                </div>
+
+                <!-- Text documents as Markdown files (docs/CONTENT_FILES.md). Since
+                     2026-10-05 the folder is ~/nenva/Documents; the older ~/nenva/Notes
+                     and ~/nenva/Journal folders are left as they were. -->
+                <div class="settings-section" id="sb-sec-files" data-keywords="markdown files finder obsidian notes documents journal folder plain text">
+                    <div class="settings-section-title">Text Documents as Files</div>
+                    <p class="settings-section-desc">
+                        Every text document is also kept as a plain Markdown file in the nenva folder of your home directory, with images beside it. Open them in Finder or any editor, including Obsidian. Edits you make to the files show up in Anjadhe; edits here are written back to the files.
+                    </p>
+                    <div class="settings-toggle-row">
+                        <label class="settings-toggle-label">
+                            <input type="checkbox" id="settings-content-files-toggle">
+                            Keep text documents as Markdown files
+                        </label>
+                    </div>
+                    <p id="settings-content-files-path" class="settings-path"></p>
+                    <div class="settings-btn-row">
+                        <button id="settings-content-files-open-btn" class="secondary-btn">Open Folder</button>
+                    </div>
+                </div>
+
+                <!-- Data Usage -->
+                <div class="settings-section" id="sb-sec-usage">
+                    <div class="settings-section-title">Data Usage</div>
+                    <p class="settings-section-desc">
+                        How much space each app's data takes in your local database. Bars are relative to the largest app.
+                    </p>
+                    <div id="storage-usage-list" class="storage-usage-list">
+                        <p class="settings-hint">Calculating&hellip;</p>
+                    </div>
+                    <p id="storage-usage-total" class="storage-usage-total"></p>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Database Browser View -->
+        <div id="db-browser-view" class="view app-view">
+            <div class="app-header-bar">
+                <h2 class="app-view-title">
+                    <span id="db-browser-breadcrumb" class="app-breadcrumb"></span>
+                </h2>
+            </div>
+            <!-- width lives on #db-browser-view (settings.css) so the header shares it -->
+            <div class="settings-page settings-page-wide">
+                <div class="db-browser-toolbar">
+                    <input type="text" id="db-browser-search" class="settings-input" placeholder="Filter keys..." style="flex: 1;">
+                    <span id="db-browser-count" class="db-browser-count"></span>
+                </div>
+                <div id="db-browser-list" class="db-browser-list"></div>
+            </div>
+        </div>
+
+
+        <!-- Privacy Settings View -->
+        <!-- LLM Settings View -->
+        <!-- Add-model page (2026-08-05) — the guided add-model modal grown
+             into a full page. Left: a sources nav stating where each model
+             RUNS (the privacy model as structure). Right: the step pane;
+             its bodies are rendered by SettingsApp._renderAdd*Step — the
+             same functions the setup wizard still hosts inside a modal. -->
+        <div id="add-model-view" class="view app-view">
+            <div class="app-header-bar">
+                <h2 class="app-view-title">
+                    <span id="add-model-breadcrumb" class="app-breadcrumb"></span>
+                </h2>
+            </div>
+            <div class="add-model-page">
+                <header class="add-model-masthead">
+                    <h1 class="add-model-title">Add a model</h1>
+                    <p class="add-model-sub">Pick where it runs. What you use it for goes only there.</p>
+                </header>
+                <div class="add-model-layout">
+                    <nav class="add-model-nav" id="add-model-nav" aria-label="Where the model runs">
+                        <div class="add-model-nav-label">This Mac</div>
+                        <button type="button" class="add-model-src" data-add-src="local">
+                            <span class="add-model-src-name">On this Mac <span class="add-model-src-badge">Recommended</span></span>
+                            <span class="add-model-src-hint">Free and private &mdash; your data stays here</span>
+                        </button>
+                        <div class="add-model-nav-label">Somewhere else</div>
+                        <button type="button" class="add-model-src" data-add-src="anjadhe">
+                            <span class="add-model-src-name">nenva cloud</span>
+                            <span class="add-model-src-hint">Hosted by nenva &mdash; free allowance, no key</span>
+                        </button>
+                        <button type="button" class="add-model-src" data-add-src="server">
+                            <span class="add-model-src-name">Your server</span>
+                            <span class="add-model-src-hint">A computer you own</span>
+                        </button>
+                        <button type="button" class="add-model-src" data-add-src="openai">
+                            <span class="add-model-src-name">OpenAI API</span>
+                            <span class="add-model-src-hint">Your key, billed by OpenAI</span>
+                        </button>
+                        <button type="button" class="add-model-src" data-add-src="anthropic">
+                            <span class="add-model-src-name">Anthropic API</span>
+                            <span class="add-model-src-hint">Your key, billed by Anthropic</span>
+                        </button>
+                    </nav>
+                    <section class="add-model-pane">
+                        <h3 class="add-model-pane-title" id="add-model-pane-title"></h3>
+                        <div class="add-model-pane-body settings-add-model" id="add-model-pane-body"></div>
+                    </section>
+                </div>
+            </div>
+        </div>
+
+        <div id="llm-settings-view" class="view app-view">
+            <div class="app-header-bar">
+                <h2 class="app-view-title">
+                    <span id="llm-settings-breadcrumb" class="app-breadcrumb"></span>
+                </h2>
+            </div>
+            <div class="settings-page settings-page-wide">
+                <!-- Assistant name — the optional user-chosen name from
+                     setup's last step. Blank keeps the generic "AI Assistant"
+                     label. Auto-saves on blur/Enter (no Save button: every
+                     other control on this page saves itself). Bound by
+                     SettingsApp._bindAssistantName. -->
+                <div class="settings-section" id="llm-sec-name" data-keywords="assistant name rename call personalize identity">
+                    <div class="settings-section-title">Name</div>
+                    <p class="settings-section-desc">
+                        Give your assistant a name. It replaces the &ldquo;AI Assistant&rdquo;
+                        label across the app, and the assistant answers to it.
+                    </p>
+                    <div class="settings-input-row">
+                        <input type="text" id="settings-assistant-name" class="settings-input"
+                               maxlength="30" placeholder="e.g. Juno, Atlas, Mia&hellip;"
+                               autocomplete="off" spellcheck="false" aria-label="Assistant name">
+                    </div>
+                    <p class="settings-hint">Saves automatically.</p>
+                </div>
+
+                <!-- Model library — THE model surface. The DEFAULT entry is
+                     the brain for every AI feature (setDefaultEntry writes
+                     through to the legacy provider settings). One card per
+                     entry; each card's Manage renders inline INSIDE the card
+                     (no shared panels). New models are added via the Add
+                     Model page (#add-model-view). Rendered by
+                     SettingsApp._renderModelLibrary. -->
+                <div class="settings-section" id="llm-sec-models">
+                    <div class="settings-section-title">Your Models</div>
+                    <p class="settings-section-desc">
+                        The model marked <strong>Default</strong> powers everything: chat, email insights,
+                        suggestions, and routines. Switch it here or from the model chip in the chat box.
+                    </p>
+                    <div id="settings-model-cards" class="settings-model-cards"></div>
+                    <!-- Quiet engine-update row; SettingsApp._renderEngineUpdate
+                         unhides it only when remote config pins a newer
+                         llama.cpp build than the one installed. -->
+                    <div id="settings-engine-update" class="settings-engine-update" hidden></div>
+                    <div class="settings-input-row" style="margin-top: var(--space-sm);">
+                        <button id="settings-add-model-btn" class="secondary-btn">+ Add model</button>
+                    </div>
+                    <p class="settings-hint">This list is per-Mac and does not sync. Your data goes only where the model you choose runs: this Mac, your own server, a provider you added yourself, or nenva cloud if you chose it. Each model has its own license; downloading one means accepting its terms.</p>
+
+                </div>
+
+                <!-- Web Search — the Add Model page's design (2026-08-05):
+                     serif masthead carrying the master switch, a providers
+                     nav stating where queries GO, detail pane per provider.
+                     Shares the add-model-* classes on purpose — one design
+                     system. Rendered by SettingsApp._renderSearchProviders. -->
+                <div id="settings-search-section" class="settings-section">
+                    <header class="add-model-masthead search-masthead">
+                        <div class="search-masthead-text">
+                            <h1 class="add-model-title">Web search</h1>
+                            <p class="add-model-sub">Lets the assistant look up current events and other facts beyond your local data. Queries go only to the provider you pick.</p>
+                        </div>
+                        <label class="settings-switch" title="Enable web search">
+                            <input type="checkbox" id="settings-search-enabled" aria-label="Enable web search">
+                            <span class="settings-switch-track"></span>
+                        </label>
+                    </header>
+                    <p class="settings-hint" id="settings-search-off-hint" hidden>Off &mdash; nothing in nenva sends queries to the web. The assistant, News, and routines all work from local data only.</p>
+                    <div class="add-model-layout" id="settings-search-layout" hidden>
+                        <nav class="add-model-nav" id="settings-search-nav" aria-label="Search providers"></nav>
+                        <section class="add-model-pane">
+                            <h3 class="add-model-pane-title" id="settings-search-pane-title"></h3>
+                            <div class="add-model-pane-body" id="settings-search-pane-body"></div>
+                        </section>
+                    </div>
+                    <p class="settings-hint" id="settings-search-keys-hint" hidden>API keys are stored encrypted on this Mac and are not synced.</p>
+                </div>
+
+                <!-- Tool servers + permissions — moved here from the old
+                     intermediate "AI" category page (2026-07-24): one page
+                     for everything about the assistant. -->
+                <div class="settings-section" id="llm-sec-mcp" data-feature="mcp" data-keywords="mcp tool servers external model context protocol">
+                    <div class="settings-section-title">Tool Servers (MCP)</div>
+                    <p class="settings-section-desc">
+                        Connect MCP tool servers (GitHub, files, databases&hellip;) to give the assistant new abilities. Every call needs your approval unless you trust the server.
+                    </p>
+                    <div id="settings-mcp-list"></div>
+                    <div class="settings-btn-row">
+                        <button id="settings-mcp-add-btn" class="secondary-btn">&#43; Add Server</button>
+                    </div>
+                </div>
+
+                <div class="settings-section" id="llm-sec-permissions" data-keywords="ai assistant permissions grants allow approve revoke">
+                    <div class="settings-section-title">Permissions</div>
+                    <p class="settings-section-desc">
+                        Permissions you saved let nenva act without asking each time. Review their scope, set limits, or remove them here.
+                    </p>
+                    <div class="agent-perm-toolbar" id="settings-agent-permissions-search-wrap" hidden>
+                        <div class="agent-perm-search">
+                            <input type="search" class="settings-input" id="settings-agent-permissions-search" placeholder="Search permissions" aria-label="Search permissions" aria-controls="settings-agent-permissions-list" autocomplete="off">
+                            <button type="button" class="secondary-btn" id="settings-agent-permissions-clear" hidden>Clear</button>
+                        </div>
+                        <div class="agent-perm-filters" id="settings-agent-permissions-filters" role="group" aria-label="Permission sections"></div>
+                    </div>
+                    <p class="agent-perm-search-status" id="settings-agent-permissions-status" role="status" hidden></p>
+                    <div id="settings-agent-permissions-list"></div>
+                    <div class="agent-perm-empty" id="settings-agent-permissions-no-results" hidden>
+                        <strong>No matching permissions</strong>
+                        <p>Try another section, search for an action or path, or clear your search.</p>
+                    </div>
+                    <p class="settings-hint agent-perm-footnote">These permissions apply only on this Mac. Temporary approvals end when you restart the app.</p>
+                </div>
+
+                <!-- Memory + Logs live as rows in #llm-root above — their
+                     heavy lists render in their own sub-views on demand. -->
+            </div>
+        </div>
+
+        <!-- Memories View — opened from AI Assistant > Memories card. -->
+        <div id="memories-settings-view" class="view app-view">
+            <div class="app-header-bar">
+                <h2 class="app-view-title">
+                    <span id="memories-settings-breadcrumb" class="app-breadcrumb"></span>
+                </h2>
+            </div>
+            <!-- Memory (2026-10-01): one list of short facts, rendered by
+                 MemoryUI (js/agent/memory-ui.js) over MemoryManager. -->
+            <div id="memory-page" class="settings-page memory-page">
+                <p class="memory-lede">What nenva remembers about you. It notes lasting things you tell it in chat. Click anything to fix it; starred facts go into every chat.</p>
+                <div class="memory-add">
+                    <input type="text" id="memory-add-input" placeholder="Tell nenva something to remember…" maxlength="240" autocomplete="off">
+                    <select id="memory-add-heading" aria-label="Where it goes"></select>
+                    <button type="button" id="memory-add-btn" class="secondary-btn">Add</button>
+                </div>
+                <input type="search" id="memory-search" class="memory-search" placeholder="Search" aria-label="Search memory" autocomplete="off">
+                <div id="memory-list" class="memory-list"></div>
+            </div>
+        </div>
+
+        <!-- LLM Logs View — the developer's view, opened from Settings › Advanced › Developer (2026-10-07). -->
+        <div id="llm-logs-view" class="view app-view">
+            <div class="app-header-bar">
+                <h2 class="app-view-title">
+                    <span id="llm-logs-breadcrumb" class="app-breadcrumb"></span>
+                </h2>
+            </div>
+            <div class="settings-page settings-page-wide">
+                <div class="settings-section">
+                    <p class="settings-section-desc">
+                        All AI calls from the chat agent and email analysis are logged here.
+                    </p>
+                    <div class="settings-btn-row" style="margin-bottom: var(--space-md);">
+                        <button id="settings-logs-refresh-btn" class="secondary-btn">Refresh</button>
+                        <button id="settings-logs-clear-btn" class="secondary-btn">Clear Logs</button>
+                        <select id="settings-logs-scope" class="settings-input" title="Filter by where the request ran" aria-label="Where the request ran">
+                            <option value="all">Everywhere</option>
+                            <option value="left">Left this Mac</option>
+                            <option value="local">Stayed on this Mac</option>
+                        </select>
+                        <input type="search" id="settings-logs-search" class="settings-input" placeholder="Search source, model, prompt, response&hellip;">
+                    </div>
+                    <div id="settings-logs-container" class="llm-logs-list">
+                        <!-- Log entries rendered dynamically -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Web Search Logs View — the developer's view, opened from Settings › Advanced › Developer. -->
+        <div id="search-logs-view" class="view app-view">
+            <div class="app-header-bar">
+                <h2 class="app-view-title">
+                    <span id="search-logs-breadcrumb" class="app-breadcrumb"></span>
+                </h2>
+            </div>
+            <div class="settings-page settings-page-wide">
+                <div class="settings-section">
+                    <p class="settings-section-desc">
+                        Every web search query sent to your active provider is recorded here so you can see exactly what text left this machine. Result content is not stored.
+                    </p>
+                    <div class="settings-btn-row" style="margin-bottom: var(--space-md);">
+                        <button id="settings-search-logs-refresh-btn" class="secondary-btn">Refresh</button>
+                        <button id="settings-search-logs-clear-btn" class="secondary-btn">Clear Logs</button>
+                        <input type="search" id="settings-search-logs-search" class="settings-input" placeholder="Search query, provider&hellip;">
+                    </div>
+                    <div id="settings-search-logs-container" class="llm-logs-list">
+                        <!-- Search log entries rendered dynamically -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Network Logs View — the developer's view, opened from Settings › Advanced › Developer. -->
+        <div id="network-logs-view" class="view app-view">
+            <div class="app-header-bar">
+                <h2 class="app-view-title">
+                    <span id="network-logs-breadcrumb" class="app-breadcrumb"></span>
+                </h2>
+            </div>
+            <div class="settings-page settings-page-wide">
+                <div class="settings-section">
+                    <p class="settings-section-desc">
+                        Every outbound network connection the app makes is recorded here — including the auto-updater and bundled libraries, not just features built into the app. Only metadata is stored (server, path, status, size, timing). Request and response contents, headers, and tokens are not logged.
+                    </p>
+                    <div class="settings-btn-row" style="margin-bottom: var(--space-md);">
+                        <button id="settings-network-logs-refresh-btn" class="secondary-btn">Refresh</button>
+                        <button id="settings-network-logs-clear-btn" class="secondary-btn">Clear Logs</button>
+                    </div>
+                    <div id="settings-network-logs-container" class="llm-logs-list">
+                        <!-- Network log entries rendered dynamically -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Network Log Detail View -->
+        <div id="net-log-detail-view" class="view app-view">
+            <div class="app-header-bar">
+                <h2 class="app-view-title">
+                    <span id="net-log-detail-breadcrumb" class="app-breadcrumb"></span>
+                </h2>
+            </div>
+            <div id="net-log-detail-content" class="settings-page settings-page-wide">
+                <!-- Rendered dynamically -->
+            </div>
+        </div>
+
+        <!-- LLM Log Detail View -->
+        <div id="llm-log-detail-view" class="view app-view">
+            <div class="app-header-bar">
+                <h2 class="app-view-title">
+                    <span id="llm-log-detail-breadcrumb" class="app-breadcrumb"></span>
+                </h2>
+            </div>
+            <div id="llm-log-detail-content" class="settings-page settings-page-wide">
+                <!-- Rendered dynamically -->
+            </div>
+        </div>
+
+        <!-- The Automations page was removed 2026-08-03 (C10): Automations and
+             Routines were one concept split by build order. "Waiting on you"
+             moved into #prompts-view; "Standing permissions" was always also
+             in Settings › AI Assistant, which is now its only home. -->
+
+
+        <!-- About View -->
+        <div id="about-view" class="view app-view">
+            <div class="app-header-bar">
+                <h2 class="app-view-title">
+                    <span id="about-breadcrumb" class="app-breadcrumb">About</span>
+                </h2>
+                <button id="about-alpha-pill" class="about-alpha-pill" type="button" title="What does Closed Alpha mean?">Closed Alpha</button>
+            </div>
+
+            <div class="dashboard-container">
+            <div class="dash-welcome" style="display:block;">
+
+                <!-- 1 · The canvas (narrative ported from the website's How it works page) -->
+                <div class="dash-welcome-section">
+                    <div class="about-hero">
+                        <div class="about-hero-content">
+                            <h2 class="about-hero-title">
+                                First the apps and your data.<br>
+                                Then the AI.
+                            </h2>
+                            <p class="about-hero-lead">
+                                nenva starts as a canvas for apps. A task manager, a notes app, a journal, an email client, a calendar, an investment portfolio. Apps you already know, living together inside one desktop application on your Mac.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="about-canvas-frame">
+                        <span class="about-canvas-frame-label">Your Mac</span>
+                        <div class="about-canvas-chips">
+                            <span class="about-chip">Tasks</span>
+                            <span class="about-chip">Notes</span>
+                            <span class="about-chip">Email</span>
+                            <span class="about-chip">Calendar</span>
+                            <span class="about-chip">Investment Portfolio</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2 · Your data -->
+                <div class="dash-welcome-section">
+                    <h3 class="dash-welcome-section-title">What you create is saved to your Mac's SSD</h3>
+                    <p class="dash-welcome-section-desc">When you create a task or write a note, it lands on the disk inside your Mac, not on someone's server. Your data stays private on your machine, and you can be confident of that.</p>
+                    <p class="dash-welcome-section-desc">Optionally, turn on backups so you never lose anything: a copy of your apps' data, saved to a folder in your own iCloud Drive, private storage that only your machines can reach. If you ever need to restore to a point in time, you can do that easily.</p>
+                    <div class="about-flow">
+                        <span class="about-chip">Your apps</span>
+                        <span class="about-flow-arrow">&#8594;</span>
+                        <span class="about-chip">Your Mac's SSD</span>
+                        <span class="about-flow-arrow">&#8674;</span>
+                        <span class="about-chip about-chip-dashed">iCloud Drive backup &middot; optional</span>
+                    </div>
+                </div>
+
+                <!-- 3 · The promise -->
+                <div class="dash-welcome-section">
+                    <p class="about-promise">That's the privacy promise, implemented. No one else can access your data. Not even the nenva team. There is nothing on our side to breach, to subpoena, or to sell.</p>
+                    <p class="dash-welcome-section-desc">A claim you can test: unplug the network, and the apps, your data, and a local AI model all keep working.</p>
+                </div>
+
+                <!-- 4 · Enter AI -->
+                <div class="dash-welcome-section">
+                    <h3 class="dash-welcome-section-title">Now, let's introduce AI: what if you didn't have to keep watch yourself?</h3>
+                    <p class="dash-welcome-section-desc">Up to this point, you drive the apps yourself: plan a project, break it into tasks with dates, and work through them with clarity. That alone is a good, organized life.</p>
+                    <p class="dash-welcome-section-desc">But instead of you keeping watch on what needs doing today, what if a personal AI tracked your schedule and slotted each new thing into the right place?</p>
+                    <div class="dash-welcome-grid dash-welcome-grid-2" style="margin-top: var(--space-md);">
+                        <div class="dash-welcome-card">
+                            <div class="dash-welcome-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+                            <h4>A meeting</h4>
+                            <p>On your calendar, shown in today's list before you ask.</p>
+                        </div>
+                        <div class="dash-welcome-card">
+                            <div class="dash-welcome-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg></div>
+                            <h4>An action item buried in an email</h4>
+                            <p>Found by AI analysis and filed into Actions on the right day.</p>
+                        </div>
+                        <div class="dash-welcome-card">
+                            <div class="dash-welcome-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2"/><path d="M5 3 2 6"/><path d="m19 3 3 3"/></svg></div>
+                            <h4>A renewal you cannot miss</h4>
+                            <p>Spotted in the inbox and scheduled ahead of the deadline.</p>
+                        </div>
+                        <div class="dash-welcome-card">
+                            <div class="dash-welcome-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="13" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="6" y1="15" x2="10" y2="15"/></svg></div>
+                            <h4>A subscription you didn't know you were still paying</h4>
+                            <p>Surfaced from billing email so you can decide if it stays.</p>
+                        </div>
+                    </div>
+                    <p class="dash-welcome-framework-hint">An assistant like that has to understand plain language, the kind that lives in your emails, calendar events, and documents. And hence the need for AI.</p>
+                </div>
+
+                <!-- 5 · What an LLM is -->
+                <div class="dash-welcome-section">
+                    <h3 class="dash-welcome-section-title">What an LLM is: a model of language itself</h3>
+                    <p class="dash-welcome-section-desc">AI is quite different from the technologies before it: apps, web services, databases. Its current engine is the Large Language Model, and the name is literal: a model of language information. English has around 150,000 words and countless ways to arrange them into meaning.</p>
+                    <p class="dash-welcome-section-desc">Think of an LLM as the computer version of a genius student who has read all the English text on the internet. Hand it an email or a document, and it can tell you what information is in there.</p>
+                </div>
+
+                <!-- 6 · Open-weight models -->
+                <div class="dash-welcome-section">
+                    <h3 class="dash-welcome-section-title">Some of the best models are free</h3>
+                    <p class="dash-welcome-section-desc">LLMs are created through an expensive process called training, by companies that spend millions of dollars on it. Some keep their models behind closed doors, reachable only through their cloud. Others release theirs for the public to use directly, without paying the company that built them.</p>
+                    <div class="about-definition">
+                        <h4>Open-weight models</h4>
+                        <p>Models anyone can download and run on their own computer, and use to understand any piece of text or image, on their own machine.</p>
+                    </div>
+                </div>
+
+                <!-- 7 · All together -->
+                <div class="dash-welcome-section">
+                    <h3 class="dash-welcome-section-title">nenva brings the three together</h3>
+                    <p class="dash-welcome-section-desc">nenva identifies which models are right for your Mac, then puts the apps, your data, and the AI in one place, so you can plan a project, keep track of your daily schedule, research whatever you need to do, and create the documents your work and personal life call for, with the core promise intact: your data stays private.</p>
+                    <p class="dash-welcome-section-desc about-byok-note">On a lighter Mac, you can instead bring your own OpenAI or Anthropic key. Always your explicit choice, never a default.</p>
+                    <p class="dash-welcome-section-desc">And because the assistant can do real things, its manners are built in: it asks before a routine is armed to run on its own, and before anything destructive happens.</p>
+                    <div class="about-equation">
+                        <span class="about-equation-term"><strong>Your personal data</strong><small>stored on your devices</small></span>
+                        <span class="about-equation-op">+</span>
+                        <span class="about-equation-term"><strong>Private AI</strong><small>running on your devices</small></span>
+                        <span class="about-equation-op">=</span>
+                        <span class="about-equation-result"><span class="about-equation-term"><strong>nenva</strong><small>your own personal AI</small></span></span>
+                    </div>
+                </div>
+
+                <div class="dash-welcome-footer">
+                    <p class="dash-welcome-footer-tagline">Personal software in the old sense: it lives on your Mac, holds your data on your own disk, and works when the internet doesn't.</p>
+                    <p class="dash-welcome-footer-source">And none of it on faith: the app's full source code is public. <a id="about-source-link" href="#">Read it on GitHub</a>.</p>
+                    <p class="dash-welcome-footer-source"><a id="about-whats-new-link" href="#">What's new</a> &middot; <a id="about-changelog-link" href="#">Changelog</a> &middot; <a id="about-contact-link" href="#">Contact the founder</a></p>
+                    <p class="dash-welcome-footer-source"><a id="about-terms-link" href="#">Terms of Service</a> &middot; <a id="about-privacy-link" href="#">Privacy Policy</a></p>
+                    <!-- Model credits (2026-09-30): curated models are named by
+                         tier, never by model (js/agent/model-names.js), and some
+                         open-weight licenses (Gemma) expect attribution — so the
+                         families are credited here, once. -->
+                    <p class="dash-welcome-footer-source about-model-credits">nenva cloud and nenva local run open-weight models, including models from the Qwen, DeepSeek, Gemma, GLM and gpt-oss families, under their own licenses.</p>
+                </div>
+
+            </div>
+            </div>
+        </div>
+
+        <!-- AI Assistant App View -->
+        <div id="agent-view" class="view app-view app-view-full">
+            <div class="app-header-bar">
+                <div class="agent-app-header-left">
+                    <button id="agent-sidebar-toggle" class="agent-sidebar-toggle" type="button" title="Toggle conversation sidebar" aria-label="Toggle conversation sidebar"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg></button>
+                    <h2 class="app-view-title">
+                        <span id="agent-breadcrumb" class="app-breadcrumb">AI Assistant</span>
+                    </h2>
+                </div>
+                <div class="agent-app-header-actions">
+                    <!-- Private chat toggle (js/agent/private-chat.js): starts a
+                         chat that is never saved or remembered; pressed while
+                         one is open, where a click ends it. Painted by
+                         AgentUI.updatePrivateUI. -->
+                    <button id="agent-private-btn" class="agent-private-btn" type="button" aria-pressed="false" title="Start a private chat: not saved to your history, and not remembered"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 5.1A10 10 0 0 1 12 5c5 0 9 4.5 10 7a13 13 0 0 1-2.4 3.5"/><path d="M6.6 6.6A13 13 0 0 0 2 12c1 2.5 5 7 10 7a9.6 9.6 0 0 0 5.1-1.5"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg><span class="agent-private-btn-label">Private</span></button>
+                    <button id="agent-new-chat-btn" class="agent-new-chat-btn" type="button" title="New conversation" aria-label="New conversation">+ New chat</button>
+                    <button id="agent-app-memory-btn" class="agent-context-chip agent-memory-chip" type="button" title="What the assistant remembers about you">Memory</button>
+                    <button class="icon-btn app-settings-btn" data-settings-for="agent" title="AI Assistant settings" aria-label="AI Assistant settings"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+                </div>
+            </div>
+            <div class="agent-app-layout">
+                <div class="agent-history-sidebar">
+                    <div id="agent-history-list" class="agent-history-list"></div>
+                </div>
+                <div class="agent-chat-main">
+                    <!-- Related record for the active conversation (the
+                         task/note/… it was started over). Populated by
+                         AgentUI.updateRecordBanner; hidden when the chat has no
+                         associated record. -->
+                    <div id="agent-record-banner" class="agent-record-banner" hidden></div>
+                    <!-- Private chat banner: what private means + the "Use my
+                         personal info" checkbox + End. AgentUI.updatePrivateUI. -->
+                    <div id="agent-private-banner" class="agent-private-banner" hidden></div>
+                    <div id="agent-app-messages" class="agent-messages-area"></div>
+                    <!-- Warming hint: shown just above the composer while the
+                         local model is loading, so the wait reads as a one-time
+                         load rather than a slow assistant. Toggled by
+                         AgentUI._paintComposerWarming. -->
+                    <div id="agent-app-warming-hint" class="agent-warming-hint" hidden>
+                        <span class="agent-warming-hint-dot" aria-hidden="true"></span>
+                        <span class="agent-warming-hint-text"></span>
+                    </div>
+                    <!-- Inline ask slot: permission requests and "continue past the
+                         tool limit?" offers render here as a card with buttons
+                         instead of a modal (AgentUI._paintInlineSlot). -->
+                    <div id="agent-app-ask" class="agent-inline-ask" hidden></div>
+                    <!-- Composer card: attachments strip + auto-growing textarea +
+                         actions row (attach left, send right). Enter sends,
+                         Shift+Enter breaks a line. Files stay on-device; text/PDF
+                         content is parsed locally. -->
+                    <div class="agent-input-bar">
+                        <div class="agent-composer">
+                            <!-- Messages queued while the assistant is still replying —
+                                 sent together as the next turn (AgentUI._renderQueuedStrip). -->
+                            <div id="agent-app-queued" class="agent-queued" hidden></div>
+                            <div id="agent-app-attachments" class="agent-attachments" hidden></div>
+                            <textarea id="agent-app-input" rows="1" placeholder="Ask anything&hellip;"></textarea>
+                            <div class="agent-composer-actions">
+                                <button class="agent-attach-btn" type="button" title="Attach a file (text, CSV, PDF)" aria-label="Attach a file">+</button>
+                                <!-- Default model entry (engine · model) — click
+                                     opens the entry dropdown (AgentUI.updateModelChip).
+                                     The readiness dot rides beside it, as on home. -->
+                                <div class="agent-model-select">
+                                    <button id="agent-app-model-chip" class="agent-context-chip agent-model-chip" type="button"></button>
+                                </div>
+                                <span id="agent-app-readiness" class="agent-readiness" title="Assistant status">
+                                    <span class="agent-readiness-dot"></span>
+                                    <span class="agent-readiness-text"></span>
+                                </span>
+                                <!-- One slot: ↑ send when idle, ■ stop while generating.
+                                     Enter mid-stream queues; the queued strip above the
+                                     textarea carries the "send now" (interrupt) control. -->
+                                <button id="agent-app-send-btn" title="Send">&#x2191;</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- reader-view comes from the reader package's view.html
+             (js/apps/reader/), appended by BundledApps.load. -->
+
+        </div><!-- /app-views -->
+    </div><!-- /app-container -->
+
+    <!-- Contextual "Ask about this" CTA. Auto-shows when the active app
+         has provider context (e.g., a note is open in the editor). Hidden
+         otherwise. Click opens the agent panel. -->
+    <button id="agent-context-cta" class="agent-context-cta" type="button" style="display: none;">
+        <span class="agent-context-cta-icon">&#x2728;</span>
+        <span class="agent-context-cta-label">Ask about this</span>
+    </button>
+
+    <!-- Agent Chat Panel (a bottom sheet over the page since 2026-10-09, opens via #agent-toggle-btn in titlebar) -->
+    <div id="agent-panel-scrim" aria-hidden="true"></div>
+    <div id="agent-panel">
+        <div class="agent-header">
+            <span class="agent-header-title">Assistant</span>
+            <button id="agent-new-btn" class="agent-header-btn" title="New chat">+</button>
+            <button id="agent-expand-btn" class="agent-header-btn" title="Open full view">&#x2197;</button>
+            <div class="agent-overflow">
+                <button id="agent-overflow-btn" class="agent-header-btn" title="Chat settings" aria-haspopup="true" aria-expanded="false">&#x22EF;</button>
+                <!-- Per-chat settings, demoted out of the header row. The chip
+                     buttons keep their original IDs so AgentUI's paint logic
+                     (updateContextChip / updateThinkChip) drives them unchanged;
+                     CSS restyles them as full-width menu rows in here. -->
+                <div id="agent-overflow-menu" class="agent-overflow-menu" role="menu" hidden>
+                    <button id="agent-private-chip" class="agent-context-chip agent-private-chip" type="button" role="menuitem"></button>
+                    <button id="agent-context-chip" class="agent-context-chip" type="button" role="menuitem"></button>
+                    <button id="agent-think-chip" class="agent-context-chip agent-think-chip" type="button" role="menuitem"></button>
+                    <!-- Shown only while a local model is resident (see
+                         AgentUI._paintUnloadControls). Frees its RAM on click. -->
+                    <button id="agent-unload-btn" class="agent-context-chip agent-unload-chip" type="button" role="menuitem" hidden>Free memory (unload model)</button>
+                </div>
+            </div>
+            <button id="agent-close-btn" class="agent-header-btn" title="Close">&#x2715;</button>
+        </div>
+        <div id="agent-messages"></div>
+        <div id="agent-warming-hint" class="agent-warming-hint" hidden>
+            <span class="agent-warming-hint-dot" aria-hidden="true"></span>
+            <span class="agent-warming-hint-text"></span>
+        </div>
+        <!-- Attached record (the app view's #agent-record-banner twin) — in
+             the panel it sits with the composer, where @-mentions set it. -->
+        <div id="agent-panel-record-banner" class="agent-record-banner agent-record-banner--panel" hidden></div>
+        <!-- Private chat banner (the app view's #agent-private-banner twin). -->
+        <div id="agent-panel-private-banner" class="agent-private-banner agent-private-banner--panel" hidden></div>
+        <!-- Conversation goal (see the agent-app view's twin above). -->
+        <!-- Inline ask slot (see the agent-app view's twin above). -->
+        <div id="agent-ask" class="agent-inline-ask" hidden></div>
+        <div class="agent-input-bar">
+            <div class="agent-composer">
+                <!-- Messages queued while the assistant is still replying —
+                     they're sent together as the next turn (AgentUI._renderQueuedStrip). -->
+                <div id="agent-queued" class="agent-queued" hidden></div>
+                <div id="agent-attachments" class="agent-attachments" hidden></div>
+                <textarea id="agent-input" rows="1" placeholder="Ask anything&hellip;"></textarea>
+                <div class="agent-composer-actions">
+                    <button class="agent-attach-btn" type="button" title="Attach a file (text, CSV, PDF)" aria-label="Attach a file">+</button>
+                    <!-- Default model entry — click opens the entry dropdown.
+                         The readiness dot rides beside it, as on home. -->
+                    <div class="agent-model-select">
+                        <button id="agent-model-chip" class="agent-context-chip agent-model-chip" type="button"></button>
+                    </div>
+                    <span id="agent-readiness" class="agent-readiness" title="Assistant status">
+                        <span class="agent-readiness-dot"></span>
+                        <span class="agent-readiness-text"></span>
+                    </span>
+                    <!-- One slot: ↑ send when idle, ■ stop while generating.
+                         Enter mid-stream queues; the queued strip above the
+                         textarea carries the "send now" (interrupt) control. -->
+                    <button id="agent-send-btn" title="Send">&#x2191;</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Container -->
+    <div id="modal-container"></div>
+
+    <!-- Toast Container -->
+    <div id="toast-container"></div>
+
+    <!-- Scripts -->
+    <script src="js/core/storage-manager.js"></script>
+    <script src="js/core/assistant-identity.js"></script>
+    <script src="js/core/app-manifest.js"></script>
+    <script src="js/core/bundled-apps.js"></script>
+    <script src="js/core/record-types.js"></script>
+    <script src="js/core/app-spec.js"></script>
+    <script src="js/core/spec-renderer.js"></script>
+    <script src="js/core/anjadhe-sdk.js"></script>
+    <script src="js/core/feature-policy.js"></script>
+    <script src="js/core/features.js"></script>
+    <script src="js/core/ai-activity.js"></script>
+    <script src="js/core/cloud-privacy.js"></script>
+    <script src="js/core/institution-link.js"></script>
+    <script src="js/core/analytics-manager.js"></script>
+    <script src="js/core/license-claim.js"></script>
+    <script src="js/core/feedback-manager.js"></script>
+    <script src="js/core/apple-import.js"></script>
+    <script src="js/core/content-files.js"></script>
+    <script src="js/core/journal-export.js"></script>
+    <script src="js/core/notify.js"></script>
+    <script src="js/core/proactive.js"></script>
+    <script src="js/core/app-manager.js"></script>
+    <!-- Asked before every reload (AppManager.requestReload). Its sources
+         read other modules lazily, so load order doesn't matter. -->
+    <script src="js/core/background-work.js"></script>
+    <!-- Widget registry must parse before any js/apps/**/ *-widget.js, which
+         call Widgets.register() at load time. -->
+    <script src="js/core/widgets.js"></script>
+    <script src="js/core/global-search.js"></script>
+    <script src="js/core/updater-ui.js"></script>
+    <script src="js/core/whats-new.js"></script>
+    <!-- AgentContext loads before any sub-app so each app's
+         AgentContext.register(...) call at script-load time finds the
+         registry already defined. The other agent scripts (service, ui,
+         tools) load later because they depend on app code, but the
+         registry itself is dependency-free. -->
+    <script src="js/agent/agent-context.js"></script>
+    <script src="js/components/modal.js"></script>
+    <script src="js/components/ui-utils.js"></script>
+    <script src="js/components/save-status.js"></script>
+    <script src="js/components/page-chat.js"></script>
+    <script src="js/components/answer-blocks.js"></script>
+    <script src="js/components/celebration.js"></script>
+    <script src="js/components/command-palette.js"></script>
+    <script src="js/core/today-help.js"></script>
+    <script src="js/core/check-ins.js"></script>
+    <script src="js/core/ask-after.js"></script>
+    <script src="js/core/raises.js"></script>
+    <script src="js/core/note-tags.js"></script>
+    <script src="js/core/sources.js"></script>
+    <script src="js/core/pref-asks.js"></script>
+    <script src="js/core/rhythm.js"></script>
+    <script src="js/core/work-plans.js"></script>
+    <script src="js/core/money-facts.js"></script>
+    <script src="js/core/money-plan.js"></script>
+    <script src="js/core/money-coach.js"></script>
+    <script src="js/core/money-settle.js"></script>
+    <script src="js/core/simple-settings.js"></script>
+    <script src="js/core/simple-connectors.js"></script>
+    <script src="js/core/plan-usage.js"></script>
+    <script src="js/core/simple-settings-pages.js"></script>
+    <script src="js/core/simple-telegram.js"></script>
+    <script src="js/core/phone-reach.js"></script>
+    <script src="js/core/source-adapters.js"></script>
+    <script src="js/core/notion-connector.js"></script>
+    <script src="js/core/slack-connector.js"></script>
+    <script src="js/core/linear-connector.js"></script>
+    <script src="js/core/apple-notes-source.js"></script>
+    <script src="js/core/simple-experience.js"></script>
+    <script src="js/core/background-runtime.js"></script>
+    <script src="js/components/rich-editor.js"></script>
+    <script src="js/components/tag-picker.js"></script>
+    <script src="js/core/link-manager.js"></script>
+    <script src="js/components/link-picker.js"></script>
+    <script src="js/components/review-routines.js"></script>
+    <script src="js/components/decisions-ui.js"></script>
+    <script src="js/components/updates-ui.js"></script>
+    <script src="js/components/record-mention.js"></script>
+    <script src="js/components/nav-resizer.js"></script>
+    <script src="js/components/image-lightbox.js"></script>
+    <script src="js/apps/notes/note-templates.js"></script>
+    <script src="js/apps/notes/note-prompts.js"></script>
+    <script src="js/apps/notes/notes-app.js"></script>
+    <script src="js/apps/notes/notes-ui.js"></script>
+    <script src="js/apps/goals/goals-app.js"></script>
+    <script src="js/apps/goals/goal-interview.js"></script>
+    <script src="js/apps/schedule/schedule-quick-parse.js"></script>
+    <script src="js/apps/schedule/schedule-app.js"></script>
+    <script src="js/apps/schedule/schedule-ui.js"></script>
+    <script src="js/apps/schedule/task-groups.js"></script>
+    <script src="js/apps/actions/actions-widget.js"></script>
+    <script src="js/apps/prompts/routine-about.js"></script>
+    <script src="js/core/routine-look.js"></script>
+    <script src="js/core/routine-failures.js"></script>
+    <script src="js/core/instructions.js"></script>
+    <script src="js/core/routine-convert.js"></script>
+    <script src="js/apps/prompts/prompt-feed.js"></script>
+    <script src="js/apps/prompts/routine-interview.js"></script>
+    <script src="js/apps/prompts/prompts-app.js"></script>
+    <script src="js/apps/prompts/routine-from-chat.js"></script>
+    <script src="js/apps/prompts/prompts-widget.js"></script>
+    <script src="node_modules/chart.js/dist/chart.umd.min.js"></script>
+    <script src="js/apps/calendar/event-details.js"></script>
+    <script src="js/apps/calendar/calendar-app.js"></script>
+    <script src="js/apps/calendar/calendar-widget.js"></script>
+    <!-- The insight-analysis prompt, extracted so tests/email-insight-eval.js
+         runs the EXACT prompt the app ships (Node-exported, the EmailTrips
+         pattern). Before email-app.js, which calls it at analysis time. -->
+    <script src="js/apps/email/email-insight-prompt.js"></script>
+    <script src="js/core/matters.js"></script>
+    <script src="js/core/matter-sources.js"></script>
+    <script src="js/core/commitments.js"></script>
+    <script src="js/core/pins.js"></script>
+    <script src="js/core/coach-domains.js"></script>
+    <script src="js/core/coach.js"></script>
+    <script src="js/core/wellness-fold.js"></script>
+    <script src="js/apps/commitments/commitments-page.js"></script>
+    <script src="js/core/trips.js"></script>
+    <script src="js/apps/email/email-app.js"></script>
+    <script src="js/apps/email/email-ui.js"></script>
+    <!-- Trip clustering before the two widgets that read it: the Trips card
+         renders the clusters, the Email card excludes what they cover. -->
+    <script src="js/apps/email/email-trips.js"></script>
+    <script src="js/apps/email/email-widget.js"></script>
+    <!-- Texts as an insight source: registers with EmailApp from
+         AppManager.init and feeds iMessage conversations to the same
+         engine. After email-app.js (it registers against it); the FYI page
+         reads it at runtime only. -->
+    <script src="js/apps/email/imessage-source.js"></script>
+    <!-- Email Insights: the Actions hub's third tab, over EmailApp's analyses. Loaded
+         after email-app.js — it reads EmailApp at runtime only, but keeping
+         the order honest costs nothing. -->
+    <script src="js/apps/fyi/fyi-page.js"></script>
+    <script src="js/core/accounts-manager.js"></script>
+    <script src="js/apps/settings/settings-app.js"></script>
+    <script src="js/apps/about/about-app.js"></script>
+    <script src="js/agent/private-chat.js"></script>
+    <script src="js/agent/model-names.js"></script>
+    <script src="js/agent/model-routing.js"></script>
+    <script src="js/agent/llm-logger.js"></script>
+    <script src="js/agent/search-logger.js"></script>
+    <script src="js/agent/memory-manager.js"></script>
+    <script src="js/agent/memory-capture.js"></script>
+    <script src="js/agent/matter-capture.js"></script>
+    <script src="js/agent/chat-days.js"></script>
+    <script src="js/agent/claim-check.js"></script>
+    <script src="js/agent/occurrence-capture.js"></script>
+    <script src="js/agent/thing-capture.js"></script>
+    <script src="js/agent/memory-ui.js"></script>
+    <script src="js/agent/decision-store.js"></script>
+    <script src="js/core/update-store.js"></script>
+    <script src="js/agent/help-docs.js"></script>
+    <script src="js/agent/help-actions.js"></script>
+    <script src="js/agent/record-links.js"></script>
+    <!-- The matter page registers its `matter` link type, so it loads after RecordLinks. -->
+    <script src="js/apps/fyi/matter-page.js"></script>
+    <!-- Documents: one list over the notes blob and the library listing (opens through RecordLinks' doors). -->
+    <script src="js/apps/documents/documents-page.js"></script>
+    <script src="js/agent/agent-tools.js"></script>
+    <script src="js/agent/permission-manager.js"></script>
+    <script src="js/agent/mcp-tools.js"></script>
+    <script src="js/agent/routine-engine.js"></script>
+    <script src="js/agent/write-ledger.js"></script>
+    <script src="js/agent/model-quirks.js"></script>
+    <script src="js/agent/telegram-channel.js"></script>
+    <script src="js/agent/mobile-channel.js"></script>
+    <script src="js/agent/mobile-views.js"></script>
+    <script src="js/agent/agent-service.js"></script>
+    <!-- Project/task Updates tools — after agent-service so blockUntrusted lands. -->
+    <script src="js/agent/update-tools.js"></script>
+    <script src="js/agent/matter-tools.js"></script>
+    <script src="js/agent/commitment-tools.js"></script>
+    <script src="js/agent/now-tools.js"></script>
+    <script src="js/agent/preference-tools.js"></script>
+    <script src="js/agent/undo-tools.js"></script>
+    <script src="js/agent/triage-tools.js"></script>
+    <script src="js/agent/run-tools.js"></script>
+    <script src="js/agent/upkeep-tools.js"></script>
+    <script src="js/agent/money-tools.js"></script>
+    <!-- Screen tools (see + operate this window) — after agent-service so blockUntrusted lands. -->
+    <script src="js/agent/screen-tools.js"></script>
+    <script src="js/agent/agent-ui.js"></script>
+    <script src="js/agent/agent-app.js"></script>
+    <script src="js/agent/agent-loop.js"></script>
+    <script src="js/agent/specialists/runtime.js"></script>
+    <script src="js/agent/specialists/playbooks.js"></script>
+    <script src="js/core/taught-tasks.js"></script>
+    <script src="js/agent/teach-tools.js"></script>
+    <script src="js/agent/browser-setup-tool.js"></script>
+    <script src="js/agent/specialists/browser-tools.js"></script>
+    <script src="js/agent/specialists/registry.js"></script>
+    <script src="js/agent/workroom-engine.js"></script>
+    <script src="js/agent/team-jobs.js"></script>
+    <script src="js/core/bootstrap.js"></script>
+</body>
+
+</html>

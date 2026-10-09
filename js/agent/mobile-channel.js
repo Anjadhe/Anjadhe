@@ -1,0 +1,450 @@
+/**
+ * mobile-channel.js — the renderer half of the phone chat channel.
+ * ================================================================
+ * The phone app as a remote channel to the assistant: the Telegram shape
+ * (js/agent/telegram-channel.js) carried on our own encrypted phone<->Mac
+ * channel instead of a third party's servers. Main (handleChannelChat)
+ * forwards text that arrived over the Noise channel — only a PAIRED phone
+ * can produce it, so what lands here is the USER's own text, remotely.
+ *
+ * Phone exchanges are REAL conversations, like Telegram's: each message
+ * lands in a persistent conversation tagged `channel: 'mobile'` — titled
+ * "Phone: …", synced across Macs AND down to the phone itself (the
+ * `app_agent-conversations` blob syncs), visible in the Agent app, and
+ * feeding memory extraction like any chat. Never made active: a message
+ * from the phone must not hijack whatever chat is open on the Mac.
+ *
+ * Two things Telegram cannot do, this channel can:
+ *   - The phone renders markdown AND anjadhe:// record links (they deep-
+ *     link into the phone's own screens), so replies keep their links —
+ *     there is no _plain() flattening here.
+ *   - The reply is durable without the socket: it goes back as a
+ *     `chat-reply` push for immediacy, but it also rides the synced
+ *     conversation blob, so a phone that disconnected mid-run still gets
+ *     the answer on its next sync.
+ *
+ * Session shape: messages continue the latest mobile conversation until a
+ * quiet gap passes or the phone asks for a fresh one (`fresh: true`) —
+ * the retired conversation is queued for memory extraction, the same
+ * hand-off leaving a chat in the UI performs. The phone may also pin a
+ * specific conversation by `convId` (it holds the synced list).
+ *
+ * The run: full assistant (system prompt, briefing, tools) with phone
+ * framing riding the conv's extraContext. Interactive in spirit (the user
+ * CAN reply) but unattended in the consent sense — nobody can click a Mac
+ * dialog, so ASK-gated tools decline and egress asks auto-resolve, the
+ * same machinery routines use.
+ */
+const MobileChannel = {
+    _queue: Promise.resolve(),        // messages answer strictly in order
+    SESSION_GAP_MS: 3 * 60 * 60 * 1000, // quiet this long → next message starts a new conversation
+
+    EXTRA_CONTEXT:
+        'REMOTE CHANNEL — this conversation happens in the nenva app on the user\'s ' +
+        'phone while you run on their Mac. They CAN reply, so a short clarifying question ' +
+        'is fine when truly needed. Style: concise and phone-readable — short paragraphs, ' +
+        'simple markdown (bold, short lists) is fine, avoid wide tables. When you mention a ' +
+        'specific task, note, event, or routine a tool returned, link its ' +
+        'title — [Pay water bill](anjadhe://task/<id from the tool result>) — the phone opens ' +
+        'it in place; never invent an id. You may use your tools, including creating or ' +
+        'updating records when asked. An action that needs approval is asked on their phone; ' +
+        'if they decline or do not answer, say plainly that it was not done. Never include ' +
+        'secrets, API keys, or file contents unless explicitly asked.',
+
+    init() {
+        if (!window.electronMobileChat) return;
+        window.electronMobileChat.onMessage((msg) => this._enqueue(msg));
+        window.electronMobileChat.onAnswer?.((a) => this._answerAsk(a));
+    },
+
+    // ── Approvals on the phone (2026-09-25, docs/MOBILE_NATIVE.md "M5") ──
+    //
+    // A phone turn used to decline every step that needed approval ("it has
+    // to be confirmed on the Mac"). Now the question goes to the phone —
+    // the CLIBridge shape: AgentService._confirmWrite asks here while this
+    // conversation has a live phone run, and the answer resolves it. Same
+    // words as the Mac's own card (`AgentUI._describeToolAction`), same
+    // scopes (once / this session / always, or once only), same grants.
+    // An ask is PUSHED to the phone (`chat-ask`) and also kept here, so a
+    // phone that was not connected at that moment gets it from the
+    // `chat-asks` view the next time it looks. Unanswered for ten minutes →
+    // declined, and the run says so.
+    ASK_TIMEOUT_MS: 10 * 60 * 1000,
+    _running: new Set(),      // conv ids with a phone run in progress
+    _asks: new Map(),         // askId -> { ask, resolve, timer }
+    _askSeq: 0,
+
+    wantsPermission(convId) {
+        return !!convId && this._running.has(convId);
+    },
+
+    /** Plain text of the Mac card's one-line description. */
+    _describe(tool, args) {
+        let html = '';
+        try { html = (typeof AgentUI !== 'undefined' && AgentUI._describeToolAction) ? AgentUI._describeToolAction(tool, args) : ''; } catch { html = ''; }
+        const text = String(html || '')
+            .replace(/<\/?strong>/gi, '**').replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '')
+            .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&')
+            .trim();
+        return text || String(tool || '').replace(/_/g, ' ');
+    },
+
+    askPermission(convId, tool, args, note, { onceOnly = false } = {}) {
+        const askId = 'ask_' + Date.now().toString(36) + '_' + (++this._askSeq);
+        const ask = {
+            askId, convId, tool: String(tool || ''),
+            text: this._describe(tool, args).slice(0, 2000),
+            note: typeof note === 'string' ? note.slice(0, 600) : '',
+            onceOnly: !!onceOnly,
+            at: new Date().toISOString(),
+        };
+        return new Promise((resolve) => {
+            const timer = setTimeout(() => this._settleAsk(askId, { approved: false, scope: 'once' }), this.ASK_TIMEOUT_MS);
+            this._asks.set(askId, { ask, resolve, timer });
+            try { window.electronMobileChat.sendAsk?.(ask); } catch { /* the view still carries it */ }
+        });
+    },
+
+    /** Asks still waiting, for the phone's `chat-asks` view. */
+    pendingAsks() {
+        return [...this._asks.values()].map(e => e.ask);
+    },
+
+    _answerAsk(a) {
+        if (!a || typeof a.askId !== 'string' || !this._asks.has(a.askId)) return false;
+        const scope = ['once', 'session', 'always'].includes(a.scope) ? a.scope : 'once';
+        const entry = this._asks.get(a.askId);
+        this._settleAsk(a.askId, { approved: a.approved === true, scope: entry.ask.onceOnly ? 'once' : scope });
+        return true;
+    },
+
+    _settleAsk(askId, decision) {
+        const entry = this._asks.get(askId);
+        if (!entry) return;
+        clearTimeout(entry.timer);
+        this._asks.delete(askId);
+        try { window.electronMobileChat.sendAskDone?.({ askId, approved: decision.approved }); } catch { /* best effort */ }
+        entry.resolve(decision);
+    },
+
+    /** A run ended: nothing may stay asked on its behalf. */
+    _endRun(convId) {
+        this._running.delete(convId);
+        for (const [askId, e] of this._asks) if (e.ask.convId === convId) this._settleAsk(askId, { approved: false, scope: 'once' });
+    },
+
+    _enqueue(msg) {
+        const text = msg && typeof msg.text === 'string' ? msg.text.trim() : '';
+        if (!text && !(msg && Array.isArray(msg.attachments) && msg.attachments.length)) return;
+        this._queue = this._queue
+            .then(() => this._answer(text, msg))
+            .catch((e) => console.warn('[mobile-chat] answer failed:', e && e.message));
+    },
+
+    /**
+     * The current phone conversation: the newest conv tagged
+     * `channel: 'mobile'`, unless it has gone quiet past the session gap.
+     * Reload-safe — the tag is on the persisted record, so a Cmd+R (or
+     * another Mac, via sync) continues the same thread.
+     */
+    _currentConv() {
+        const convs = AgentService.conversations || [];
+        let latest = null;
+        for (const c of convs) {
+            if (c && c.channel === 'mobile'
+                && (!latest || (c.updatedAt || '') > (latest.updatedAt || ''))) {
+                latest = c;
+            }
+        }
+        if (!latest) return null;
+        const age = Date.now() - new Date(latest.updatedAt || latest.createdAt || 0).getTime();
+        if (age > this.SESSION_GAP_MS) {
+            // Session over — retire it into memory extraction (the same
+            // hand-off leaving a chat performs) and let a new one start.
+            try { AgentService._queueMemoryExtraction(latest); } catch { /* best-effort */ }
+            return null;
+        }
+        return latest;
+    },
+
+    /** Start a fresh persistent phone conversation — NOT active. */
+    _newConv(firstText) {
+        const conv = {
+            id: 'conv_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+            title: 'Phone: ' + String(firstText).slice(0, 48) + (String(firstText).length > 48 ? '…' : ''),
+            channel: 'mobile',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            messages: []
+        };
+        conv.extraContext = this.EXTRA_CONTEXT;
+        AgentService.conversations.unshift(conv);
+        AgentService._saveConversations();
+        return conv;
+    },
+
+    // ── A chat tied to a thing or a page (2026-10-09) ──────────────────
+    //
+    // The phone's Finance screens end in the same door the desktop's do
+    // (PageChat): ONE conversation per page (`pageKey`, e.g. `page:portfolio`)
+    // or per record (`todayKey` and `recordKey`, e.g.
+    // `portfolio:account:<id>`). The phone creates that conversation in the
+    // synced list itself and names it by `convId`; `about` says what it is
+    // tied to, so a message that arrives before the phone's copy has synced
+    // in still lands in a conversation tied to the right thing, built the
+    // way PageChat.conv builds it (same keys, same opening line, which the
+    // merge then recognises as one message). Never `channel: 'mobile'`: a
+    // tied chat is not the phone's running session.
+    TIE_KEY_RX: /^[a-z][a-z-]*:[^\s]{1,200}$/i,
+
+    /** The phone's `about`, checked: { pageKey } or { todayKey, recordKey? }, title, body. Null when unusable. */
+    aboutOf(msg) {
+        const a = msg && msg.about;
+        if (!a || typeof a !== 'object') return null;
+        const key = (v) => (typeof v === 'string' && this.TIE_KEY_RX.test(v) ? v : null);
+        const pageKey = key(a.pageKey) && /^page:[a-z]+$/.test(a.pageKey) ? a.pageKey : null;
+        const todayKey = pageKey ? null : key(a.todayKey);
+        if (!pageKey && !todayKey) return null;
+        const recordKey = pageKey ? null : key(a.recordKey);
+        const str = (v, n) => (typeof v === 'string' ? v.trim().slice(0, n) : '');
+        return { pageKey, todayKey, recordKey, title: str(a.title, 120), body: str(a.body, 400) };
+    },
+
+    /** PageChat.conv's opening line for a thing's chat. */
+    openingLine(title, body) {
+        const b = String(body || '').trim();
+        return `This chat is about “${title}”.${b ? ` ${/[.!?]$/.test(b) ? b : b + '.'}` : ''} What would you like to do with it?`;
+    },
+
+    /** The conversation already tied to this page or thing, newest first. */
+    _tiedFind(about) {
+        return (AgentService.conversations || [])
+            .filter(c => c && !c.private && (about.pageKey ? c.pageKey === about.pageKey : c.todayKey === about.todayKey))
+            .sort((a, b) => Date.parse(b.updatedAt || 0) - Date.parse(a.updatedAt || 0))[0] || null;
+    },
+
+    /** Build (and save) the tied conversation under the phone's own id. */
+    _tiedConv(id, about) {
+        const now = new Date().toISOString();
+        const safeId = typeof id === 'string' && /^conv_[\w-]{1,70}$/.test(id) ? id
+            : 'conv_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+        const conv = { id: safeId, title: String(about.title || 'From a page').slice(0, 60), createdAt: now, updatedAt: now, messages: [] };
+        if (about.pageKey) conv.pageKey = about.pageKey; else conv.todayKey = about.todayKey;
+        if (about.recordKey) {
+            conv.recordKey = about.recordKey;
+            if (about.title) conv.recordLabel = about.title;
+            try { AgentService._seedRecordDomains(conv); } catch { /* the model can still load the group */ }
+        }
+        if (!about.pageKey && about.title) {
+            conv.messages.push({ role: 'assistant', content: this.openingLine(about.title, about.body), timestamp: now, metadata: { fromCard: true } });
+        }
+        AgentService.conversations.unshift(conv);
+        AgentService._saveConversations();
+        return conv;
+    },
+
+    /**
+     * How long a message naming a conversation the Mac has not seen waits
+     * for the phone's copy to sync in, before it is treated as unknown.
+     */
+    SYNC_WAIT_MS: 3000,
+    SYNC_POLL_MS: 250,
+
+    /** Retire the current session so the next message starts fresh. */
+    _endSession() {
+        const cur = this._currentConv();
+        if (!cur) return;
+        cur.updatedAt = new Date(0).toISOString(); // age it out
+        try { AgentService._queueMemoryExtraction(cur); } catch { /* best-effort */ }
+        AgentService._saveConversations();
+    },
+
+    // --- Streaming the answer as it is written (2026-09-21) ----------------
+    //
+    // The phone used to sit on "Your Mac is thinking…" for the whole run and
+    // then get the finished answer in one push. It now watches it arrive.
+    //
+    // It has to be a POLL, not a callback. `AgentService.sendMessage` takes an
+    // `onChunk`, but `wrappedOnChunk` drops it unless the conversation is the
+    // ACTIVE one in the Mac's own UI (agent-service.js, "if
+    // (this.activeConversationId !== targetConvId) return") — and a mobile
+    // conversation is deliberately never made active. The accumulated buffer
+    // fills regardless, so we read that. This is exactly what `CLIBridge`
+    // does for the terminal, and the two subtleties it learned are copied
+    // here: the buffer RESETS to empty at the start of every tool iteration
+    // (so a shrink means "start again", not "text was deleted"), and the last
+    // tokens land after the final tick — harmless for us, because the
+    // authoritative full text still rides the `chat-reply` that follows.
+    //
+    // Cadence is the cost control. Every push is a sealed, counter-numbered,
+    // hex-encoded frame over the encrypted channel, so per-token would be
+    // absurd — roughly ten times the bytes in overhead and a WKWebView
+    // round trip per token on the phone. A tick of 300 ms with a small
+    // minimum flush gives three-ish pushes a second, the same order as the
+    // `data-changed` debounce, and reads as typing on the other end.
+    STREAM_TICK_MS: 300,
+    STREAM_MIN_CHARS: 24,
+
+    /**
+     * Start forwarding this conversation's stream buffer to the phone.
+     * Returns a function that stops it. Deltas are INCREMENTAL (a cumulative
+     * push would re-send the whole answer every tick and cross the channel's
+     * gzip threshold mid-stream), and carry a `seq` so the phone can tell a
+     * gap from a pause after a reconnect.
+     */
+    _streamTo(convId) {
+        const send = window.electronMobileChat && window.electronMobileChat.sendDelta;
+        if (typeof send !== 'function') return () => {};
+        let sent = 0;
+        let seq = 0;
+        let steps = 0;
+        const flush = (force) => {
+            const st = AgentService._streamingState && AgentService._streamingState.get(convId);
+            if (!st) return;
+            // What it is doing, between the words (2026-10-02): the newest
+            // tool step, named by code from the tool's own name.
+            const done = Array.isArray(st.steps) ? st.steps : [];
+            if (done.length > steps) {
+                steps = done.length;
+                try { send({ convId, step: this.stepLine(done[done.length - 1]) }); } catch { /* best effort */ }
+            }
+            const content = String(st.content || '');
+            // A shorter buffer is the next tool iteration starting, not an
+            // edit — begin again rather than slicing from a stale offset.
+            if (content.length < sent) { sent = 0; return; }
+            const pending = content.length - sent;
+            if (!pending) return;
+            if (!force && pending < this.STREAM_MIN_CHARS) return;
+            const text = content.slice(sent);
+            sent = content.length;
+            seq += 1;
+            try { send({ convId, seq, text }); } catch { /* best effort; the reply still lands */ }
+        };
+        const timer = setInterval(() => flush(false), this.STREAM_TICK_MS);
+        return () => { clearInterval(timer); flush(true); };
+    },
+
+    /** "list_schedule" → "Looking at your schedule". Words from the tool's
+     *  own name, never the model's. */
+    stepLine(tool) {
+        const t = String(tool || '');
+        const words = (s) => s.replace(/_/g, ' ').replace(/\bschedule items?\b/, 'tasks').trim();
+        if (t === 'read_url') return 'Reading a web page';
+        if (t === 'web_search') return 'Searching the web';
+        if (/search/.test(t)) return 'Searching' + (t.replace(/_?search_?/, '') ? ' ' + words(t.replace(/_?search_?/, '')) : '');
+        let m;
+        if ((m = /^(list|get|read|recall|check)_(.+)$/.exec(t))) return 'Looking at your ' + words(m[2]);
+        if ((m = /^(create|save|add|post|draft)_(.+)$/.exec(t))) return 'Writing ' + words(m[2]);
+        if ((m = /^(update|complete|shift|tag|link)_(.+)$/.exec(t))) return 'Updating ' + words(m[2]);
+        if ((m = /^(delete|remove)_(.+)$/.exec(t))) return 'Removing ' + words(m[2]);
+        if (t === 'start_task') return 'Starting a job';
+        return words(t) || 'Working';
+    },
+
+    async _answer(text, msg) {
+        if (typeof AgentService === 'undefined' || typeof AgentService.sendMessage !== 'function') return;
+        const respond = (ok, convId, replyText) => window.electronMobileChat
+            .sendResult({ ok, convId: convId || null, text: replyText })
+            .catch(() => { /* push is best-effort; sync still carries the reply */ });
+
+        if (!AgentService.model) {
+            respond(false, null,
+                'No AI model is set up on the Mac yet. Open nenva there: Settings, then AI Assistant.');
+            return;
+        }
+
+        if (msg && msg.fresh === true) this._endSession();
+
+        // The phone may pin the conversation it is showing; otherwise the
+        // session-gap rule picks (or starts) the current one.
+        // Since 2026-10-02 any saved conversation (the phone's Chats list
+        // opens them all), not only the phone's own: a private chat is never
+        // saved, so it can never be named here.
+        const continues = (c) => c && c.id === msg.convId && !c.private;
+        let conv = null;
+        if (msg && msg.convId) {
+            conv = (AgentService.conversations || []).find(continues) || null;
+        }
+        // A conversation the phone started or continued on its own while
+        // this Mac was away arrives through sync, and may land a moment
+        // after the message naming it: take in what the store holds before
+        // deciding it is unknown (docs/MOBILE_NATIVE.md "M5").
+        if (!conv && msg && msg.convId && AgentService.mergeStoredConversations) {
+            AgentService.mergeStoredConversations();
+            conv = (AgentService.conversations || []).find(continues) || null;
+        }
+        // A chat the phone tied to a page or a record (2026-10-09). Its own
+        // copy is the conversation; when it has not synced in yet, the one
+        // already tied to that thing here continues, else it is built here
+        // under the phone's id so the two copies merge into one.
+        const about = this.aboutOf(msg);
+        if (!conv && about) {
+            conv = this._tiedFind(about) || this._tiedConv(msg.convId, about);
+        }
+        // Named but not here yet, and nothing said what it is about: give the
+        // phone's copy a moment to arrive rather than answer in another chat.
+        if (!conv && msg && msg.convId && AgentService.mergeStoredConversations) {
+            for (let waited = 0; !conv && waited < this.SYNC_WAIT_MS; waited += this.SYNC_POLL_MS) {
+                await new Promise(r => setTimeout(r, this.SYNC_POLL_MS));
+                AgentService.mergeStoredConversations();
+                conv = (AgentService.conversations || []).find(continues) || null;
+            }
+        }
+        // A tied chat that arrived by sync carries its record key; load that
+        // record's tools as PageChat does on the Mac.
+        if (conv && conv.recordKey && !Array.isArray(conv.scopedDomains)) {
+            try { AgentService._seedRecordDomains(conv); } catch { /* the model can still load the group */ }
+        }
+        if (!conv) conv = this._currentConv();
+        if (!conv) conv = this._newConv(text || ((msg && msg.attachments && msg.attachments[0] && msg.attachments[0].name) || 'A file'));
+        // Framing must survive a conv created before this build, or synced in.
+        if (!conv.extraContext && conv.channel === 'mobile') conv.extraContext = this.EXTRA_CONTEXT;
+
+        // Files from the phone (2026-10-08), already in the desktop chat's
+        // shape. An image needs a model that can see: without one it is
+        // named instead of sent, as the desktop refuses to attach it.
+        let attachments = Array.isArray(msg && msg.attachments) ? msg.attachments.slice(0, 4) : [];
+        if (attachments.some((a) => a.kind === 'image')) {
+            let canSee = false;
+            // The capability table is filled on demand (the desktop chat
+            // awaits it before attaching); a check before it is loaded reads
+            // every model as blind, which dropped a photo sent to nenva cloud.
+            try { await AgentService.ensureVisionInfo(); } catch { /* offline: the cached answer */ }
+            try { canSee = !!AgentService.supportsVisionFor('mobile'); } catch { canSee = false; }
+            if (!canSee) {
+                const names = attachments.filter((a) => a.kind === 'image').map((a) => a.name);
+                attachments = attachments.filter((a) => a.kind !== 'image');
+                text = `${text}${text ? '\n\n' : ''}(I attached ${names.length === 1 ? 'a photo' : 'photos'}, ${names.join(', ')}, but the model on my Mac cannot see images.)`;
+            }
+        }
+
+        let res;
+        const stopStream = this._streamTo(conv.id);
+        this._running.add(conv.id);
+        try {
+            res = await AgentService.sendMessage(text, null, {
+                convId: conv.id,          // a real, persisted conversation — not ephemeral
+                unattended: true,         // nobody at the Mac; approvals go to the phone (wantsPermission)
+                readOnly: false,          // writes allowed (add a task from the road)
+                logTag: 'mobile',         // LLM Logs names the source; the ledger is the disclosure
+                ...(attachments.length ? { attachments } : {}),
+            });
+        } catch (e) {
+            stopStream();
+            this._endRun(conv.id);
+            respond(false, conv.id, 'Sorry — that didn\'t work: ' + (e && e.message || 'the run failed') + '.');
+            return;
+        }
+        stopStream();
+        this._endRun(conv.id);
+
+        // sendMessage returns null when the conv already has a stream in
+        // flight — our queue serializes sends, so treat it as a failure.
+        if (res && res.type !== 'error' && String(res.content || '').trim()) {
+            respond(true, conv.id, String(res.content));
+        } else {
+            respond(false, conv.id, 'Sorry — that didn\'t work: '
+                + ((res && res.content) || 'the assistant returned nothing') + '.');
+        }
+    },
+};

@@ -1,0 +1,522 @@
+import SwiftUI
+import AnjadheCore
+
+// The native shell: one NavigationStack per root, the function bar beneath
+// (Now · Chats · Memory · Settings), and the toast. Records are pushed
+// screens (`Route`) on the root they were opened from.
+//
+// Since 2026-09-21 the bar belongs to the ROOTS only — it slides away as soon
+// as you open anything — and Apps is one of them, which is where the app
+// launcher lives now that Home's horizontal pill row is gone.
+
+struct Shell: View {
+    @EnvironmentObject var router: Router
+    @EnvironmentObject var store: AppStore
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// The function bar belongs to the ROOTS, and only to them (2026-09-21,
+    /// Ram's call: it "should not exist when user goes to a page from home").
+    ///
+    /// "Root" and not literally "Home", because the bar is the only way
+    /// between the four roots — hiding it on Assistant or Apps would strand
+    /// them. A pushed screen has its own way back (the nav bar's Back, and
+    /// the swipe), so a second, competing navigation surface under it is
+    /// just furniture over the content. This is what `hidesBottomBarWhenPushed`
+    /// does on UIKit, and the phone should feel like the phone.
+    ///
+    /// It also stands down while the assistant's composer holds the keyboard
+    /// — see `Router.composerFocused`.
+    private var showBar: Bool {
+        router.path(for: router.tab).isEmpty && !router.composerFocused
+    }
+
+    var body: some View {
+        ZStack(alignment: .bottom) {
+            VStack(spacing: 0) {
+                content
+                if showBar {
+                    FunctionBar().transition(.move(edge: .bottom))
+                }
+            }
+            .background(Theme.bg.ignoresSafeArea())
+            if let t = router.toast {
+                ToastView(text: t)
+                    // Clear the bar when it is there, the home indicator when
+                    // it is not.
+                    .padding(.bottom, showBar ? 74 : 24)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .zIndex(2)
+            }
+        }
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: router.toast)
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: showBar)
+    }
+
+    @ViewBuilder private var content: some View {
+        switch router.tab {
+        case .home:
+            NavigationStack(path: router.binding(for: .home)) {
+                // Now is the only home since the desktop dropped its full
+                // shell (2026-10-05); the old HomeView is kept for no door.
+                SimpleHomeView().routeDestinations()
+            }
+        case .assistant:
+            NavigationStack(path: router.binding(for: .assistant)) {
+                ChatsListView().routeDestinations()
+            }
+        case .apps:
+            NavigationStack(path: router.binding(for: .apps)) {
+                MemoryView().routeDestinations()
+            }
+        case .settings:
+            NavigationStack(path: router.binding(for: .settings)) {
+                SettingsView().routeDestinations()
+            }
+        case .jobs:
+            NavigationStack(path: router.binding(for: .jobs)) {
+                JobsView().routeDestinations()
+            }
+        case .search:
+            NavigationStack(path: router.binding(for: .search)) {
+                SearchView().routeDestinations()
+            }
+        }
+    }
+}
+
+// MARK: - Route → screen
+
+extension View {
+    /// Attach the one `Route` destination table to a root.
+    func routeDestinations() -> some View {
+        self.navigationDestination(for: Route.self) { route in RouteView(route: route) }
+    }
+}
+
+struct RouteView: View {
+    let route: Route
+    var body: some View {
+        switch route {
+        case .app(let id): AppScreen(id: id)
+        case .task(let id): TaskEditor(id: id)
+        case .note(let id): NoteEditor(id: id)
+        case .prompt(let id): PromptEditor(id: id)
+        case .goal(let id): GoalDetail(id: id)
+        case .feedItem(let id): FeedDetail(id: id)
+        case .insight(let id): InsightDetail(emailId: id)
+        case .portfolioScope(let id): PortfolioView(scope: id)
+        case .tasksScope(let slice, let group): TasksView(slice: slice, group: group)
+        case .ticker(let t): PortfolioTickerDetail(ticker: t)
+        case .strategy(let id): PortfolioStrategyView(strategyId: id)
+        case .portfolioProperty(let id): PortfolioPropertyDetail(id: id)
+        case .portfolioLiability(let id): PortfolioLiabilityDetail(id: id)
+        case .job(let id): JobDetailView(id: id)
+        case .chats: ChatsListView()
+        case .conversation: AssistantView(pushed: true)
+        case .matter(let id): MatterDetail(id: id)
+        case .settingsPage(let id): SettingsPageView(id: id)
+        case .file(let id): FileReader(id: id)
+        case .memoryPage(let id): MemoryPageView(heading: id)
+        }
+    }
+}
+
+/// An app by id (the `AppCatalog` ids plus the two non-launcher screens).
+struct AppScreen: View {
+    let id: String
+    var body: some View {
+        switch id {
+        case "tasks": TasksView()
+        case "goals": GoalsView()
+        case "notes", "documents": DocumentsView()
+        case "calendar": CalendarView()
+        case "fyi": FyiView()
+        case "portfolio": PortfolioView()
+        case "prompts": PromptsView()
+        case "feed": FeedView()
+        case "apps": AppsView(asRoot: false)
+        case "settings": SettingsView()
+        case "commitments": CommitmentsView()
+        case "folders": FoldersView()
+        case "jobs": JobsView()
+        default: EmptyText("Open this one on your Mac").padding()
+        }
+    }
+}
+
+// MARK: - Function bar
+
+struct FunctionBar: View {
+    @EnvironmentObject var router: Router
+
+    var body: some View {
+        // Four roots, no ＋ (2026-10-02: "those tools need not be at the
+        // forefront" — each app keeps its own +). The Apps tab (2026-09-21)
+        // replaced the horizontal pill row that used to sit on Home — a
+        // sideways-scrolling strip of apps hid most of them behind a gesture
+        // nobody makes, and a launcher wants to be a grid you aim at.
+        HStack(spacing: 0) {
+            item(.home, "Now", "sun.max")
+            item(.assistant, "Chats", "bubble.left")
+            item(.apps, "Memory", "books.vertical", also: .search)
+            item(.settings, "Settings", "gearshape")
+        }
+        .padding(.top, 6)
+        .padding(.bottom, 2)
+        .background(Theme.navWash.ignoresSafeArea(edges: .bottom))
+        .overlay(alignment: .top) { Rectangle().fill(Theme.border).frame(height: 0.5) }
+    }
+
+    private func item(_ tab: RootTab, _ label: String, _ symbol: String, also: RootTab? = nil) -> some View {
+        let active = router.tab == tab || (also != nil && router.tab == also)
+        return Button { router.root(tab) } label: {
+            VStack(spacing: 3) {
+                // The selected row's soft blue (DESIGN_SYSTEM.md "Simple
+                // shell and Now colour", 2026-10-08); the icon stays ink.
+                Image(systemName: symbol).font(.system(size: 19, weight: active ? .semibold : .regular))
+                    .frame(width: 54, height: 28)
+                    .background(Capsule().fill(active ? Theme.accentSoft : Color.clear))
+                Text(label).font(.caption2.weight(active ? .semibold : .medium))
+                    // Navigation stays compact; its large-content viewer
+                    // provides enlargement without crowding out the page.
+                    .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+                    .lineLimit(1)
+            }
+            .foregroundStyle(active ? Theme.text : Theme.textTertiary)
+            .frame(maxWidth: .infinity)
+            .frame(minHeight: Theme.minimumTouchTarget)
+            .padding(.vertical, 4)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(active ? .isSelected : [])
+        #if os(iOS)
+        .accessibilityShowsLargeContentViewer { Label(label, systemImage: symbol) }
+        #endif
+    }
+}
+
+// MARK: - Toast
+
+struct ToastView: View {
+    let text: String
+    var body: some View {
+        Text(text)
+            .font(Theme.detailFont.weight(.medium))
+            .foregroundStyle(Theme.bg)
+            .padding(.horizontal, 16).padding(.vertical, 10)
+            .background(Capsule().fill(Theme.text))
+    }
+}
+
+// MARK: - Shared screen pieces (the old mobile.css vocabulary, in SwiftUI)
+
+/// The big serif screen heading + optional secondary line, with optional
+/// trailing action buttons (the `.screen-head` / `.head-actions` pattern).
+struct ScreenHead<Actions: View>: View {
+    @Environment(\.dynamicTypeSize) private var typeSize
+    let title: String
+    var sub: String? = nil
+    var greeting = false
+    @ViewBuilder var actions: () -> Actions
+
+    init(_ title: String, sub: String? = nil, greeting: Bool = false, @ViewBuilder actions: @escaping () -> Actions) {
+        self.title = title; self.sub = sub; self.greeting = greeting; self.actions = actions
+    }
+
+    var body: some View {
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
+            : AnyLayout(HStackLayout(alignment: .top, spacing: 12))
+        layout {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title).displayStyle(greeting ? 34 : 30)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityAddTraits(.isHeader)
+                if let s = sub, !s.isEmpty {
+                    Text(s).font(Theme.detailFont).foregroundStyle(Theme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            if !typeSize.isAccessibilitySize { Spacer(minLength: 0) }
+            HStack(spacing: 4) { actions() }
+        }
+        .padding(.top, 6)
+    }
+}
+
+extension ScreenHead where Actions == EmptyView {
+    init(_ title: String, sub: String? = nil, greeting: Bool = false) {
+        self.init(title, sub: sub, greeting: greeting) { EmptyView() }
+    }
+}
+
+/// A round, quiet icon button for the screen head (`.head-action`).
+struct HeadAction: View {
+    let symbol: String
+    var label: String
+    var action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 17, weight: .regular))
+                .foregroundStyle(Theme.text)
+                .frame(width: Theme.minimumTouchTarget, height: Theme.minimumTouchTarget)
+                .background(Circle().fill(Theme.surface))
+                .overlay(Circle().strokeBorder(Theme.border))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+    }
+}
+
+/// Uppercase, small, tracked section label (`.section-label`).
+struct SectionLabel: View {
+    let text: String
+    var danger = false
+    var count: Int? = nil
+    init(_ text: String, danger: Bool = false, count: Int? = nil) { self.text = text; self.danger = danger; self.count = count }
+    var body: some View {
+        HStack(spacing: 6) {
+            Text(text).sectionHeaderStyle().foregroundStyle(danger ? Theme.danger : Theme.textSecondary)
+            if let c = count { Text("\(c)").font(.caption.weight(.medium)).foregroundStyle(Theme.textTertiary) }
+        }
+        .padding(.bottom, 2)
+    }
+}
+
+/// The bordered card that holds rows separated by hairlines (`.card.list`) —
+/// a white sheet on the ground.
+struct CardList<Content: View>: View {
+    @ViewBuilder var content: () -> Content
+    var body: some View {
+        VStack(spacing: 0) { content() }
+            .background(Theme.surface)
+            .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMd))
+            .overlay(RoundedRectangle(cornerRadius: Theme.radiusMd).strokeBorder(Theme.border))
+    }
+}
+
+/// One list row: title + optional sub, optional trailing text, hairline under.
+struct RowView<Leading: View, Trailing: View>: View {
+    @Environment(\.dynamicTypeSize) private var typeSize
+    let title: String
+    var sub: String? = nil
+    var done = false
+    var last = false
+    @ViewBuilder var leading: () -> Leading
+    @ViewBuilder var trailing: () -> Trailing
+
+    init(_ title: String, sub: String? = nil, done: Bool = false, last: Bool = false,
+         @ViewBuilder leading: @escaping () -> Leading, @ViewBuilder trailing: @escaping () -> Trailing) {
+        self.title = title; self.sub = sub; self.done = done; self.last = last; self.leading = leading; self.trailing = trailing
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(alignment: .top, spacing: 12) {
+                leading()
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title.isEmpty ? "Untitled" : title)
+                        .font(Theme.rowFont)
+                        .strikethrough(done)
+                        .foregroundStyle(done ? Theme.textTertiary : Theme.text)
+                        .fixedSize(horizontal: false, vertical: true)
+                    if let s = sub, !s.isEmpty {
+                        Text(s).font(Theme.detailFont).foregroundStyle(Theme.textSecondary)
+                            .lineLimit(typeSize.isAccessibilitySize ? nil : 2)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    if typeSize.isAccessibilitySize { trailing() }
+                }
+                Spacer(minLength: 8)
+                if !typeSize.isAccessibilitySize { trailing() }
+            }
+            .frame(minHeight: Theme.minimumTouchTarget, alignment: .leading)
+            .padding(.horizontal, 14).padding(.vertical, 11)
+            .contentShape(Rectangle())
+            if !last { Divider().padding(.leading, 14) }
+        }
+    }
+}
+
+extension RowView where Leading == EmptyView, Trailing == EmptyView {
+    init(_ title: String, sub: String? = nil, done: Bool = false, last: Bool = false) {
+        self.init(title, sub: sub, done: done, last: last, leading: { EmptyView() }, trailing: { EmptyView() })
+    }
+}
+extension RowView where Leading == EmptyView {
+    init(_ title: String, sub: String? = nil, done: Bool = false, last: Bool = false, @ViewBuilder trailing: @escaping () -> Trailing) {
+        self.init(title, sub: sub, done: done, last: last, leading: { EmptyView() }, trailing: trailing)
+    }
+}
+
+/// The circular completion check (`.check`).
+struct CheckButton: View {
+    let on: Bool
+    var muted = false
+    var action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            ZStack {
+                Circle().strokeBorder(on ? Theme.text : Theme.borderHover, lineWidth: 1.5)
+                if on { Circle().fill(Theme.text); Image(systemName: "checkmark").font(.system(size: 11, weight: .bold)).foregroundStyle(Theme.bg) }
+            }
+            .frame(width: 22, height: 22)
+            .frame(width: Theme.minimumTouchTarget, height: Theme.minimumTouchTarget)
+            .contentShape(Rectangle())
+            .opacity(muted ? 0.4 : 1)
+        }
+        .buttonStyle(.plain)
+        .disabled(muted)
+        .accessibilityLabel(on ? "Mark incomplete" : "Mark complete")
+        .accessibilityValue(on ? "Completed" : "Not completed")
+    }
+}
+
+/// Italic tertiary empty-state line (`.empty`).
+struct EmptyText: View {
+    let text: String
+    init(_ t: String) { text = t }
+    var body: some View {
+        Text(text).italic().font(Theme.bodyFont).foregroundStyle(Theme.textSecondary)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+/// The "Ask your assistant…" door — a dashed, quiet button that opens the
+/// Assistant root with text carried in (`.home-ask`).
+struct AskDoor: View {
+    let label: String
+    var action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                Image(systemName: "sparkles").font(.system(size: 15))
+                Text(label).font(Theme.bodyFont)
+                Spacer()
+            }
+            .foregroundStyle(Theme.textSecondary)
+            .padding(.horizontal, 14).padding(.vertical, 12)
+            .frame(minHeight: Theme.minimumTouchTarget)
+            .background(RoundedRectangle(cornerRadius: Theme.radiusMd).fill(Theme.surface))
+            .overlay(RoundedRectangle(cornerRadius: Theme.radiusMd).strokeBorder(Theme.border, style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+/// The assistant's box at the foot of a page or a record (2026-10-09, the
+/// desktop's PageChat): it opens ONE conversation per page or thing — the
+/// one already tied to it, else a new one tied to it — and its words say
+/// which ("Ask about this account…" / "Continue our conversation…").
+struct TiedChatDoor: View {
+    let tie: ChatTie
+    @EnvironmentObject var store: AppStore
+    @EnvironmentObject var chat: ChatState
+    @EnvironmentObject var router: Router
+
+    var body: some View {
+        let _ = store.revision
+        let started = chat.tiedConv(tie) != nil
+        AskDoor(label: started ? tie.resumePlaceholder : tie.placeholder) {
+            chat.openTied(tie)
+            router.openCompose()
+        }
+    }
+}
+
+/// Full-width inverted primary button, a pill (`.btn-primary`).
+struct PrimaryButton: View {
+    let label: String
+    var action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            Text(label).font(Theme.actionFont)
+                .frame(maxWidth: .infinity).padding(.vertical, 12)
+                .padding(.horizontal, Theme.md)
+                .frame(minHeight: Theme.minimumTouchTarget)
+                .background(Capsule().fill(Theme.accent))
+                .foregroundStyle(Color.white)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+/// Full-width outlined secondary button, a pill (`.btn-secondary`).
+struct SecondaryButton: View {
+    let label: String
+    var action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            Text(label).font(Theme.bodyFont.weight(.medium))
+                .frame(maxWidth: .infinity).padding(.vertical, 12)
+                .padding(.horizontal, Theme.md)
+                .frame(minHeight: Theme.minimumTouchTarget)
+                .background(Capsule().fill(Theme.surface))
+                .overlay(Capsule().strokeBorder(Theme.border))
+                .foregroundStyle(Theme.text)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+/// Quiet red text button for destructive actions (`.danger-btn`).
+struct DangerButton: View {
+    let label: String
+    var action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            Text(label).font(Theme.bodyFont.weight(.medium)).foregroundStyle(Theme.danger)
+                .frame(maxWidth: .infinity).padding(.vertical, 12)
+                .padding(.horizontal, Theme.md)
+                .frame(minHeight: Theme.minimumTouchTarget)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+/// A screen's scrolling column with the standard padding (the `#screen` column).
+///
+/// The stack is LAZY (2026-09-20). It was a plain `VStack`, which builds and
+/// lays out every row a screen hands it before the first frame — so opening
+/// Notes with a real library built hundreds of rows to show a dozen, and the
+/// push visibly stalled. `LazyVStack` builds what is on screen and the rest
+/// as they scroll in. Sections still appear in the order given; the only
+/// thing that changes is WHEN their rows are realised.
+struct ScreenColumn<Content: View>: View {
+    var spacing: CGFloat = 22
+    @ViewBuilder var content: () -> Content
+    var body: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: spacing) { content() }
+                .frame(maxWidth: Theme.readingWidth, alignment: .leading)
+                .padding(.horizontal, 18).padding(.top, 8).padding(.bottom, 32)
+                .frame(maxWidth: .infinity)
+        }
+        .background(Theme.bg)
+        .scrollDismissesKeyboard(.interactively)
+    }
+}
+
+/// Strip HTML tags, collapse whitespace, truncate — for previews.
+func stripHTML(_ s: String, _ max: Int = 80) -> String {
+    let noTags = s.replacingOccurrences(of: "<[^>]+>", with: " ", options: .regularExpression)
+        .replacingOccurrences(of: "&nbsp;", with: " ", options: .caseInsensitive)
+        .replacingOccurrences(of: "&[a-z]+;", with: " ", options: [.regularExpression, .caseInsensitive])
+    let collapsed = noTags.replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+    return collapsed.count > max ? String(collapsed.prefix(max)).trimmingCharacters(in: .whitespaces) + "…" : collapsed
+}
+
+/// Pushed screens hide the bar title (the content draws its own heading) but
+/// keep the system back button, which names the screen we came from.
+extension View {
+    func pushedScreen() -> some View {
+        self.navigationTitle("").inlineNavTitle().background(Theme.bg)
+    }
+    /// A root screen: hidden nav bar, titled so a pushed screen's Back names it.
+    func rootScreen(_ title: String) -> some View {
+        self.navigationTitle(title).hiddenNavBar().background(Theme.bg)
+    }
+}
