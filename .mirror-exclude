@@ -1,0 +1,100 @@
+# Paths stripped from the PUBLIC snapshot pushed to Anjadhe/Anjadhe.
+# One path per line, relative to repo root; directories end with /.
+# The snapshot is built from `git archive <tag>` (tracked files only, no history),
+# so anything not listed here becomes public. Edit freely.
+
+# --- Internal strategy / process / audit docs ---
+CLAUDE.md
+AGENTS.md
+POSITIONING.md
+PRODUCT-SPEC.md
+ISSUES.md
+RELEASING.md
+SECURITY-AUDIT.md
+docs/POSITIONING.md
+docs/PLATFORM.md
+docs/COWORK_AGENT.md
+docs/DISCOVER.md
+docs/RENAME-MIGRATION.md
+docs/REBRAND_NENVA.md
+docs/REBRAND_NENVA_RUNBOOK.md
+docs/DEMO.md
+docs/DEMOS.md
+docs/IOS_ENGINE.md
+docs/MOBILE_NATIVE.md
+docs/TASK_SYNC.md
+docs/LIFE_ORG.md
+docs/LIBRARY.md
+docs/AGENT_MEMORY_RESEARCH.md
+docs/WELLNESS_COACH.md
+docs/TASK_ENGINE.md
+docs/USE_CASES.md
+docs/ROUTINE_TRIGGERS.md
+docs/AI_ASSISTANT_DESIGN.md
+docs/LAUNCH_VIDEO.md
+docs/NOTICING.md
+docs/PROACTIVE.md
+docs/BILLING.md
+docs/TEACH.md
+docs/BROWSER_EXTENSION_STORE.md
+docs/BROWSER_EXTENSION_TESTING.md
+docs/OPEN_THREADS.md
+docs/demo-deck/
+docs/CASA_EVIDENCE.md
+docs/ROLLING_DOT_PLAN.md
+docs/PLAID_PRODUCTION.md
+docs/ROUTINES_UX.md
+casa-evidence/
+
+# --- Private-only mirror machinery (must never reach the public repo) ---
+mirror/
+.github/workflows/mirror.yml
+
+# --- Local secret files (untracked, listed defensively) ---
+.env
+.env.production
+docs/APPLE_IMPORT.md
+docs/ASSISTANT_CONTEXT.md
+docs/CLOUD_PRIVACY.md
+docs/EMAIL_AI.md
+docs/GOALS.md
+docs/PORTFOLIO.md
+docs/ROUTINES.md
+docs/BUSINESS_MODEL.md
+docs/CONTENT_FILES.md
+docs/SMALL_MODEL.md
+docs/PEER_PROTOCOL.md
+docs/ROBOT_DOG.md
+docs/IMESSAGE_CHANNEL.md
+docs/SPENDING.md
+docs/PORTFOLIO_SHARING.md
+docs/BACKGROUND_MODE.md
+docs/BROWSER_RUNTIME.md
+docs/SIMPLE_EXPERIENCE.md
+docs/SPECIALIST_AGENTS.md
+
+# --- Split out of CLAUDE.md 2026-09-22 (same content, new homes) ---
+docs/ARCHITECTURE.md
+docs/DESIGN_SYSTEM.md
+docs/SYNC.md
+docs/RELATED_PROJECTS.md
+
+# --- Working practices promoted out of per-machine agent memory 2026-09-22 ---
+docs/AGENT_NOTES.md
+
+# --- Growth research (2026-09-25): internal drafts, competitor notes, data snapshots ---
+docs/growth/
+scripts/growth-monitor.py
+docs/MATTERS.md
+docs/AI_NATIVE.md
+docs/COMMITMENTS.md
+docs/MONEY_COACH.md
+docs/MONEY_COACH_TESTPLAN.md
+docs/VISION.md
+docs/NOW.md
+docs/SLACK_MARKETPLACE.md
+docs/SLACK_MCP.md
+docs/SLACK_MONITORING.md
+docs/SLACK_TECHNICAL_WALKTHROUGH.md
+docs/slack-app-manifest.json
+docs/slack-app-manifest-public.json
