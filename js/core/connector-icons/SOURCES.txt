@@ -1,0 +1,33 @@
+Official app icons bundled for the Connectors list (2026-10-07).
+These marks identify the connected services; they remain their owners' marks.
+The app loads these files locally and never fetches icons at runtime.
+
+Gmail and Google Calendar
+Official product SVGs linked from https://workspace.google.com/products/gmail/
+and https://workspace.google.com/products/calendar/:
+https://www.gstatic.com/images/branding/productlogos/gmail_2026/v2/web/192px.svg
+https://www.gstatic.com/images/branding/productlogos/calendar_2026/v2/web/192px.svg
+
+Linear
+Official favicon linked from https://linear.app/brand:
+https://linear.app/static/favicon.svg?v=2
+
+Slack
+Official favicon linked from https://slack.com/media-kit:
+https://a.slack-edge.com/9cc0056/img/icons/favicon-32.png
+
+Plaid (Linked institutions)
+Official app icon linked from https://plaid.com/:
+https://plaid.com/assets/img/favicons/apple-touch-icon.png
+
+Apple Calendar, Messages, Notes, Reminders
+Exported as 64px PNGs from the official macOS app bundle icons:
+/System/Applications/{Calendar,Messages,Notes,Reminders}.app/Contents/Resources/AppIcon.icns
+
+Notion
+Exported as a 64px PNG from the installed official Notion app:
+/Applications/Notion.app/Contents/Resources/electron.icns
+
+Files is nenva's document library, not Apple's Files app. It keeps the
+shared document glyph. New sources without a brand asset use their
+registered fallback glyph.

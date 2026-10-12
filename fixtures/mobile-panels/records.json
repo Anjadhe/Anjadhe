@@ -1,0 +1,50 @@
+{
+  "today": "2026-10-12",
+  "blobs": {
+    "senders": {
+      "senders": {
+        "sender:fitness": { "id": "sender:fitness", "name": "Run a 10K", "allGood": "Build up steadily.", "state": "active", "confirmed": true },
+        "sender:utilities": { "id": "sender:utilities", "name": "Utilities", "allGood": "Every bill paid.", "state": "active", "confirmed": true }
+      },
+      "place": {
+        "task:goal": { "sender": "sender:fitness" },
+        "matter:aug": { "sender": "sender:utilities" },
+        "matter:sep": { "sender": "sender:utilities" },
+        "task:secret": { "sender": "sender:fitness" }
+      },
+      "aliases": { "sender:old-fitness": "sender:fitness" }
+    },
+    "commitments": {
+      "items": [
+        {
+          "id": "goal", "title": "Run a 10K", "state": "open",
+          "aim": { "measure": "distance", "target": 6.2, "unit": "mi", "dir": "up" },
+          "log": {
+            "2026-10-05": [{ "at": "2026-10-05T18:00:00Z", "quote": "I ran 2 miles.", "measures": [{ "name": "distance", "value": 2, "unit": "mi" }] }],
+            "2026-10-11": [{ "at": "2026-10-11T18:00:00Z", "quote": "I ran 3.1 miles.", "measures": [{ "name": "distance", "value": 3.1, "unit": "mi" }] }]
+          }
+        },
+        {
+          "id": "run", "title": "Easy run", "parent": "goal", "state": "open",
+          "when": { "date": "2026-10-06", "time": "17:30" }, "repeat": { "rule": "daily" },
+          "history": { "2026-10-06": "done", "2026-10-07": "dropped", "2026-10-11": "done" }
+        },
+        {
+          "id": "secret", "title": "Hidden work metric", "state": "open", "privacySources": ["slack"],
+          "aim": { "measure": "hidden metric", "target": 999, "unit": "", "dir": "up" }
+        }
+      ]
+    },
+    "matters": {
+      "matters": {
+        "matter:aug": { "id": "matter:aug", "title": "Water bill August", "kind": "bill", "state": "done", "amount": "$79.50", "when": { "date": "2026-08-15" } },
+        "matter:sep": { "id": "matter:sep", "title": "Water bill September", "kind": "bill", "state": "open", "amount": "$125.00", "when": { "date": "2026-09-15" } }
+      }
+    },
+    "thread-panels": {
+      "byKey": {
+        "sender:fitness": { "by": "you", "order": ["days:run", "progress:line:goal:distance"], "hidden": ["coming"] }
+      }
+    }
+  }
+}
