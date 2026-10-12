@@ -1,0 +1,37 @@
+{
+  "manifestVersion": 1,
+  "id": "portfolio",
+  "name": "Finance",
+  "version": "1.0.0",
+  "description": "Your money as data: accounts, holdings, property and debts with their history, the plan behind them, and bank and card spending; seen in a thread's drawer, kept up through the assistant.",
+  "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><polyline points=\"22 7 13.5 15.5 8.5 10.5 2 17\"/><polyline points=\"16 7 22 7 22 13\"/></svg>",
+  "group": "Money",
+  "hiddenByDefault": true,
+  "keywords": [
+    "finance",
+    "money",
+    "portfolio",
+    "holdings",
+    "stocks",
+    "spending",
+    "expenses",
+    "bank",
+    "credit card",
+    "transactions"
+  ],
+  "styles": [],
+  "scripts": [
+    "portfolio-prices.js",
+    "portfolio-app.js",
+    "portfolio-strategy.js",
+    "portfolio-brokerage.js",
+    "portfolio-tools.js",
+    "spending-app.js",
+    "spending-sync.js",
+    "spending-tools.js",
+    "portfolio-upkeep-tools.js",
+    "finance-transfer.js",
+    "finance-link-tools.js",
+    "finance-panels.js"
+  ]
+}
