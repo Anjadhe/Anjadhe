@@ -1,0 +1,2408 @@
+[
+  {
+    "name": "empty",
+    "operations": [],
+    "expected": {
+      "frontier": {},
+      "applied": [],
+      "pending": [],
+      "records": []
+    }
+  },
+  {
+    "name": "independent tasks",
+    "operations": [
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "a",
+        "sequence": 1,
+        "dependencies": {},
+        "recordType": "task",
+        "recordId": "one",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "title": "one"
+          }
+        }
+      },
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "b",
+        "sequence": 1,
+        "dependencies": {},
+        "recordType": "task",
+        "recordId": "two",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "title": "two"
+          }
+        }
+      }
+    ],
+    "expected": {
+      "frontier": {
+        "a": 1,
+        "b": 1
+      },
+      "applied": [
+        "a:1",
+        "b:1"
+      ],
+      "pending": [],
+      "records": [
+        {
+          "type": "task",
+          "id": "one",
+          "deleted": false,
+          "fields": {
+            "title": {
+              "value": "one",
+              "versions": [
+                {
+                  "operation": "a:1",
+                  "value": "one"
+                }
+              ]
+            }
+          },
+          "tags": [],
+          "completions": {},
+          "conflicts": {
+            "fields": [],
+            "completions": [],
+            "deletion": []
+          }
+        },
+        {
+          "type": "task",
+          "id": "two",
+          "deleted": false,
+          "fields": {
+            "title": {
+              "value": "two",
+              "versions": [
+                {
+                  "operation": "b:1",
+                  "value": "two"
+                }
+              ]
+            }
+          },
+          "tags": [],
+          "completions": {},
+          "conflicts": {
+            "fields": [],
+            "completions": [],
+            "deletion": []
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "different fields merge",
+    "operations": [
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "a",
+        "sequence": 1,
+        "dependencies": {},
+        "recordType": "task",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "title": "Dentist",
+            "schedule": {
+              "scheduledDate": "2026-10-09"
+            }
+          }
+        }
+      },
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "a",
+        "sequence": 2,
+        "dependencies": {
+          "a": 1
+        },
+        "recordType": "task",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "title": "Call dentist"
+          }
+        }
+      },
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "b",
+        "sequence": 1,
+        "dependencies": {
+          "a": 1
+        },
+        "recordType": "task",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "schedule": {
+              "scheduledDate": "2026-10-12"
+            }
+          }
+        }
+      }
+    ],
+    "expected": {
+      "frontier": {
+        "a": 2,
+        "b": 1
+      },
+      "applied": [
+        "a:1",
+        "a:2",
+        "b:1"
+      ],
+      "pending": [],
+      "records": [
+        {
+          "type": "task",
+          "id": "n",
+          "deleted": false,
+          "fields": {
+            "title": {
+              "value": "Call dentist",
+              "versions": [
+                {
+                  "operation": "a:2",
+                  "value": "Call dentist"
+                }
+              ]
+            },
+            "schedule": {
+              "value": {
+                "scheduledDate": "2026-10-12"
+              },
+              "versions": [
+                {
+                  "operation": "b:1",
+                  "value": {
+                    "scheduledDate": "2026-10-12"
+                  }
+                }
+              ]
+            }
+          },
+          "tags": [],
+          "completions": {},
+          "conflicts": {
+            "fields": [],
+            "completions": [],
+            "deletion": []
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "concurrent bodies ignore clocks",
+    "operations": [
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "a",
+        "sequence": 1,
+        "dependencies": {},
+        "recordType": "note",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "content": "base"
+          }
+        }
+      },
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "a",
+        "sequence": 2,
+        "dependencies": {
+          "a": 1
+        },
+        "recordType": "note",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "content": "Mac text"
+          }
+        },
+        "modifiedAt": "2099-01-01"
+      },
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "b",
+        "sequence": 1,
+        "dependencies": {
+          "a": 1
+        },
+        "recordType": "note",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "content": "Phone text"
+          }
+        },
+        "modifiedAt": "1990-01-01"
+      }
+    ],
+    "expected": {
+      "frontier": {
+        "a": 2,
+        "b": 1
+      },
+      "applied": [
+        "a:1",
+        "a:2",
+        "b:1"
+      ],
+      "pending": [],
+      "records": [
+        {
+          "type": "note",
+          "id": "n",
+          "deleted": false,
+          "fields": {
+            "content": {
+              "value": "Phone text",
+              "versions": [
+                {
+                  "operation": "a:2",
+                  "value": "Mac text"
+                },
+                {
+                  "operation": "b:1",
+                  "value": "Phone text"
+                }
+              ]
+            }
+          },
+          "tags": [],
+          "completions": {},
+          "conflicts": {
+            "fields": [
+              "content"
+            ],
+            "completions": [],
+            "deletion": []
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "explicit field resolution",
+    "operations": [
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "a",
+        "sequence": 1,
+        "dependencies": {},
+        "recordType": "note",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "content": "base"
+          }
+        }
+      },
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "a",
+        "sequence": 2,
+        "dependencies": {
+          "a": 1
+        },
+        "recordType": "note",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "content": "Mac text"
+          }
+        },
+        "modifiedAt": "2099-01-01"
+      },
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "b",
+        "sequence": 1,
+        "dependencies": {
+          "a": 1
+        },
+        "recordType": "note",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "content": "Phone text"
+          }
+        },
+        "modifiedAt": "1990-01-01"
+      },
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "a",
+        "sequence": 3,
+        "dependencies": {
+          "a": 2,
+          "b": 1
+        },
+        "recordType": "note",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "content": "Reviewed text"
+          }
+        }
+      }
+    ],
+    "expected": {
+      "frontier": {
+        "a": 3,
+        "b": 1
+      },
+      "applied": [
+        "a:1",
+        "a:2",
+        "a:3",
+        "b:1"
+      ],
+      "pending": [],
+      "records": [
+        {
+          "type": "note",
+          "id": "n",
+          "deleted": false,
+          "fields": {
+            "content": {
+              "value": "Reviewed text",
+              "versions": [
+                {
+                  "operation": "a:3",
+                  "value": "Reviewed text"
+                }
+              ]
+            }
+          },
+          "tags": [],
+          "completions": {},
+          "conflicts": {
+            "fields": [],
+            "completions": [],
+            "deletion": []
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "delete concurrent with edit retains edit",
+    "operations": [
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "a",
+        "sequence": 1,
+        "dependencies": {},
+        "recordType": "note",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "content": "base"
+          }
+        }
+      },
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "a",
+        "sequence": 2,
+        "dependencies": {
+          "a": 1
+        },
+        "recordType": "note",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "content": "Mac text"
+          }
+        },
+        "modifiedAt": "2099-01-01"
+      },
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "b",
+        "sequence": 1,
+        "dependencies": {
+          "a": 1
+        },
+        "recordType": "note",
+        "recordId": "n",
+        "mutation": {
+          "kind": "delete"
+        }
+      }
+    ],
+    "expected": {
+      "frontier": {
+        "a": 2,
+        "b": 1
+      },
+      "applied": [
+        "a:1",
+        "a:2",
+        "b:1"
+      ],
+      "pending": [],
+      "records": [
+        {
+          "type": "note",
+          "id": "n",
+          "deleted": true,
+          "fields": {
+            "content": {
+              "value": "Mac text",
+              "versions": [
+                {
+                  "operation": "a:2",
+                  "value": "Mac text"
+                }
+              ]
+            }
+          },
+          "tags": [],
+          "completions": {},
+          "conflicts": {
+            "fields": [],
+            "completions": [],
+            "deletion": [
+              "a:2"
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "observed delete resolves delete edit race",
+    "operations": [
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "a",
+        "sequence": 1,
+        "dependencies": {},
+        "recordType": "note",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "content": "base"
+          }
+        }
+      },
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "a",
+        "sequence": 2,
+        "dependencies": {
+          "a": 1
+        },
+        "recordType": "note",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "content": "Mac text"
+          }
+        },
+        "modifiedAt": "2099-01-01"
+      },
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "b",
+        "sequence": 1,
+        "dependencies": {
+          "a": 1
+        },
+        "recordType": "note",
+        "recordId": "n",
+        "mutation": {
+          "kind": "delete"
+        }
+      },
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "a",
+        "sequence": 3,
+        "dependencies": {
+          "a": 2,
+          "b": 1
+        },
+        "recordType": "note",
+        "recordId": "n",
+        "mutation": {
+          "kind": "delete"
+        }
+      }
+    ],
+    "expected": {
+      "frontier": {
+        "a": 3,
+        "b": 1
+      },
+      "applied": [
+        "a:1",
+        "a:2",
+        "a:3",
+        "b:1"
+      ],
+      "pending": [],
+      "records": [
+        {
+          "type": "note",
+          "id": "n",
+          "deleted": true,
+          "fields": {
+            "content": {
+              "value": "Mac text",
+              "versions": [
+                {
+                  "operation": "a:2",
+                  "value": "Mac text"
+                }
+              ]
+            }
+          },
+          "tags": [],
+          "completions": {},
+          "conflicts": {
+            "fields": [],
+            "completions": [],
+            "deletion": []
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "restore observes deletion and edit",
+    "operations": [
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "a",
+        "sequence": 1,
+        "dependencies": {},
+        "recordType": "note",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "content": "base"
+          }
+        }
+      },
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "a",
+        "sequence": 2,
+        "dependencies": {
+          "a": 1
+        },
+        "recordType": "note",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "content": "Mac text"
+          }
+        },
+        "modifiedAt": "2099-01-01"
+      },
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "b",
+        "sequence": 1,
+        "dependencies": {
+          "a": 1
+        },
+        "recordType": "note",
+        "recordId": "n",
+        "mutation": {
+          "kind": "delete"
+        }
+      },
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "a",
+        "sequence": 3,
+        "dependencies": {
+          "a": 2,
+          "b": 1
+        },
+        "recordType": "note",
+        "recordId": "n",
+        "mutation": {
+          "kind": "restore",
+          "fields": {
+            "content": "Restored"
+          }
+        }
+      }
+    ],
+    "expected": {
+      "frontier": {
+        "a": 3,
+        "b": 1
+      },
+      "applied": [
+        "a:1",
+        "a:2",
+        "a:3",
+        "b:1"
+      ],
+      "pending": [],
+      "records": [
+        {
+          "type": "note",
+          "id": "n",
+          "deleted": false,
+          "fields": {
+            "content": {
+              "value": "Restored",
+              "versions": [
+                {
+                  "operation": "a:3",
+                  "value": "Restored"
+                }
+              ]
+            }
+          },
+          "tags": [],
+          "completions": {},
+          "conflicts": {
+            "fields": [],
+            "completions": [],
+            "deletion": []
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "ordinary edit cannot resurrect deleted record",
+    "operations": [
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "a",
+        "sequence": 1,
+        "dependencies": {},
+        "recordType": "note",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "content": "base"
+          }
+        }
+      },
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "a",
+        "sequence": 2,
+        "dependencies": {
+          "a": 1
+        },
+        "recordType": "note",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "content": "Mac text"
+          }
+        },
+        "modifiedAt": "2099-01-01"
+      },
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "b",
+        "sequence": 1,
+        "dependencies": {
+          "a": 1
+        },
+        "recordType": "note",
+        "recordId": "n",
+        "mutation": {
+          "kind": "delete"
+        }
+      },
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "a",
+        "sequence": 3,
+        "dependencies": {
+          "a": 2,
+          "b": 1
+        },
+        "recordType": "note",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "content": "still hidden"
+          }
+        }
+      }
+    ],
+    "expected": {
+      "frontier": {
+        "a": 3,
+        "b": 1
+      },
+      "applied": [
+        "a:1",
+        "a:2",
+        "a:3",
+        "b:1"
+      ],
+      "pending": [],
+      "records": [
+        {
+          "type": "note",
+          "id": "n",
+          "deleted": true,
+          "fields": {
+            "content": {
+              "value": "still hidden",
+              "versions": [
+                {
+                  "operation": "a:3",
+                  "value": "still hidden"
+                }
+              ]
+            }
+          },
+          "tags": [],
+          "completions": {},
+          "conflicts": {
+            "fields": [],
+            "completions": [],
+            "deletion": [
+              "a:2"
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "duplicate delivery",
+    "operations": [
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "a",
+        "sequence": 1,
+        "dependencies": {},
+        "recordType": "note",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "content": "base"
+          }
+        }
+      },
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "a",
+        "sequence": 1,
+        "dependencies": {},
+        "recordType": "note",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "content": "base"
+          }
+        }
+      },
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "a",
+        "sequence": 2,
+        "dependencies": {
+          "a": 1
+        },
+        "recordType": "note",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "content": "Mac text"
+          }
+        },
+        "modifiedAt": "2099-01-01"
+      },
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "a",
+        "sequence": 2,
+        "dependencies": {
+          "a": 1
+        },
+        "recordType": "note",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "content": "Mac text"
+          }
+        },
+        "modifiedAt": "2099-01-01"
+      }
+    ],
+    "expected": {
+      "frontier": {
+        "a": 2
+      },
+      "applied": [
+        "a:1",
+        "a:2"
+      ],
+      "pending": [],
+      "records": [
+        {
+          "type": "note",
+          "id": "n",
+          "deleted": false,
+          "fields": {
+            "content": {
+              "value": "Mac text",
+              "versions": [
+                {
+                  "operation": "a:2",
+                  "value": "Mac text"
+                }
+              ]
+            }
+          },
+          "tags": [],
+          "completions": {},
+          "conflicts": {
+            "fields": [],
+            "completions": [],
+            "deletion": []
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "missing dependency waits",
+    "operations": [
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "a",
+        "sequence": 2,
+        "dependencies": {
+          "a": 1
+        },
+        "recordType": "note",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "content": "Mac text"
+          }
+        },
+        "modifiedAt": "2099-01-01"
+      }
+    ],
+    "expected": {
+      "frontier": {},
+      "applied": [],
+      "pending": [
+        {
+          "operation": "a:2",
+          "reason": "dependencies"
+        }
+      ],
+      "records": []
+    }
+  },
+  {
+    "name": "unknown schema cannot advance receipt",
+    "operations": [
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 2,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "a",
+        "sequence": 1,
+        "dependencies": {},
+        "recordType": "note",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "content": "future"
+          }
+        }
+      },
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "a",
+        "sequence": 2,
+        "dependencies": {
+          "a": 1
+        },
+        "recordType": "note",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "content": "Mac text"
+          }
+        },
+        "modifiedAt": "2099-01-01"
+      },
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "b",
+        "sequence": 1,
+        "dependencies": {},
+        "recordType": "note",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "title": "independent"
+          }
+        }
+      }
+    ],
+    "expected": {
+      "frontier": {
+        "b": 1
+      },
+      "applied": [
+        "b:1"
+      ],
+      "pending": [
+        {
+          "operation": "a:1",
+          "reason": "unsupported-schema"
+        },
+        {
+          "operation": "a:2",
+          "reason": "dependencies"
+        }
+      ],
+      "records": [
+        {
+          "type": "note",
+          "id": "n",
+          "deleted": false,
+          "fields": {
+            "title": {
+              "value": "independent",
+              "versions": [
+                {
+                  "operation": "b:1",
+                  "value": "independent"
+                }
+              ]
+            }
+          },
+          "tags": [],
+          "completions": {},
+          "conflicts": {
+            "fields": [],
+            "completions": [],
+            "deletion": []
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "tag removal does not erase concurrent readd",
+    "operations": [
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "a",
+        "sequence": 1,
+        "dependencies": {},
+        "recordType": "note",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "tagAdds": [
+            "Home"
+          ]
+        }
+      },
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "b",
+        "sequence": 1,
+        "dependencies": {
+          "a": 1
+        },
+        "recordType": "note",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "tagRemoves": [
+            "a:1:0"
+          ]
+        }
+      },
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "a",
+        "sequence": 2,
+        "dependencies": {
+          "a": 1
+        },
+        "recordType": "note",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "tagAdds": [
+            "Home"
+          ]
+        }
+      }
+    ],
+    "expected": {
+      "frontier": {
+        "a": 2,
+        "b": 1
+      },
+      "applied": [
+        "a:1",
+        "a:2",
+        "b:1"
+      ],
+      "pending": [],
+      "records": [
+        {
+          "type": "note",
+          "id": "n",
+          "deleted": false,
+          "fields": {},
+          "tags": [
+            "Home"
+          ],
+          "completions": {},
+          "conflicts": {
+            "fields": [],
+            "completions": [],
+            "deletion": []
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "observed tag removal",
+    "operations": [
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "a",
+        "sequence": 1,
+        "dependencies": {},
+        "recordType": "note",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "tagAdds": [
+            "Home"
+          ]
+        }
+      },
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "b",
+        "sequence": 1,
+        "dependencies": {
+          "a": 1
+        },
+        "recordType": "note",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "tagRemoves": [
+            "a:1:0"
+          ]
+        }
+      }
+    ],
+    "expected": {
+      "frontier": {
+        "a": 1,
+        "b": 1
+      },
+      "applied": [
+        "a:1",
+        "b:1"
+      ],
+      "pending": [],
+      "records": [
+        {
+          "type": "note",
+          "id": "n",
+          "deleted": false,
+          "fields": {},
+          "tags": [],
+          "completions": {},
+          "conflicts": {
+            "fields": [],
+            "completions": [],
+            "deletion": []
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "unicode tags normalize and sort by scalar",
+    "operations": [
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "a",
+        "sequence": 1,
+        "dependencies": {},
+        "recordType": "note",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "tagAdds": [
+            "café",
+            "café",
+            "தமிழ்",
+            "😀",
+            ""
+          ]
+        }
+      }
+    ],
+    "expected": {
+      "frontier": {
+        "a": 1
+      },
+      "applied": [
+        "a:1"
+      ],
+      "pending": [],
+      "records": [
+        {
+          "type": "note",
+          "id": "n",
+          "deleted": false,
+          "fields": {},
+          "tags": [
+            "café",
+            "தமிழ்",
+            "",
+            "😀"
+          ],
+          "completions": {},
+          "conflicts": {
+            "fields": [],
+            "completions": [],
+            "deletion": []
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "recurring completion scoped by occurrence",
+    "operations": [
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "a",
+        "sequence": 1,
+        "dependencies": {},
+        "recordType": "task",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "title": "Water plants"
+          }
+        }
+      },
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "a",
+        "sequence": 2,
+        "dependencies": {
+          "a": 1
+        },
+        "recordType": "task",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "completion": {
+            "occurrence": "2026-10-09",
+            "done": true
+          }
+        }
+      },
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "b",
+        "sequence": 1,
+        "dependencies": {
+          "a": 1
+        },
+        "recordType": "task",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "completion": {
+            "occurrence": "2026-10-10",
+            "done": false
+          }
+        }
+      }
+    ],
+    "expected": {
+      "frontier": {
+        "a": 2,
+        "b": 1
+      },
+      "applied": [
+        "a:1",
+        "a:2",
+        "b:1"
+      ],
+      "pending": [],
+      "records": [
+        {
+          "type": "task",
+          "id": "n",
+          "deleted": false,
+          "fields": {
+            "title": {
+              "value": "Water plants",
+              "versions": [
+                {
+                  "operation": "a:1",
+                  "value": "Water plants"
+                }
+              ]
+            }
+          },
+          "tags": [],
+          "completions": {
+            "2026-10-09": {
+              "value": true,
+              "versions": [
+                {
+                  "operation": "a:2",
+                  "value": true
+                }
+              ]
+            },
+            "2026-10-10": {
+              "value": false,
+              "versions": [
+                {
+                  "operation": "b:1",
+                  "value": false
+                }
+              ]
+            }
+          },
+          "conflicts": {
+            "fields": [],
+            "completions": [],
+            "deletion": []
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "concurrent completion retained",
+    "operations": [
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "a",
+        "sequence": 1,
+        "dependencies": {},
+        "recordType": "task",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "title": "Water plants"
+          }
+        }
+      },
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "a",
+        "sequence": 2,
+        "dependencies": {
+          "a": 1
+        },
+        "recordType": "task",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "completion": {
+            "occurrence": "2026-10-09",
+            "done": true
+          }
+        }
+      },
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "b",
+        "sequence": 1,
+        "dependencies": {
+          "a": 1
+        },
+        "recordType": "task",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "completion": {
+            "occurrence": "2026-10-09",
+            "done": false
+          }
+        }
+      }
+    ],
+    "expected": {
+      "frontier": {
+        "a": 2,
+        "b": 1
+      },
+      "applied": [
+        "a:1",
+        "a:2",
+        "b:1"
+      ],
+      "pending": [],
+      "records": [
+        {
+          "type": "task",
+          "id": "n",
+          "deleted": false,
+          "fields": {
+            "title": {
+              "value": "Water plants",
+              "versions": [
+                {
+                  "operation": "a:1",
+                  "value": "Water plants"
+                }
+              ]
+            }
+          },
+          "tags": [],
+          "completions": {
+            "2026-10-09": {
+              "value": false,
+              "versions": [
+                {
+                  "operation": "a:2",
+                  "value": true
+                },
+                {
+                  "operation": "b:1",
+                  "value": false
+                }
+              ]
+            }
+          },
+          "conflicts": {
+            "fields": [],
+            "completions": [
+              "2026-10-09"
+            ],
+            "deletion": []
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "null is a field value",
+    "operations": [
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "a",
+        "sequence": 1,
+        "dependencies": {},
+        "recordType": "task",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "schedule": null
+          }
+        }
+      }
+    ],
+    "expected": {
+      "frontier": {
+        "a": 1
+      },
+      "applied": [
+        "a:1"
+      ],
+      "pending": [],
+      "records": [
+        {
+          "type": "task",
+          "id": "n",
+          "deleted": false,
+          "fields": {
+            "schedule": {
+              "value": null,
+              "versions": [
+                {
+                  "operation": "a:1",
+                  "value": null
+                }
+              ]
+            }
+          },
+          "tags": [],
+          "completions": {},
+          "conflicts": {
+            "fields": [],
+            "completions": [],
+            "deletion": []
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "equal concurrent values need no review",
+    "operations": [
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "a",
+        "sequence": 1,
+        "dependencies": {},
+        "recordType": "note",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "title": "same"
+          }
+        }
+      },
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "b",
+        "sequence": 1,
+        "dependencies": {},
+        "recordType": "note",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "title": "same"
+          }
+        }
+      }
+    ],
+    "expected": {
+      "frontier": {
+        "a": 1,
+        "b": 1
+      },
+      "applied": [
+        "a:1",
+        "b:1"
+      ],
+      "pending": [],
+      "records": [
+        {
+          "type": "note",
+          "id": "n",
+          "deleted": false,
+          "fields": {
+            "title": {
+              "value": "same",
+              "versions": [
+                {
+                  "operation": "a:1",
+                  "value": "same"
+                },
+                {
+                  "operation": "b:1",
+                  "value": "same"
+                }
+              ]
+            }
+          },
+          "tags": [],
+          "completions": {},
+          "conflicts": {
+            "fields": [],
+            "completions": [],
+            "deletion": []
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "distinct body unicode encodings retained",
+    "operations": [
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "a",
+        "sequence": 1,
+        "dependencies": {},
+        "recordType": "note",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "content": "café"
+          }
+        }
+      },
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "b",
+        "sequence": 1,
+        "dependencies": {},
+        "recordType": "note",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "content": "café"
+          }
+        }
+      }
+    ],
+    "expected": {
+      "frontier": {
+        "a": 1,
+        "b": 1
+      },
+      "applied": [
+        "a:1",
+        "b:1"
+      ],
+      "pending": [],
+      "records": [
+        {
+          "type": "note",
+          "id": "n",
+          "deleted": false,
+          "fields": {
+            "content": {
+              "value": "café",
+              "versions": [
+                {
+                  "operation": "a:1",
+                  "value": "café"
+                },
+                {
+                  "operation": "b:1",
+                  "value": "café"
+                }
+              ]
+            }
+          },
+          "tags": [],
+          "completions": {},
+          "conflicts": {
+            "fields": [
+              "content"
+            ],
+            "completions": [],
+            "deletion": []
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "same dot different payload",
+    "operations": [
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "a",
+        "sequence": 1,
+        "dependencies": {},
+        "recordType": "note",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "content": "base"
+          }
+        }
+      },
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "a",
+        "sequence": 1,
+        "dependencies": {},
+        "recordType": "note",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "content": "tampered"
+          }
+        }
+      }
+    ],
+    "error": true
+  },
+  {
+    "name": "wrong dataset",
+    "operations": [
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "other",
+        "membershipEpoch": 1,
+        "deviceId": "a",
+        "sequence": 1,
+        "dependencies": {},
+        "recordType": "note",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "content": "base"
+          }
+        }
+      }
+    ],
+    "error": true
+  },
+  {
+    "name": "self sequence must be contiguous",
+    "operations": [
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "a",
+        "sequence": 3,
+        "dependencies": {
+          "a": 1
+        },
+        "recordType": "note",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "content": "bad"
+          }
+        }
+      }
+    ],
+    "error": true
+  },
+  {
+    "name": "restore must observe a deletion",
+    "operations": [
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "a",
+        "sequence": 1,
+        "dependencies": {},
+        "recordType": "note",
+        "recordId": "n",
+        "mutation": {
+          "kind": "restore"
+        }
+      }
+    ],
+    "error": true
+  },
+  {
+    "name": "tag removal must observe the add",
+    "operations": [
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "a",
+        "sequence": 1,
+        "dependencies": {},
+        "recordType": "note",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "tagAdds": [
+            "Home"
+          ]
+        }
+      },
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "b",
+        "sequence": 1,
+        "dependencies": {},
+        "recordType": "note",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "tagRemoves": [
+            "a:1:0"
+          ]
+        }
+      }
+    ],
+    "error": true
+  },
+  {
+    "name": "tag removal cannot cross records",
+    "operations": [
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "a",
+        "sequence": 1,
+        "dependencies": {},
+        "recordType": "note",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "tagAdds": [
+            "Home"
+          ]
+        }
+      },
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "b",
+        "sequence": 1,
+        "dependencies": {
+          "a": 1
+        },
+        "recordType": "note",
+        "recordId": "other",
+        "mutation": {
+          "kind": "edit",
+          "tagRemoves": [
+            "a:1:0"
+          ]
+        }
+      }
+    ],
+    "error": true
+  },
+  {
+    "name": "unknown field is not executable work",
+    "operations": [
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "a",
+        "sequence": 1,
+        "dependencies": {},
+        "recordType": "note",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "execute": "send email"
+          }
+        }
+      }
+    ],
+    "error": true
+  },
+  {
+    "name": "schedule time pair stays valid",
+    "operations": [
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "a",
+        "sequence": 1,
+        "dependencies": {},
+        "recordType": "task",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "schedule": {
+              "startTime": "12:00",
+              "endTime": "10:00"
+            }
+          }
+        }
+      }
+    ],
+    "error": true
+  },
+  {
+    "name": "transitive dependencies cannot be omitted",
+    "operations": [
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "a",
+        "sequence": 1,
+        "dependencies": {},
+        "recordType": "note",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "content": "base"
+          }
+        }
+      },
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "b",
+        "sequence": 1,
+        "dependencies": {
+          "a": 1
+        },
+        "recordType": "note",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "title": "b"
+          }
+        }
+      },
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "c",
+        "sequence": 1,
+        "dependencies": {
+          "b": 1
+        },
+        "recordType": "note",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "title": "c"
+          }
+        }
+      }
+    ],
+    "error": true
+  },
+  {
+    "name": "writer newline invalid",
+    "operations": [
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "a\n",
+        "sequence": 1,
+        "dependencies": {},
+        "recordType": "note",
+        "recordId": "n",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "title": "bad"
+          }
+        }
+      }
+    ],
+    "error": true
+  },
+  {
+    "name": "nonleap date",
+    "operations": [
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "a",
+        "sequence": 1,
+        "dependencies": {},
+        "recordType": "task",
+        "recordId": "t",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "schedule": {
+              "scheduledDate": "2026-02-29"
+            }
+          }
+        }
+      }
+    ],
+    "error": true
+  },
+  {
+    "name": "zero year",
+    "operations": [
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "a",
+        "sequence": 1,
+        "dependencies": {},
+        "recordType": "task",
+        "recordId": "t",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "schedule": {
+              "scheduledDate": "0000-01-01"
+            }
+          }
+        }
+      }
+    ],
+    "error": true
+  },
+  {
+    "name": "date newline",
+    "operations": [
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "a",
+        "sequence": 1,
+        "dependencies": {},
+        "recordType": "task",
+        "recordId": "t",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "schedule": {
+              "scheduledDate": "2026-10-09\n"
+            }
+          }
+        }
+      }
+    ],
+    "error": true
+  },
+  {
+    "name": "time newline",
+    "operations": [
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "a",
+        "sequence": 1,
+        "dependencies": {},
+        "recordType": "task",
+        "recordId": "t",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "schedule": {
+              "startTime": "12:00\n"
+            }
+          }
+        }
+      }
+    ],
+    "error": true
+  },
+  {
+    "name": "negative zero is the same JSON number",
+    "operations": [
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "a",
+        "sequence": 1,
+        "dependencies": {},
+        "recordType": "task",
+        "recordId": "t",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "schedule": {
+              "notifyBefore": 0
+            }
+          }
+        }
+      },
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "a",
+        "sequence": 1,
+        "dependencies": {},
+        "recordType": "task",
+        "recordId": "t",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "schedule": {
+              "notifyBefore": -0.0
+            }
+          }
+        }
+      }
+    ],
+    "expected": {
+      "frontier": {
+        "a": 1
+      },
+      "applied": [
+        "a:1"
+      ],
+      "pending": [],
+      "records": [
+        {
+          "type": "task",
+          "id": "t",
+          "deleted": false,
+          "fields": {
+            "schedule": {
+              "value": {
+                "notifyBefore": 0
+              },
+              "versions": [
+                {
+                  "operation": "a:1",
+                  "value": {
+                    "notifyBefore": 0
+                  }
+                }
+              ]
+            }
+          },
+          "tags": [],
+          "completions": {},
+          "conflicts": {
+            "fields": [],
+            "completions": [],
+            "deletion": []
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "writer named constructor is an ordinary identity",
+    "operations": [
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "constructor",
+        "sequence": 1,
+        "dependencies": {},
+        "recordType": "task",
+        "recordId": "one",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "title": "one"
+          }
+        }
+      },
+      {
+        "protocolVersion": 2,
+        "schemaVersion": 1,
+        "datasetId": "fixture",
+        "membershipEpoch": 1,
+        "deviceId": "b",
+        "sequence": 1,
+        "dependencies": {},
+        "recordType": "task",
+        "recordId": "two",
+        "mutation": {
+          "kind": "edit",
+          "fields": {
+            "title": "two"
+          }
+        }
+      }
+    ],
+    "expected": {
+      "frontier": {
+        "constructor": 1,
+        "b": 1
+      },
+      "applied": [
+        "b:1",
+        "constructor:1"
+      ],
+      "pending": [],
+      "records": [
+        {
+          "type": "task",
+          "id": "one",
+          "deleted": false,
+          "fields": {
+            "title": {
+              "value": "one",
+              "versions": [
+                {
+                  "operation": "constructor:1",
+                  "value": "one"
+                }
+              ]
+            }
+          },
+          "tags": [],
+          "completions": {},
+          "conflicts": {
+            "fields": [],
+            "completions": [],
+            "deletion": []
+          }
+        },
+        {
+          "type": "task",
+          "id": "two",
+          "deleted": false,
+          "fields": {
+            "title": {
+              "value": "two",
+              "versions": [
+                {
+                  "operation": "b:1",
+                  "value": "two"
+                }
+              ]
+            }
+          },
+          "tags": [],
+          "completions": {},
+          "conflicts": {
+            "fields": [],
+            "completions": [],
+            "deletion": []
+          }
+        }
+      ]
+    }
+  }
+]
