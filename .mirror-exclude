@@ -1,0 +1,107 @@
+
+.env
+.env.production
+.github/workflows/mirror.yml
+# --- Growth research (2026-09-25): internal drafts, competitor notes, data snapshots ---
+# --- Internal strategy / process / audit docs ---
+# --- Local secret files (untracked, listed defensively) ---
+# --- Private-only mirror machinery (must never reach the public repo) ---
+# --- Split out of CLAUDE.md 2026-09-22 (same content, new homes) ---
+# --- Working practices promoted out of per-machine agent memory 2026-09-22 ---
+# One path per line, relative to repo root; directories end with /.
+# Paths stripped from the PUBLIC snapshot pushed to Anjadhe/Anjadhe.
+# so anything not listed here becomes public. Edit freely.
+# The snapshot is built from `git archive <tag>` (tracked files only, no history),
+AGENTS.md
+casa-evidence/
+CLAUDE.md
+docs/AGENT_MEMORY_RESEARCH.md
+docs/AGENT_NOTES.md
+docs/AI_ASSISTANT_DESIGN.md
+docs/AI_NATIVE.md
+docs/APPLE_IMPORT.md
+docs/ARCHITECTURE_REVIEW.html
+docs/ARCHITECTURE.md
+docs/ASSISTANT_CONTEXT.md
+docs/BACKGROUND_MODE.md
+docs/BILLING.md
+docs/BROWSER_EXTENSION_STORE.md
+docs/BROWSER_EXTENSION_TESTING.md
+docs/BROWSER_RUNTIME.md
+docs/BUSINESS_MODEL.md
+docs/CASA_EVIDENCE.md
+docs/CLOUD_PRIVACY.md
+docs/COACH.md
+docs/COMMITMENTS.md
+docs/CONTENT_FILES.md
+docs/COWORK_AGENT.md
+docs/DECISION_MODELS.md
+docs/demo-deck/
+docs/DEMO.md
+docs/DEMOS.md
+docs/DESIGN_SYSTEM.md
+docs/DISCOVER.md
+docs/DURABLE_JOBS.md
+docs/EMAIL_AI.md
+docs/GOALS.md
+docs/growth/
+docs/IMESSAGE_CHANNEL.md
+docs/IOS_ENGINE.md
+docs/LAUNCH_VIDEO.md
+docs/LIBRARY.md
+docs/LIFE_ORG.md
+docs/LOCAL_LLM_PERFORMANCE.md
+docs/MATTERS.md
+docs/MOBILE_NATIVE.md
+docs/MOBILE_STANDALONE.md
+docs/MOBILE_THREADS.md
+docs/MOBILE_UX.md
+docs/MONEY_COACH_TESTPLAN.md
+docs/MONEY_COACH.md
+docs/NOTICING.md
+docs/NOW.md
+docs/OPEN_THREADS.md
+docs/PEER_PROTOCOL.md
+docs/PLAID_PRODUCTION.md
+docs/PLATFORM.md
+docs/PORTFOLIO_SHARING.md
+docs/PORTFOLIO.md
+docs/POSITIONING.md
+docs/PROACTIVE.md
+docs/REBRAND_NENVA_RUNBOOK.md
+docs/REBRAND_NENVA.md
+docs/RELATED_PROJECTS.md
+docs/RENAME-MIGRATION.md
+docs/ROBOT_DOG.md
+docs/ROLLING_DOT_PLAN.md
+docs/ROUTINE_TRIGGERS.md
+docs/ROUTINES_UX.md
+docs/ROUTINES.md
+docs/SENDERS.md
+docs/SIMPLE_EXPERIENCE.md
+docs/SLACK_MARKETPLACE.md
+docs/SLACK_MCP.md
+docs/SLACK_MONITORING.md
+docs/SLACK_TECHNICAL_WALKTHROUGH.md
+docs/slack-app-manifest-public.json
+docs/slack-app-manifest.json
+docs/SMALL_MODEL.md
+docs/SPECIALIST_AGENTS.md
+docs/SPENDING.md
+docs/SYNC.md
+docs/TASK_ENGINE.md
+docs/TASK_SYNC.md
+docs/TEACH.md
+docs/THREAD_PANELS.md
+docs/THREADS_DEMO.md
+docs/threads-demo/
+docs/USE_CASES.md
+docs/VISION.md
+docs/WELLNESS_COACH.md
+ISSUES.md
+mirror/
+POSITIONING.md
+PRODUCT-SPEC.md
+RELEASING.md
+scripts/growth-monitor.py
+SECURITY-AUDIT.md

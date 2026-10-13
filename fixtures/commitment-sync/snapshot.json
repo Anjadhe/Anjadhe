@@ -1,0 +1,114 @@
+{
+  "items": [
+    {
+      "id": "goal",
+      "title": "Run comfortably",
+      "note": "",
+      "parent": null,
+      "outcome": "Run a 10K",
+      "when": null,
+      "by": null,
+      "repeat": {
+        "rule": "none",
+        "days": []
+      },
+      "remind": null,
+      "waitingOn": null,
+      "state": "open",
+      "history": {},
+      "origin": {
+        "kind": "you"
+      },
+      "read": null,
+      "timer": null,
+      "tags": [],
+      "createdAt": "2026-10-09T08:00:00Z",
+      "updatedAt": "2026-10-09T08:00:00Z",
+      "doneAt": null,
+      "shape": "goal",
+      "domain": "fitness",
+      "aim": {
+        "measure": "distance",
+        "target": 10,
+        "unit": "km",
+        "dir": "up"
+      }
+    },
+    {
+      "id": "run",
+      "title": "Run in the morning",
+      "note": "",
+      "parent": "goal",
+      "outcome": null,
+      "when": {
+        "date": "2026-10-09",
+        "time": "07:00",
+        "end": "07:40"
+      },
+      "by": null,
+      "repeat": {
+        "rule": "daily",
+        "days": []
+      },
+      "remind": null,
+      "waitingOn": null,
+      "state": "open",
+      "history": {
+        "2026-10-11": "done"
+      },
+      "origin": {
+        "kind": "you"
+      },
+      "read": {
+        "cache": "LOCAL_ONLY"
+      },
+      "timer": null,
+      "tags": [],
+      "createdAt": "2026-10-09T08:01:00Z",
+      "updatedAt": "2026-10-09T08:01:00Z",
+      "doneAt": null,
+      "shape": "task",
+      "until": "2026-10-31",
+      "log": {
+        "2026-10-11": [
+          {
+            "at": "2026-10-11T08:00:00Z",
+            "quote": "Ran 4 km in 40 minutes",
+            "measures": [
+              {
+                "name": "distance",
+                "value": 4,
+                "unit": "km"
+              },
+              {
+                "name": "duration",
+                "value": 40,
+                "unit": "min"
+              }
+            ]
+          }
+        ],
+        "2026-10-12": [
+          {
+            "at": "2026-10-12T08:00:00Z",
+            "quote": "I will run this evening",
+            "plan": true
+          }
+        ]
+      },
+      "moved": {
+        "2026-10-12": {
+          "time": "18:00",
+          "end": "18:40"
+        }
+      }
+    }
+  ],
+  "ledger": [
+    {
+      "id": "local-ledger",
+      "receipt": "LOCAL_ONLY"
+    }
+  ],
+  "tombstones": {}
+}
